@@ -59,7 +59,7 @@ export interface LevelUpPlan {
 function findText(features: SrdFeature[], name: string, level: number): SrdFeature | undefined {
   const same = features.filter((f) => f.name.toLowerCase() === name.toLowerCase())
   if (!same.length) return undefined
-  // Prefer the entry for exactly this level, else the latest one at or below it (e.g. ASI at 8 -> the level 4 text).
+  // Prefer the entry for exactly this level, else the latest one at or below it (e.g. ASI at 8 → the level 4 text).
   return same.find((f) => f.level === level) ?? same.filter((f) => f.level <= level).sort((a, b) => b.level - a.level)[0] ?? same[0]
 }
 
@@ -136,9 +136,9 @@ export function planLevelUp(c: Character, classId: string, subclassOverride?: st
     }
     for (const ch of columnChanges) {
       if (/cantrips/i.test(ch.label)) decisions.push(`Learn ${Number(ch.after) - (Number(ch.before) || 0)} new cantrip(s).`)
-      else if (/prepared spells/i.test(ch.label)) decisions.push(`Prepared spells: ${ch.before} -> ${ch.after}. Pick the new spell(s).`)
-      else if (/invocations/i.test(ch.label)) decisions.push(`Eldritch Invocations: ${ch.before} -> ${ch.after}. Pick the new one(s).`)
-      else if (/weapon mastery/i.test(ch.label)) decisions.push(`Weapon Mastery: ${ch.before} -> ${ch.after} weapons. Pick the new one(s).`)
+      else if (/prepared spells/i.test(ch.label)) decisions.push(`Prepared spells: ${ch.before} → ${ch.after}. Pick the new spell(s).`)
+      else if (/invocations/i.test(ch.label)) decisions.push(`Eldritch Invocations: ${ch.before} → ${ch.after}. Pick the new one(s).`)
+      else if (/weapon mastery/i.test(ch.label)) decisions.push(`Weapon Mastery: ${ch.before} → ${ch.after} weapons. Pick the new one(s).`)
     }
     for (const f of features) {
       if (/\b(of your choice|choose|you gain one|you learn)\b/i.test(f.text) && !f.alreadyHave) decisions.push(`${f.name}: this feature includes a choice. Read it and decide.`)

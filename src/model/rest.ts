@@ -78,7 +78,7 @@ export function longRest(c: Character, opts: { dawn?: boolean } = { dawn: true }
   if (Object.values(c.combat.hitDiceUsed).some((n) => n > 0)) out.restored.push('All Hit Point Dice')
   if (c.spellcasting.slotsUsed.some((n) => n > 0)) out.restored.push('All spell slots')
   if (c.spellcasting.pactSlotsUsed > 0) out.restored.push('Pact Magic slots')
-  if (c.exhaustion > 0) out.restored.push(`Exhaustion ${c.exhaustion} -> ${c.exhaustion - 1}`)
+  if (c.exhaustion > 0) out.restored.push(`Exhaustion ${c.exhaustion} → ${c.exhaustion - 1}`)
   if (c.combat.hp.temp > 0) out.reminders.push('Temporary Hit Points ended.')
   if (c.spellcasting.concentration) out.reminders.push(`Concentration on ${c.spellcasting.concentration} ended (you slept).`)
   next = {

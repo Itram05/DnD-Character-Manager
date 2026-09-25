@@ -111,7 +111,6 @@ export function PlayView({ api }: { api: SheetApi }) {
         </div>
       </div>
 
-      <div className="play-top">
         {mana.length > 0 && (
           <section className="mana panel">
             <h3>{t('play.mana')}</h3>
@@ -166,7 +165,6 @@ export function PlayView({ api }: { api: SheetApi }) {
             </div>
           </section>
         )}
-      </div>
 
       <div className={`hands hands-${zonesToShow.length > 1 ? 'multi' : 'single'} mode-${mode}`}>
         {zonesToShow.map((z) => {

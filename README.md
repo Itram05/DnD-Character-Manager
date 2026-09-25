@@ -1,32 +1,46 @@
-# React + TypeScript + Vite
+# Hero Deck
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A character tracker for fifth edition (2024 rules / SRD 5.2.1). Static web app: no server, no accounts.
+Characters live in the browser's localStorage; Export/Import JSON moves them between devices.
 
-Currently, two official plugins are available:
+## Run
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev        # http://localhost:5173
+npm test           # vitest
+npm run build      # static site in dist/ (relative paths, works from a sub-folder such as GitHub Pages)
+npm run preview    # serve dist/ at http://localhost:4173
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Where things are
+
+| Path | What |
+|---|---|
+| `src/model/` | Data model and rules, no React: `types.ts` (the format), `normalize.ts` (forgiving import), `rules.ts` (all calculations), `rest.ts`, `levelup.ts`, `play.ts` (cards, mana, casting), `expr.ts` (formulas), `storage.ts` |
+| `src/ui/` | React screens. `PlayView.tsx` + `GameCard.tsx` are the card table. |
+| `src/i18n/en.ts` | Every UI string. Add `bg.ts` with the same keys to translate. |
+| `src/content/rulesHelp.en.ts` | Hand-written rules summaries (turn, 2014 → 2024). |
+| `src/data/srd/*.json` | Rules data generated from SRD 5.2.1 by `scripts/build-srd-data.mjs`. |
+| `src/data/srdPresets.ts` | Hand-checked uses/activation for SRD class features. |
+| `SCHEMA.md`, `examples/` | Character file format and a full example. |
+
+## The play screen
+
+Every active feature, prepared spell, attack and usable item is a **card** in a hand for its action type
+(Action / Bonus / Reaction / Free). Using the last charge **taps** the card (turned sideways, darkened);
+Short and Long Rest **untap** what they restore. Spell slots are **mana**; casting from a card asks which slot pays.
+Passive features lie on the **Always on** strip. Concentration sits in its own slot. Cards ↔ List toggle for dense sheets.
+
+## Rules data and license
+
+Rules text comes from the **System Reference Document 5.2.1** (Wizards of the Coast, CC-BY-4.0),
+via the Markdown transcription https://github.com/downfallx/dnd-5e-srd-markdown (CC-BY-4.0).
+To regenerate: clone that repo and run `node scripts/build-srd-data.mjs <path>`.
+The tests check the parsed class tables against the official multiclass spell-slot table.
+
+This work includes material from the System Reference Document 5.2.1 ("SRD 5.2.1") by Wizards of the Coast LLC,
+available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0
+International License, available at https://creativecommons.org/licenses/by/4.0/legalcode.
+
+Compatible with fifth edition. Not affiliated with or endorsed by Wizards of the Coast.
