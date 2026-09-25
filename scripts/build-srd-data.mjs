@@ -301,8 +301,12 @@ function parseSpells() {
       classes = m[2].split(',').map((c) => c.trim())
     } else continue
     const field = (label) => {
-      const l = lines.find((x) => x.startsWith(`**${label}:**`))
-      return l ? l.slice(label.length + 5).trim() : ''
+      // the source sometimes writes "Component:" instead of "Components:"
+      for (const lb of [label, label.replace(/s$/, '')]) {
+        const l = lines.find((x) => x.startsWith(`**${lb}:**`))
+        if (l) return l.slice(lb.length + 5).trim()
+      }
+      return ''
     }
     const castingTime = field('Casting Time')
     const duration = field('Duration')

@@ -1,0 +1,229 @@
+{
+  "schemaVersion": 1,
+  "name": "Seraphine Vael",
+  "player": "Example",
+  "species": { "name": "Dragonborn (Gold)", "size": "Medium" },
+  "background": "Acolyte",
+  "alignment": "Lawful Good",
+  "xp": 23000,
+
+  "classes": [
+    { "id": "paladin", "level": 3, "subclass": "Oath of Devotion" },
+    { "id": "sorcerer", "level": 3, "subclass": "Draconic Sorcery" },
+    { "id": "warlock", "level": 1 }
+  ],
+
+  "abilities": { "str": 14, "dex": 10, "con": 14, "int": 8, "wis": 10, "cha": 17 },
+
+  "proficiencies": {
+    "skills": { "athletics": "proficient", "insight": "proficient", "religion": "proficient", "persuasion": "proficient", "intimidation": "proficient" },
+    "armor": "Light, Medium, Heavy armor; Shields",
+    "weapons": "Simple and Martial weapons",
+    "tools": "Calligrapher's Supplies",
+    "languages": "Common, Draconic, Celestial",
+    "weaponMasteries": ["Longsword (Sap)", "Javelin (Slow)"]
+  },
+
+  "combat": {
+    "unarmoredAc": "10 + dex + cha",
+    "acBonus": 1,
+    "speed": 30,
+    "hp": { "max": 56, "current": 41, "temp": 0 },
+    "hitDiceUsed": { "d10": 1 },
+    "deathSaves": { "successes": 0, "failures": 0 }
+  },
+
+  "conditions": [],
+  "exhaustion": 0,
+  "heroicInspiration": true,
+
+  "features": [
+    {
+      "name": "Lay On Hands",
+      "source": { "type": "class", "name": "Paladin 1" },
+      "activation": "bonus",
+      "uses": { "max": "paladin * 5", "used": 5, "recharge": "long", "note": "HP pool" },
+      "description": "Pool of healing equal to 5 x Paladin level. Bonus Action: touch a creature and restore HP from the pool, or spend 5 points to remove the Poisoned condition."
+    },
+    {
+      "name": "Weapon Mastery",
+      "source": { "type": "class", "name": "Paladin 1" },
+      "activation": "passive",
+      "description": "Use the mastery properties of two kinds of weapons (Longsword: Sap, Javelin: Slow). Can swap after a Long Rest."
+    },
+    {
+      "name": "Fighting Style: Defense",
+      "source": { "type": "feat", "name": "Paladin 2" },
+      "activation": "passive",
+      "description": "+1 AC while wearing armor (already in combat.acBonus)."
+    },
+    {
+      "name": "Paladin's Smite",
+      "source": { "type": "class", "name": "Paladin 2" },
+      "activation": "passive",
+      "description": "Divine Smite is always prepared, and once per Long Rest it can be cast without a spell slot (tracked on the spell)."
+    },
+    {
+      "name": "Channel Divinity",
+      "source": { "type": "class", "name": "Paladin 3" },
+      "activation": "action",
+      "uses": { "max": "paladin.channel-divinity", "used": 1, "recharge": "long", "shortRestRegain": 1 },
+      "description": "Two uses. Regain one on a Short Rest, all on a Long Rest. Options: Divine Sense, Sacred Weapon."
+    },
+    {
+      "name": "Sacred Weapon",
+      "source": { "type": "subclass", "name": "Oath of Devotion 3" },
+      "activation": "free",
+      "description": "When you take the Attack action, spend a Channel Divinity use: for 10 minutes add your Cha modifier (min +1) to attack rolls with one melee weapon; it can deal Radiant damage and sheds light."
+    },
+    {
+      "name": "Innate Sorcery",
+      "source": { "type": "class", "name": "Sorcerer 1" },
+      "activation": "bonus",
+      "uses": { "max": 2, "used": 0, "recharge": "long" },
+      "description": "For 1 minute: Sorcerer spell save DC +1 and Advantage on Sorcerer spell attack rolls."
+    },
+    {
+      "name": "Font of Magic",
+      "source": { "type": "class", "name": "Sorcerer 2" },
+      "activation": "special",
+      "uses": { "max": "sorcerer.sorcery-points", "used": 2, "recharge": "long", "note": "Sorcery Points" },
+      "description": "Sorcery Points fuel Metamagic. You can turn spell slots into points and points into slots (Bonus Action)."
+    },
+    {
+      "name": "Metamagic: Quickened Spell",
+      "source": { "type": "class", "name": "Sorcerer 2" },
+      "activation": "free",
+      "description": "2 Sorcery Points: a spell with a casting time of an action becomes a Bonus Action. Not if you already cast a level 1+ spell this turn."
+    },
+    {
+      "name": "Metamagic: Twinned Spell",
+      "source": { "type": "class", "name": "Sorcerer 2" },
+      "activation": "free",
+      "description": "1 Sorcery Point: raise the effective level of a spell that targets an extra creature per level by 1."
+    },
+    {
+      "name": "Draconic Resilience",
+      "source": { "type": "subclass", "name": "Draconic Sorcery 3" },
+      "activation": "passive",
+      "description": "HP maximum +3, and +1 per further Sorcerer level. Without armor, base AC = 10 + Dex + Cha (set as unarmoredAc)."
+    },
+    {
+      "name": "Pact of the Blade",
+      "source": { "type": "class", "name": "Warlock 1 (Eldritch Invocation)" },
+      "activation": "bonus",
+      "description": "Conjure a pact weapon or bond with a magic weapon. You are proficient with it and can use Cha for its attack and damage rolls; it can deal Necrotic, Psychic or Radiant damage."
+    },
+    {
+      "name": "Breath Weapon",
+      "source": { "type": "species", "name": "Dragonborn" },
+      "activation": "action",
+      "uses": { "max": "pb", "used": 0, "recharge": "long" },
+      "description": "Replace one attack of the Attack action: 15-ft Cone or 30-ft Line. Dex save DC 8 + Con mod + PB, 2d10 Fire (half on success)."
+    },
+    {
+      "name": "Draconic Flight",
+      "source": { "type": "species", "name": "Dragonborn" },
+      "activation": "bonus",
+      "uses": { "max": 1, "used": 0, "recharge": "long" },
+      "description": "Spectral wings for 10 minutes: Fly Speed equal to your Speed."
+    },
+    {
+      "name": "Damage Resistance (Fire)",
+      "source": { "type": "species", "name": "Dragonborn" },
+      "activation": "passive",
+      "description": "Resistance to Fire damage."
+    },
+    {
+      "name": "Darkvision",
+      "source": { "type": "species", "name": "Dragonborn" },
+      "activation": "passive",
+      "description": "See in dim light within 60 feet as if bright, and in darkness as if dim."
+    },
+    {
+      "name": "Magic Initiate (Cleric)",
+      "source": { "type": "feat", "name": "Acolyte background" },
+      "activation": "passive",
+      "description": "Guidance and Sacred Flame cantrips; Bless always prepared, castable once per Long Rest without a slot (tracked on the spell). Charisma is the spellcasting ability for these."
+    }
+  ],
+
+  "attacks": [
+    { "name": "Longsword (pact weapon)", "ability": "cha", "proficient": true, "damage": "1d8", "damageType": "Slashing or Radiant", "mastery": "Sap", "notes": "1d10 two-handed" },
+    { "name": "Javelin", "ability": "str", "proficient": true, "damage": "1d6", "damageType": "Piercing", "mastery": "Slow", "notes": "Thrown 30/120" },
+    { "name": "Fire Bolt", "ability": "spell", "proficient": true, "damage": "2d10", "damageType": "Fire", "addAbilityToDamage": false, "notes": "120 ft" }
+  ],
+
+  "spellcasting": {
+    "slotsUsed": [2, 1, 0, 0, 0, 0, 0, 0, 0],
+    "pactSlotsUsed": 1,
+    "concentration": "Shield of Faith"
+  },
+
+  "spells": [
+    { "name": "Fire Bolt", "level": 0, "source": "sorcerer", "school": "Evocation", "castingTime": "Action", "range": "120 feet", "components": "V, S", "duration": "Instantaneous", "description": "Ranged spell attack, 2d10 Fire at character level 5+." },
+    { "name": "Light", "level": 0, "source": "sorcerer", "school": "Evocation", "castingTime": "Action", "range": "Touch", "components": "V, M", "duration": "1 hour", "description": "An object sheds Bright Light in a 20-foot radius." },
+    { "name": "Prestidigitation", "level": 0, "source": "sorcerer", "school": "Transmutation", "castingTime": "Action", "range": "10 feet", "components": "V, S", "duration": "Up to 1 hour", "description": "Minor magical tricks." },
+    { "name": "Shocking Grasp", "level": 0, "source": "sorcerer", "school": "Evocation", "castingTime": "Action", "range": "Touch", "components": "V, S", "duration": "Instantaneous", "description": "Melee spell attack, Lightning damage; target can't make Opportunity Attacks." },
+    { "name": "Eldritch Blast", "level": 0, "source": "warlock", "school": "Evocation", "castingTime": "Action", "range": "120 feet", "components": "V, S", "duration": "Instantaneous", "description": "Beams of force; 2 beams at character level 5+, 1d10 Force each." },
+    { "name": "Minor Illusion", "level": 0, "source": "warlock", "school": "Illusion", "castingTime": "Action", "range": "30 feet", "components": "S, M", "duration": "1 minute", "description": "A sound or an image of an object." },
+    { "name": "Guidance", "level": 0, "source": "feat", "school": "Divination", "castingTime": "Action", "range": "Touch", "components": "V, S", "duration": "up to 1 minute", "concentration": true, "description": "A willing creature adds 1d4 to ability checks with one chosen skill." },
+    { "name": "Sacred Flame", "level": 0, "source": "feat", "school": "Evocation", "castingTime": "Action", "range": "60 feet", "components": "V, S", "duration": "Instantaneous", "description": "Dex save or Radiant damage." },
+
+    { "name": "Bless", "level": 1, "source": "feat", "alwaysPrepared": true, "school": "Enchantment", "castingTime": "Action", "range": "30 feet", "components": "V, S, M", "duration": "up to 1 minute", "concentration": true,
+      "freeCasts": { "max": 1, "used": 0, "recharge": "long" },
+      "description": "Up to three creatures add 1d4 to attack rolls and saving throws." },
+    { "name": "Divine Smite", "level": 1, "source": "paladin", "alwaysPrepared": true, "school": "Evocation", "castingTime": "Bonus Action, after hitting with a melee weapon or Unarmed Strike", "range": "Self", "components": "V", "duration": "Instantaneous",
+      "freeCasts": { "max": 1, "used": 1, "recharge": "long" },
+      "description": "The target takes extra 2d8 Radiant damage (+1d8 per slot level above 1; +1d8 vs Fiends and Undead)." },
+    { "name": "Shield of Faith", "level": 1, "source": "paladin", "alwaysPrepared": true, "school": "Abjuration", "castingTime": "Bonus Action", "range": "60 feet", "components": "V, S, M", "duration": "up to 10 minutes", "concentration": true, "description": "+2 AC to one creature." },
+    { "name": "Protection from Evil and Good", "level": 1, "source": "paladin", "alwaysPrepared": true, "school": "Abjuration", "castingTime": "Action", "range": "Touch", "components": "V, S, M", "duration": "up to 10 minutes", "concentration": true, "description": "Protection against Aberrations, Celestials, Elementals, Fey, Fiends and Undead." },
+    { "name": "Cure Wounds", "level": 1, "source": "paladin", "school": "Abjuration", "castingTime": "Action", "range": "Touch", "components": "V, S", "duration": "Instantaneous", "description": "Heal 2d8 + spellcasting modifier." },
+    { "name": "Heroism", "level": 1, "source": "paladin", "school": "Enchantment", "castingTime": "Action", "range": "Touch", "components": "V, S", "duration": "up to 1 minute", "concentration": true, "description": "Immune to Frightened; Temporary HP each turn." },
+    { "name": "Command", "level": 1, "source": "sorcerer", "alwaysPrepared": true, "school": "Enchantment", "castingTime": "Action", "range": "60 feet", "components": "V", "duration": "Instantaneous", "description": "One-word command (Approach, Drop, Flee, Grovel, Halt)." },
+    { "name": "Chromatic Orb", "level": 1, "source": "sorcerer", "alwaysPrepared": true, "school": "Evocation", "castingTime": "Action", "range": "90 feet", "components": "V, S, M", "duration": "Instantaneous", "description": "Ranged spell attack, 3d8 of a chosen damage type; may leap to another target." },
+    { "name": "Shield", "level": 1, "source": "sorcerer", "school": "Abjuration", "castingTime": "Reaction, when hit by an attack or targeted by Magic Missile", "range": "Self", "components": "V, S", "duration": "1 round", "description": "+5 AC until the start of your next turn." },
+    { "name": "Magic Missile", "level": 1, "source": "sorcerer", "school": "Evocation", "castingTime": "Action", "range": "120 feet", "components": "V, S", "duration": "Instantaneous", "description": "Three darts, 1d4 + 1 Force each, never miss." },
+    { "name": "Detect Magic", "level": 1, "source": "sorcerer", "ritual": true, "concentration": true, "school": "Divination", "castingTime": "Action", "range": "Self", "components": "V, S", "duration": "up to 10 minutes", "description": "Sense magic within 30 feet." },
+    { "name": "Alter Self", "level": 2, "source": "sorcerer", "alwaysPrepared": true, "school": "Transmutation", "castingTime": "Action", "range": "Self", "components": "V, S", "duration": "up to 1 hour", "concentration": true, "description": "Aquatic adaptation, change appearance, or natural weapons." },
+    { "name": "Dragon's Breath", "level": 2, "source": "sorcerer", "alwaysPrepared": true, "school": "Transmutation", "castingTime": "Bonus Action", "range": "Touch", "components": "V, S, M", "duration": "up to 1 minute", "concentration": true, "description": "A creature can exhale a 15-foot Cone of damage as a Magic action." },
+    { "name": "Misty Step", "level": 2, "source": "sorcerer", "school": "Conjuration", "castingTime": "Bonus Action", "range": "Self", "components": "V", "duration": "Instantaneous", "description": "Teleport up to 30 feet." },
+    { "name": "Hold Person", "level": 2, "source": "sorcerer", "prepared": false, "school": "Enchantment", "castingTime": "Action", "range": "60 feet", "components": "V, S, M", "duration": "up to 1 minute", "concentration": true, "description": "Wis save or a Humanoid is Paralyzed." },
+    { "name": "Hex", "level": 1, "source": "warlock", "school": "Enchantment", "castingTime": "Bonus Action", "range": "90 feet", "components": "V, S, M", "duration": "up to 1 hour", "concentration": true, "description": "+1d6 Necrotic on hits against the target; Disadvantage on checks with one ability." },
+    { "name": "Hellish Rebuke", "level": 1, "source": "warlock", "school": "Evocation", "castingTime": "Reaction, when damaged by a creature within 60 feet", "range": "60 feet", "components": "V, S", "duration": "Instantaneous", "description": "Dex save, 2d10 Fire (half on success)." }
+  ],
+
+  "inventory": {
+    "items": [
+      { "name": "Chain Mail", "equipped": true, "weight": 55, "armor": { "base": 16, "dexCap": 0 }, "description": "Heavy armor. Strength 13 required; Disadvantage on Stealth." },
+      { "name": "Shield", "equipped": true, "weight": 6, "acBonus": 2 },
+      { "name": "Ring of Protection", "equipped": true, "requiresAttunement": true, "attuned": true, "acBonus": 1, "saveBonus": 1, "description": "+1 to AC and saving throws." },
+      { "name": "Wand of Magic Missiles", "equipped": false,
+        "charges": { "max": 7, "used": 3, "recharge": "dawn", "regain": "1d6+1" },
+        "description": "Spend 1-3 charges to cast Magic Missile (level 1 + 1 per extra charge). If the last charge is spent, roll d20: on a 1 the wand crumbles." },
+      { "name": "Javelin", "quantity": 4, "weight": 2 },
+      { "name": "Holy Symbol (amulet)", "equipped": true },
+      { "name": "Potion of Healing", "quantity": 2, "description": "Drink (Bonus Action): regain 2d4 + 2 HP." },
+      { "name": "Rations", "quantity": 5 }
+    ],
+    "money": { "cp": 12, "sp": 40, "ep": 0, "gp": 215, "pp": 2 }
+  },
+
+  "roleplay": {
+    "appearance": "Tall, gold-scaled, with a chipped left horn and a temple tabard worn over chain mail.",
+    "personality": "Warm and loud, laughs easily, takes promises too seriously.",
+    "ideals": "Protection. The strong owe a debt to everyone weaker than them.",
+    "bonds": "The burned temple of Saint Ilvara, and the orphans it used to feed.",
+    "flaws": "Cannot walk away from a fight that looks unfair, even when walking away is wiser.",
+    "voice": "Deep and slow; rolls the r's; calls everyone 'little flame'.",
+    "mannerisms": "Taps her horn when thinking. Hums hymns off-key before battle.",
+    "goals": "Find out who whispers to her at night (the warlock patron) and whether it is the saint.",
+    "backstory": "Raised in a temple as an acolyte, she woke her draconic blood during the fire that destroyed it. Since then a voice offers help, and she has said yes once.",
+    "allies": "Brother Tomas (temple survivor), the Ember Guard in Varrow.",
+    "notes": ""
+  },
+
+  "sessionNotes": [
+    { "date": "2026-09-18", "title": "Session 12", "text": "Cleared the flooded crypt. Got the Wand of Magic Missiles. The voice gave a name: 'Vessa'." }
+  ]
+}
