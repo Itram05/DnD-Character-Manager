@@ -1,7 +1,8 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
-// https://vite.dev/config/
+// base './' makes the build work from any sub-folder (e.g. GitHub Pages /repo-name/).
 export default defineConfig({
+  base: './',
   plugins: [react()],
 })

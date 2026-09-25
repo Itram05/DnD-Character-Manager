@@ -147,6 +147,8 @@ export interface Item {
   /** Same rule as acBonus, added to every saving throw (Ring/Cloak of Protection). */
   saveBonus?: number
   charges?: Uses
+  /** Set this to make the item a card on the play screen (e.g. "bonus" for a potion in 2024). */
+  activation?: Activation
   description?: string
 }
 

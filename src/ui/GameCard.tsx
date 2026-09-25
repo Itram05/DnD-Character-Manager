@@ -1,0 +1,116 @@
+import type { ReactNode } from 'react'
+import { t } from '../i18n'
+import type { Frame, PlayCard } from '../model/play'
+import { Pips } from './common'
+
+export const FRAME_GLYPH: Record<Frame | 'attack', string> = {
+  class: '◆',
+  subclass: '◈',
+  species: '❦',
+  background: '✧',
+  feat: '✪',
+  item: '⚱',
+  spell: '✦',
+  other: '•',
+  attack: '⚔',
+}
+
+export interface CardFace extends Omit<PlayCard, 'frame' | 'kind'> {
+  frame: Frame | 'attack'
+  kind: PlayCard['kind'] | 'attack'
+  /** Extra line for attack cards: "+7 · 1d8+4". */
+  stat?: ReactNode
+}
+
+function CostGem({ card }: { card: CardFace }) {
+  if (card.kind === 'spell')
+    return (
+      <span className={`gem gem-spell ${card.cost === 'C' ? 'gem-cantrip' : ''}`} title={card.cost === 'C' ? t('card.cantrip') : t('card.spellLevel', { n: card.cost })}>
+        {card.cost}
+      </span>
+    )
+  if (!card.cost) return null
+  return (
+    <span className={`gem gem-${card.zone}`} title={t(`zone.${card.zone}`)}>
+      {card.cost}
+    </span>
+  )
+}
+
+/** One card (or one list row). Clicking the body opens the zoomed view. */
+export function GameCard(props: { card: CardFace; mode: 'cards' | 'list'; onOpen: () => void; onUse?: () => void; onUndo?: () => void; useLabel?: string }) {
+  const { card, mode } = props
+  const cls = [
+    mode === 'cards' ? 'card' : 'card-row',
+    `frame-${card.frame}`,
+    card.tapped ? 'tapped' : '',
+    card.unaffordable ? 'unaffordable' : '',
+  ].join(' ')
+
+  const counter =
+    card.uses && card.uses.max > 0 ? (
+      <Pips max={card.uses.max} left={card.uses.left} size="sm" onSpend={props.onUse} onRestore={props.onUndo} label={t('common.usesLeft', { left: card.uses.left, max: card.uses.max })} />
+    ) : card.quantity !== undefined ? (
+      <span className="qty">×{card.quantity}</span>
+    ) : null
+
+  const useBtn = props.onUse && (
+    <button
+      className="card-use"
+      onClick={(e) => {
+        e.stopPropagation()
+        props.onUse!()
+      }}
+      disabled={card.tapped && card.kind !== 'spell'}
+      aria-label={`${props.useLabel ?? t('card.use')}: ${card.name}`}
+    >
+      {props.useLabel ?? t('card.use')}
+    </button>
+  )
+
+  if (mode === 'list') {
+    return (
+      <div className={cls} onClick={props.onOpen} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && props.onOpen()}>
+        <CostGem card={card} />
+        <span className="row-name">
+          <span className="glyph" aria-hidden="true">
+            {FRAME_GLYPH[card.frame]}
+          </span>
+          {card.name}
+          {card.concentration && <span className="tag">C</span>}
+          {card.ritual && <span className="tag">R</span>}
+        </span>
+        {card.stat && <span className="row-stat">{card.stat}</span>}
+        <span className="row-counter" onClick={(e) => e.stopPropagation()}>
+          {counter}
+        </span>
+        {useBtn}
+      </div>
+    )
+  }
+
+  return (
+    <div className="card-slot">
+      <div className={cls} onClick={props.onOpen} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && props.onOpen()} aria-label={card.tapped ? t('card.tappedLabel', { name: card.name }) : card.name}>
+        <div className="card-head">
+          <span className="card-name">{card.name}</span>
+          <CostGem card={card} />
+        </div>
+        <div className="card-type">
+          <span className="glyph" aria-hidden="true">
+            {FRAME_GLYPH[card.frame]}
+          </span>
+          <span className="type-text">{card.sourceLabel}</span>
+          {card.concentration && <span className="tag" title={t('spell.concentration')}>C</span>}
+          {card.ritual && <span className="tag" title={t('spell.ritual')}>R</span>}
+        </div>
+        {card.stat && <div className="card-stat">{card.stat}</div>}
+        <div className="card-text">{card.text}</div>
+        <div className="card-foot" onClick={(e) => e.stopPropagation()}>
+          {counter}
+          {useBtn}
+        </div>
+      </div>
+    </div>
+  )
+}

@@ -354,6 +354,7 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     if (it.saveBonus !== undefined) item.saveBonus = r.num(it.saveBonus, `${p}.saveBonus`, 0)
     const ch = uses(it.charges, `${p}.charges`)
     if (ch) item.charges = ch
+    if (it.activation !== undefined) item.activation = r.oneOf(it.activation, ACTIVATIONS, `${p}.activation`, 'action', ACTIVATION_ALIASES)
     if (item.attuned && !item.requiresAttunement) item.requiresAttunement = true
     items.push(item)
   })

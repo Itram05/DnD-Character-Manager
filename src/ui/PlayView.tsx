@@ -1,0 +1,362 @@
+import { useMemo, useState } from 'react'
+import { t } from '../i18n'
+import {
+  ZONES,
+  castSpell,
+  isPassive,
+  manaRows,
+  paymentOptions,
+  playCards,
+  shortText,
+  spendSlot,
+  useCard,
+  type Payment,
+  type PlayCard,
+  type Zone,
+} from '../model/play'
+import { attackStats } from '../model/rules'
+import type { Character, Feature } from '../model/types'
+import { Modal, Pips, RichText, fmtMod, useMediaQuery } from './common'
+import { FeatureEditor, ItemEditor, SpellEditor } from './editors'
+import { FRAME_GLYPH, GameCard, type CardFace } from './GameCard'
+import type { SheetApi } from './Sheet'
+
+type HandFilter = Zone | 'all'
+
+function attackFaces(c: Character): CardFace[] {
+  return c.attacks.map((a) => {
+    const s = attackStats(c, a)
+    const dmg = a.damage ? `${a.damage}${s.dmgMod ? (s.dmgMod > 0 ? `+${s.dmgMod}` : s.dmgMod) : ''}` : ''
+    return {
+      key: `attack:${a.id}`,
+      kind: 'attack',
+      id: a.id,
+      name: a.name,
+      frame: 'attack',
+      sourceLabel: [t('card.attack'), a.mastery && `${t('card.mastery')}: ${a.mastery}`].filter(Boolean).join(' · '),
+      zone: 'action',
+      cost: 'A',
+      text: [a.damageType, a.notes].filter(Boolean).join(' · '),
+      tapped: false,
+      stat: (
+        <>
+          <b>{fmtMod(s.toHit)}</b> {t('card.toHit')} · <b>{dmg}</b>
+        </>
+      ),
+    }
+  })
+}
+
+const ORDER: Record<string, number> = { attack: 0, feature: 1, spell: 2, item: 3 }
+
+export function PlayView({ api }: { api: SheetApi }) {
+  const { c, update, settings, setSettings } = api
+  const wide = useMediaQuery('(min-width: 900px)')
+  const [hand, setHand] = useState<HandFilter>(wide ? 'all' : 'action')
+  const [open, setOpen] = useState<CardFace | null>(null)
+  const [openPassive, setOpenPassive] = useState<Feature | null>(null)
+  const mode = settings.view
+
+  const cards: CardFace[] = useMemo(() => {
+    const all: CardFace[] = [...attackFaces(c), ...playCards(c)]
+    return all.sort((a, b) => ORDER[a.kind] - ORDER[b.kind] || (a.spellLevel ?? 0) - (b.spellLevel ?? 0) || a.name.localeCompare(b.name))
+  }, [c])
+  const passives = c.features.filter(isPassive)
+  const mana = manaRows(c)
+  const conc = c.spellcasting.concentration
+  const concSpell = c.spells.find((s) => s.name === conc)
+
+  const use = (card: CardFace, delta = 1) => {
+    if (card.kind === 'attack') return
+    update((x) => useCard(x, { kind: card.kind as PlayCard['kind'], id: card.id }, delta))
+  }
+
+  const zonesToShow: Zone[] = hand === 'all' ? ZONES : [hand]
+  const countIn = (z: Zone) => cards.filter((x) => x.zone === z).length
+
+  const renderCard = (card: CardFace) => {
+    const isSpell = card.kind === 'spell'
+    const hasCounter = !!card.uses || card.quantity !== undefined
+    return (
+      <GameCard
+        key={card.key}
+        card={card}
+        mode={mode}
+        onOpen={() => setOpen(card)}
+        onUse={isSpell ? () => setOpen(card) : hasCounter ? () => use(card) : undefined}
+        onUndo={hasCounter && !isSpell ? () => use(card, -1) : isSpell && card.uses ? () => use(card, -1) : undefined}
+        useLabel={isSpell ? t('card.cast') : undefined}
+      />
+    )
+  }
+
+  return (
+    <div className="play">
+      <div className="play-controls">
+        <div className="segmented" role="tablist" aria-label={t('play.hands')}>
+          {(['all', ...ZONES] as HandFilter[]).map((z) => (
+            <button key={z} role="tab" aria-selected={hand === z} className={hand === z ? 'active' : ''} onClick={() => setHand(z)}>
+              {t(`zone.${z}`)}
+              {z !== 'all' && <span className="count">{countIn(z)}</span>}
+            </button>
+          ))}
+        </div>
+        <div className="segmented small" aria-label={t('play.viewMode')}>
+          <button className={mode === 'cards' ? 'active' : ''} onClick={() => setSettings({ ...settings, view: 'cards' })} aria-pressed={mode === 'cards'}>
+            ▦ {t('play.cards')}
+          </button>
+          <button className={mode === 'list' ? 'active' : ''} onClick={() => setSettings({ ...settings, view: 'list' })} aria-pressed={mode === 'list'}>
+            ☰ {t('play.list')}
+          </button>
+        </div>
+      </div>
+
+      <div className="play-top">
+        {mana.length > 0 && (
+          <section className="mana panel">
+            <h3>{t('play.mana')}</h3>
+            {mana.map((r) => (
+              <div key={`${r.kind}-${r.level}`} className={`mana-row mana-${r.kind}`}>
+                <span className="mana-label">{r.kind === 'pact' ? t('play.pactSlot', { n: r.level }) : t('play.slotLevel', { n: r.level })}</span>
+                <Pips
+                  max={r.max}
+                  left={r.max - r.used}
+                  variant={r.kind === 'pact' ? 'pact' : 'mana'}
+                  onSpend={() => update((x) => spendSlot(x, r.kind, r.level, 1))}
+                  onRestore={() => update((x) => spendSlot(x, r.kind, r.level, -1))}
+                  label={t('play.slotsLeft', { left: r.max - r.used, max: r.max })}
+                />
+              </div>
+            ))}
+          </section>
+        )}
+
+        <section className={`in-play panel ${conc ? 'active' : ''}`}>
+          <h3>{t('play.inPlay')}</h3>
+          {conc ? (
+            <div className="conc-card">
+              <span className="glyph">{FRAME_GLYPH.spell}</span>
+              <div>
+                <strong>{conc}</strong>
+                <div className="muted">{concSpell?.duration || t('spell.concentration')}</div>
+              </div>
+              <button className="btn btn-small" onClick={() => update((x) => ({ ...x, spellcasting: { ...x.spellcasting, concentration: '' } }))}>
+                {t('play.endConcentration')}
+              </button>
+            </div>
+          ) : (
+            <div className="conc-empty">{t('play.notConcentrating')}</div>
+          )}
+        </section>
+
+        {passives.length > 0 && (
+          <section className="battlefield panel">
+            <h3>
+              {t('play.battlefield')} <span className="muted">({passives.length})</span>
+            </h3>
+            <div className="passive-chips">
+              {passives.map((f) => (
+                <button key={f.id} className={`passive-chip frame-${f.source.type}`} onClick={() => setOpenPassive(f)} title={shortText(f.description, 200)}>
+                  <span className="glyph" aria-hidden="true">
+                    {FRAME_GLYPH[f.source.type]}
+                  </span>
+                  {f.name}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+
+      <div className={`hands hands-${zonesToShow.length > 1 ? 'multi' : 'single'} mode-${mode}`}>
+        {zonesToShow.map((z) => {
+          const zc = cards.filter((x) => x.zone === z)
+          return (
+            <section key={z} className={`zone zone-${z}`}>
+              <h3 className="zone-title">
+                <span className={`gem gem-${z}`}>{t(`zone.${z}.short`)}</span> {t(`zone.${z}`)}
+              </h3>
+              {zc.length === 0 ? <p className="muted empty-zone">{t('play.emptyZone')}</p> : <div className={mode === 'cards' ? 'card-grid' : 'card-list'}>{zc.map(renderCard)}</div>}
+            </section>
+          )
+        })}
+      </div>
+
+      {cards.length === 0 && passives.length === 0 && (
+        <div className="empty-state panel">
+          <p>{t('play.emptyAll')}</p>
+          <button className="btn" onClick={() => api.go('features')}>
+            {t('tab.features')}
+          </button>
+          <button className="btn" onClick={() => api.go('spells')}>
+            {t('tab.spells')}
+          </button>
+        </div>
+      )}
+
+      {open && <CardZoom api={api} face={cards.find((x) => x.key === open.key) ?? open} onClose={() => setOpen(null)} onUse={use} />}
+      {openPassive && (
+        <Modal title={openPassive.name} onClose={() => setOpenPassive(null)}>
+          <p className="muted">
+            {FRAME_GLYPH[openPassive.source.type]} {openPassive.source.name || t(`source.${openPassive.source.type}`)} · {t('act.passive')}
+          </p>
+          <RichText text={openPassive.description} />
+        </Modal>
+      )}
+    </div>
+  )
+}
+
+// ---------------- zoomed card ----------------
+
+function paymentLabel(p: Payment) {
+  switch (p.kind) {
+    case 'none':
+      return t('cast.cantrip')
+    case 'free':
+      return t('cast.freeShort')
+    case 'ritual':
+      return t('cast.ritual')
+    case 'pact':
+      return t('cast.pact', { n: p.level })
+    case 'slot':
+      return t('cast.slot', { n: p.level })
+  }
+}
+
+function CardZoom({ api, face, onClose, onUse }: { api: SheetApi; face: CardFace; onClose: () => void; onUse: (f: CardFace, d?: number) => void }) {
+  const { c, update, toast } = api
+  const [editing, setEditing] = useState(false)
+  const feature = face.kind === 'feature' ? c.features.find((f) => f.id === face.id) : undefined
+  const spell = face.kind === 'spell' ? c.spells.find((s) => s.id === face.id) : undefined
+  const item = face.kind === 'item' ? c.inventory.items.find((i) => i.id === face.id) : undefined
+  const attack = face.kind === 'attack' ? c.attacks.find((a) => a.id === face.id) : undefined
+
+  if (editing) {
+    if (feature) return <FeatureEditor api={api} initial={feature} onClose={onClose} />
+    if (spell) return <SpellEditor api={api} initial={spell} onClose={onClose} />
+    if (item) return <ItemEditor api={api} initial={item} onClose={onClose} />
+  }
+
+  const cast = (p: Payment) => {
+    if (!spell) return
+    const r = castSpell(c, spell.id, p)
+    update(() => r.character)
+    const how = paymentLabel(p)
+    toast({
+      title: t('cast.done', { name: spell.name }),
+      lines: [how, ...(r.droppedConcentration ? [t('cast.droppedConc', { name: r.droppedConcentration })] : []), ...(spell.concentration ? [t('cast.nowConc')] : [])],
+    })
+    onClose()
+  }
+
+  const description = feature?.description ?? spell?.description ?? item?.description ?? attack?.notes ?? ''
+
+  return (
+    <Modal title={<span className={`zoom-title frame-text-${face.frame}`}>{face.name}</span>} onClose={onClose} className={`zoom frame-${face.frame}`}>
+      <div className="zoom-meta">
+        <span>
+          {FRAME_GLYPH[face.frame]} {face.sourceLabel}
+        </span>
+        {feature && <span className={`gem gem-${face.zone}`}>{t(`act.${feature.activation}`)}</span>}
+        {spell && (
+          <span className="gem gem-spell">
+            {spell.level === 0 ? t('card.cantrip') : t('card.spellLevel', { n: spell.level })}
+          </span>
+        )}
+      </div>
+      {face.stat && <p className="zoom-stat">{face.stat}</p>}
+      {spell && (
+        <dl className="spell-meta">
+          {spell.castingTime && (
+            <>
+              <dt>{t('spell.castingTime')}</dt>
+              <dd>{spell.castingTime}</dd>
+            </>
+          )}
+          {spell.range && (
+            <>
+              <dt>{t('spell.range')}</dt>
+              <dd>{spell.range}</dd>
+            </>
+          )}
+          {spell.components && (
+            <>
+              <dt>{t('spell.components')}</dt>
+              <dd>{spell.components}</dd>
+            </>
+          )}
+          {spell.duration && (
+            <>
+              <dt>{t('spell.duration')}</dt>
+              <dd>
+                {spell.concentration ? `${t('spell.concentration')}, ` : ''}
+                {spell.duration}
+              </dd>
+            </>
+          )}
+        </dl>
+      )}
+      <RichText text={description} />
+
+      {face.uses && face.uses.max > 0 && (
+        <div className="zoom-uses">
+          <span>{spell ? t('cast.freeCasts') : feature?.uses?.note || item?.charges?.note || t('card.uses')}</span>
+          <Pips max={face.uses.max} left={face.uses.left} onSpend={() => onUse(face)} onRestore={() => onUse(face, -1)} />
+          <span className="muted">{t(`recharge.${(feature?.uses ?? spell?.freeCasts ?? item?.charges)?.recharge ?? 'none'}`)}</span>
+        </div>
+      )}
+      {item && !item.charges && (
+        <div className="zoom-uses">
+          <span>{t('item.quantity')}</span> <b>{item.quantity}</b>
+          <button className="btn" disabled={item.quantity <= 0} onClick={() => onUse(face)}>
+            {t('card.useOne')}
+          </button>
+        </div>
+      )}
+
+      {spell && (
+        <section className="cast-options">
+          <h3>{t('cast.title')}</h3>
+          {paymentOptions(c, spell).length === 0 ? (
+            <p className="warn">{t('cast.cannot')}</p>
+          ) : (
+            <div className="cast-buttons">
+              {paymentOptions(c, spell).map((p, i) => (
+                <button key={i} className={`btn cast-btn cast-${p.kind}`} onClick={() => cast(p)}>
+                  {p.kind === 'free' ? t('cast.free', { left: face.uses?.left ?? 0 }) : paymentLabel(p)}
+                </button>
+              ))}
+            </div>
+          )}
+          {spell.concentration && c.spellcasting.concentration && c.spellcasting.concentration !== spell.name && (
+            <p className="hint">{t('cast.willDrop', { name: c.spellcasting.concentration })}</p>
+          )}
+        </section>
+      )}
+
+      <div className="zoom-actions">
+        {face.uses && face.uses.max > 0 && !spell && (
+          <>
+            <button className="btn btn-primary" disabled={face.uses.left <= 0} onClick={() => onUse(face)}>
+              {t('card.use')}
+            </button>
+            <button className="btn" disabled={face.uses.left >= face.uses.max} onClick={() => onUse(face, -1)}>
+              {t('card.undoUse')}
+            </button>
+          </>
+        )}
+        {(feature || spell || item) && (
+          <button className="btn" onClick={() => setEditing(true)}>
+            {t('common.edit')}
+          </button>
+        )}
+        {attack && (
+          <button className="btn" onClick={() => api.go('stats')}>
+            {t('common.edit')}
+          </button>
+        )}
+      </div>
+    </Modal>
+  )
+}

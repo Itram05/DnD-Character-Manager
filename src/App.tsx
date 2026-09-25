@@ -1,122 +1,74 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useEffect, useState } from 'react'
+import { t } from './i18n'
+import { loadCharacter, loadSettings, saveSettings, type Settings } from './model/storage'
+import { CharacterList } from './ui/CharacterList'
+import { RulesView } from './ui/RulesView'
+import { Sheet, type Tab } from './ui/Sheet'
 
-function App() {
-  const [count, setCount] = useState(0)
+// Hash routes (work on GitHub Pages without server config):
+//   #/                   character list
+//   #/c/<id>/<tab>       character sheet
+//   #/rules              rules reference
+type Route = { page: 'list' } | { page: 'sheet'; id: string; tab: Tab } | { page: 'rules' }
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+const TABS: Tab[] = ['play', 'stats', 'spells', 'gear', 'features', 'story', 'level', 'edit']
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+function parseHash(): Route {
+  const parts = window.location.hash.replace(/^#\/?/, '').split('/')
+  if (parts[0] === 'c' && parts[1]) return { page: 'sheet', id: decodeURIComponent(parts[1]), tab: (TABS as string[]).includes(parts[2]) ? (parts[2] as Tab) : 'play' }
+  if (parts[0] === 'rules') return { page: 'rules' }
+  return { page: 'list' }
 }
 
-export default App
+const nav = (hash: string) => {
+  window.location.hash = hash
+}
+
+export default function App() {
+  const [route, setRoute] = useState<Route>(parseHash)
+  const [settings, setSettingsState] = useState<Settings>(loadSettings)
+
+  useEffect(() => {
+    const on = () => setRoute(parseHash())
+    window.addEventListener('hashchange', on)
+    return () => window.removeEventListener('hashchange', on)
+  }, [])
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = settings.theme
+  }, [settings.theme])
+
+  const setSettings = (s: Settings) => {
+    setSettingsState(s)
+    saveSettings(s)
+  }
+
+  if (route.page === 'rules') return <RulesView onBack={() => (window.history.length > 1 ? window.history.back() : nav('#/'))} />
+
+  if (route.page === 'sheet') {
+    const c = loadCharacter(route.id)
+    if (!c)
+      return (
+        <div className="list-page">
+          <p className="warn">{t('app.notFound')}</p>
+          <button className="btn" onClick={() => nav('#/')}>
+            {t('nav.allCharacters')}
+          </button>
+        </div>
+      )
+    return (
+      <Sheet
+        key={c.id}
+        initial={c}
+        tab={route.tab}
+        onTab={(tab) => nav(`#/c/${encodeURIComponent(c.id)}/${tab}`)}
+        onBack={() => nav('#/')}
+        settings={settings}
+        setSettings={setSettings}
+        onRules={() => nav('#/rules')}
+      />
+    )
+  }
+
+  return <CharacterList onOpen={(id) => nav(`#/c/${encodeURIComponent(id)}/play`)} settings={settings} setSettings={setSettings} onRules={() => nav('#/rules')} />
+}
