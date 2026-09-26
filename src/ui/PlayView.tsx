@@ -9,7 +9,8 @@ import {
   playCards,
   shortText,
   spendSlot,
-  useCard,
+  // plain function, not a React hook: the alias stops the linter from treating it as one
+  useCard as spendCard,
   type Payment,
   type PlayCard,
   type Zone,
@@ -68,7 +69,7 @@ export function PlayView({ api }: { api: SheetApi }) {
 
   const use = (card: CardFace, delta = 1) => {
     if (card.kind === 'attack') return
-    update((x) => useCard(x, { kind: card.kind as PlayCard['kind'], id: card.id }, delta))
+    update((x) => spendCard(x, { kind: card.kind as PlayCard['kind'], id: card.id }, delta))
   }
 
   const zonesToShow: Zone[] = hand === 'all' ? ZONES : [hand]

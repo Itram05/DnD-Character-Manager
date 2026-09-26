@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { t } from './i18n'
 import { loadCharacter, loadSettings, saveSettings, type Settings } from './model/storage'
 import { CharacterList } from './ui/CharacterList'
+import { CreateView } from './ui/CreateView'
 import { RulesView } from './ui/RulesView'
 import { Sheet, type Tab } from './ui/Sheet'
 
@@ -9,7 +10,8 @@ import { Sheet, type Tab } from './ui/Sheet'
 //   #/                   character list
 //   #/c/<id>/<tab>       character sheet
 //   #/rules              rules reference
-type Route = { page: 'list' } | { page: 'sheet'; id: string; tab: Tab } | { page: 'rules' }
+//   #/new                new character (quick creation)
+type Route = { page: 'list' } | { page: 'sheet'; id: string; tab: Tab } | { page: 'rules' } | { page: 'new' }
 
 const TABS: Tab[] = ['play', 'stats', 'spells', 'gear', 'features', 'story', 'level', 'edit']
 
@@ -17,6 +19,7 @@ function parseHash(): Route {
   const parts = window.location.hash.replace(/^#\/?/, '').split('/')
   if (parts[0] === 'c' && parts[1]) return { page: 'sheet', id: decodeURIComponent(parts[1]), tab: (TABS as string[]).includes(parts[2]) ? (parts[2] as Tab) : 'play' }
   if (parts[0] === 'rules') return { page: 'rules' }
+  if (parts[0] === 'new') return { page: 'new' }
   return { page: 'list' }
 }
 
@@ -45,6 +48,15 @@ export default function App() {
 
   if (route.page === 'rules') return <RulesView onBack={() => (window.history.length > 1 ? window.history.back() : nav('#/'))} />
 
+  if (route.page === 'new')
+    return (
+      <CreateView
+        onCancel={() => nav('#/')}
+        // replace: Back from the new sheet goes to the list, not to the filled-in form
+        onCreated={(id) => window.location.replace(`#/c/${encodeURIComponent(id)}/play`)}
+      />
+    )
+
   if (route.page === 'sheet') {
     const c = loadCharacter(route.id)
     if (!c)
@@ -70,5 +82,5 @@ export default function App() {
     )
   }
 
-  return <CharacterList onOpen={(id) => nav(`#/c/${encodeURIComponent(id)}/play`)} settings={settings} setSettings={setSettings} onRules={() => nav('#/rules')} />
+  return <CharacterList onOpen={(id) => nav(`#/c/${encodeURIComponent(id)}/play`)} onNew={() => nav('#/new')} settings={settings} setSettings={setSettings} onRules={() => nav('#/rules')} />
 }

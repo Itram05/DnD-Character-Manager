@@ -2126,3 +2126,187 @@ details summary {
     transition: none !important;
   }
 }
+
+/* ---------------- new character (quick creation) ---------------- */
+
+.create-page {
+  padding-bottom: 6rem;
+}
+.create-title {
+  font-family: var(--font-display);
+  margin: 0.4rem 0 0.2rem;
+}
+.create-page h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+}
+.create-page h4 {
+  margin: 0.8rem 0 0.3rem;
+}
+.step {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  color: var(--accent);
+  font-size: 0.85rem;
+  flex: none;
+}
+.pick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 0.4rem;
+  margin: 0.4rem 0 0.6rem;
+}
+.pick {
+  min-height: 44px;
+  padding: 0.35rem 0.4rem;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  font-weight: 600;
+  font-size: 0.92rem;
+  overflow-wrap: anywhere;
+}
+.pick.active {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+.pick-info {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.15rem 0.75rem;
+  margin: 0.3rem 0 0.2rem;
+  font-size: 0.9rem;
+}
+.pick-info dt {
+  color: var(--muted);
+  font-weight: 600;
+}
+.pick-info dd {
+  margin: 0;
+  min-width: 0;
+}
+.custom-box {
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem 0.1rem;
+  margin-top: 0.4rem;
+}
+.sub-choice {
+  margin: 0.6rem 0 0.2rem;
+}
+.sub-label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.chip-row .toggle:disabled {
+  opacity: 0.4;
+}
+.option-text {
+  font-size: 0.88rem;
+  margin-top: 0.35rem;
+}
+.method-hint {
+  margin: 0.45rem 0;
+}
+.points {
+  font-weight: 700;
+  margin: 0.4rem 0;
+}
+.ability-rows {
+  margin-top: 0.5rem;
+}
+.ability-row {
+  display: grid;
+  grid-template-columns: minmax(64px, 1fr) minmax(96px, 1.2fr) minmax(44px, 0.6fr) minmax(64px, 1fr);
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.ability-row.head {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 600;
+  border-bottom-width: 2px;
+}
+.ability-row .small-input {
+  width: 100%;
+  max-width: 96px;
+}
+.ab-name {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.ab-name .tag {
+  color: var(--accent);
+}
+.ab-bonus {
+  color: var(--good);
+  font-weight: 700;
+}
+.ab-final b {
+  font-size: 1.1rem;
+}
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.stepper .mini-btn {
+  width: 34px;
+  height: 34px;
+  font-size: 1.1rem;
+}
+.stepper b {
+  min-width: 1.6em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.bonus-box {
+  margin-top: 0.8rem;
+  border-top: 1px solid var(--line);
+}
+.bonus-box .segmented {
+  max-width: 320px;
+}
+.todo-list {
+  margin: 0.2rem 0 0;
+  padding-left: 1.2rem;
+  font-size: 0.9rem;
+}
+.todo-list li {
+  margin: 0.2rem 0;
+}
+.create-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  /* line the buttons up with the 900px page column on wide screens */
+  padding: 0.6rem max(0.9rem, calc((100vw - 900px) / 2 + 0.9rem)) calc(0.6rem + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  border-top: 1px solid var(--line);
+  backdrop-filter: blur(6px);
+}
+.create-bar .btn-primary[aria-disabled='true'] {
+  opacity: 0.55;
+}

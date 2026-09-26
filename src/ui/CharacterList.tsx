@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import sampleJson from '../../examples/sample-character.json?raw'
 import { SRD_ATTRIBUTION } from '../data/srd'
 import { t } from '../i18n'
-import { ImportError, blankCharacter, importCharacterJson, newId } from '../model/normalize'
+import { ImportError, importCharacterJson, newId } from '../model/normalize'
 import { totalLevel } from '../model/rules'
 import { deleteCharacter, listCharacters, saveCharacter, type Settings } from '../model/storage'
 import type { Character } from '../model/types'
@@ -17,20 +17,13 @@ interface Pending {
   clash: boolean
 }
 
-export function CharacterList(props: { onOpen: (id: string) => void; settings: Settings; setSettings: (s: Settings) => void; onRules: () => void }) {
+export function CharacterList(props: { onOpen: (id: string) => void; onNew: () => void; settings: Settings; setSettings: (s: Settings) => void; onRules: () => void }) {
   const [{ characters, broken }, setData] = useState(() => listCharacters())
   const [del, setDel] = useState<Character | null>(null)
   const [pending, setPending] = useState<Pending[]>([])
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const refresh = () => setData(listCharacters())
-
-  const create = () => {
-    const c = blankCharacter(t('list.newHeroName'))
-    const st = saveCharacter(c)
-    if (!st.ok) return setError(st.error ?? '')
-    props.onOpen(c.id)
-  }
 
   const stage = (text: string, fileName: string) => {
     try {
@@ -82,7 +75,7 @@ export function CharacterList(props: { onOpen: (id: string) => void; settings: S
       </header>
 
       <div className="toolbar">
-        <button className="btn btn-primary" onClick={create}>
+        <button className="btn btn-primary" onClick={props.onNew}>
           + {t('list.new')}
         </button>
         <button className="btn" onClick={() => fileRef.current?.click()}>
