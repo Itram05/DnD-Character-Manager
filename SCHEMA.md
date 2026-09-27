@@ -141,6 +141,7 @@ Used by features (`uses`), spells (`freeCasts`) and items (`charges`).
 | `shortRestRegain` | *formula*; for `long` recharge: this many come back on a Short Rest (Rage, Channel Divinity, Wild Shape, Second Wind: `1`). |
 | `regain` | Text such as `"1d6+1"`: comes back with a roll, so rests **remind** you instead of refilling. |
 | `note` | Label next to the counter ("HP pool", "Sorcery Points"). |
+| `resource` | Optional marker for a known class resource. Only `"sorcery-points"` for now: the counter is shown next to the spell slots with Flexible Casting buttons instead of as a card. Without the marker, a counter still counts as Sorcery Points when its `note` says "Sorcery Points" or its `max` is `sorcerer` / `sorcerer.sorcery-points`. |
 
 ## attacks
 
@@ -160,6 +161,7 @@ To-hit and damage bonus are computed. Attacks appear as cards in the Action hand
 | `concentration` | Name of the spell you concentrate on, or "". |
 | `slotsOverride` | Optional: replaces the computed slots, e.g. `[4, 3, 2]`. |
 | `pactOverride` | Optional: `{ "slots": 2, "level": 3 }`. |
+| `bonusSlots` | Optional, written by the app: slots created with Sorcery Points (Flexible Casting), nine numbers like `slotsUsed`. They add to the maximum and are removed on a Long Rest. |
 
 ## spells
 
@@ -193,7 +195,7 @@ To-hit and damage bonus are computed. Attacks appear as cards in the Action hand
 | `acBonus` | Added to AC while equipped (and attuned if required). Shield = 2. |
 | `saveBonus` | Added to all saving throws under the same condition (Ring/Cloak of Protection). |
 | `charges` | [uses](#uses). |
-| `activation` | Makes the item a card: `action`, `bonus` (potions in 2024), ... Without `charges`, using the card lowers `quantity`. |
+| `activation` | Makes the item a card: `action`, `bonus` (potions in 2024), ... Without `charges`, the card is a consumable (potion, scroll): − and + on the card lower and raise `quantity`. |
 
 ## roleplay
 

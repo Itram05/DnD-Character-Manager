@@ -56,7 +56,7 @@ export const SRD_PRESETS: Record<string, FeaturePreset> = {
   'rogue:Stroke of Luck': { activation: 'free', uses: { max: 1, recharge: 'short' } },
   // Sorcerer
   'sorcerer:Innate Sorcery': { activation: 'bonus', uses: { max: 2, recharge: 'long' } },
-  'sorcerer:Font of Magic': { activation: 'special', uses: { max: 'sorcerer.sorcery-points', recharge: 'long', note: 'Sorcery Points' } },
+  'sorcerer:Font of Magic': { activation: 'special', uses: { max: 'sorcerer.sorcery-points', recharge: 'long', note: 'Sorcery Points', resource: 'sorcery-points' } },
   // Warlock
   'warlock:Magical Cunning': { activation: 'special', uses: { max: 1, recharge: 'long' } },
   // one arcanum at 11, 13, 15 and 17

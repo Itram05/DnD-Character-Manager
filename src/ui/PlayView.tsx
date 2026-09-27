@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { t } from '../i18n'
 import {
+  PLAY_KINDS,
   ZONES,
   castSpell,
   isPassive,
@@ -13,8 +14,10 @@ import {
   useCard as spendCard,
   type Payment,
   type PlayCard,
+  type PlayKind,
   type Zone,
 } from '../model/play'
+import { MAX_CREATED_SLOT_LEVEL, SLOT_COST, canPointsToSlot, canSlotToPoints, pointsToSlot, slotToPoints, slotsLeftAt, sorceryFeature, sorceryPoints } from '../model/sorcery'
 import { attackStats } from '../model/rules'
 import type { Character, Feature } from '../model/types'
 import { Modal, Pips, RichText, fmtMod, useMediaQuery } from './common'
@@ -23,6 +26,7 @@ import { FRAME_GLYPH, GameCard, type CardFace } from './GameCard'
 import type { SheetApi } from './Sheet'
 
 type HandFilter = Zone | 'all'
+type KindFilter = PlayKind | 'all'
 
 function attackFaces(c: Character): CardFace[] {
   return c.attacks.map((a) => {
@@ -54,14 +58,18 @@ export function PlayView({ api }: { api: SheetApi }) {
   const { c, update, settings, setSettings } = api
   const wide = useMediaQuery('(min-width: 900px)')
   const [hand, setHand] = useState<HandFilter>(wide ? 'all' : 'action')
+  const [kind, setKind] = useState<KindFilter>('all')
   const [open, setOpen] = useState<CardFace | null>(null)
+  const [flexOpen, setFlexOpen] = useState(false)
   const [openPassive, setOpenPassive] = useState<Feature | null>(null)
   const mode = settings.view
 
-  const cards: CardFace[] = useMemo(() => {
+  const allCards: CardFace[] = useMemo(() => {
     const all: CardFace[] = [...attackFaces(c), ...playCards(c)]
     return all.sort((a, b) => ORDER[a.kind] - ORDER[b.kind] || (a.spellLevel ?? 0) - (b.spellLevel ?? 0) || a.name.localeCompare(b.name))
   }, [c])
+  const cards = kind === 'all' ? allCards : allCards.filter((x) => x.kind === kind)
+  const sp = sorceryPoints(c)
   const passives = c.features.filter(isPassive)
   const mana = manaRows(c)
   const conc = c.spellcasting.concentration
@@ -74,6 +82,7 @@ export function PlayView({ api }: { api: SheetApi }) {
 
   const zonesToShow: Zone[] = hand === 'all' ? ZONES : [hand]
   const countIn = (z: Zone) => cards.filter((x) => x.zone === z).length
+  const countKind = (k: PlayKind) => allCards.filter((x) => x.kind === k).length
 
   const renderCard = (card: CardFace) => {
     const isSpell = card.kind === 'spell'
@@ -102,6 +111,14 @@ export function PlayView({ api }: { api: SheetApi }) {
             </button>
           ))}
         </div>
+        <div className="segmented kind-filter" role="tablist" aria-label={t('play.kinds')}>
+          {(['all', ...PLAY_KINDS] as KindFilter[]).map((k) => (
+            <button key={k} role="tab" aria-selected={kind === k} className={kind === k ? 'active' : ''} onClick={() => setKind(k)} disabled={k !== 'all' && countKind(k) === 0}>
+              {t(`kind.${k}`)}
+              {k !== 'all' && <span className="count">{countKind(k)}</span>}
+            </button>
+          ))}
+        </div>
         <div className="segmented small" aria-label={t('play.viewMode')}>
           <button className={mode === 'cards' ? 'active' : ''} onClick={() => setSettings({ ...settings, view: 'cards' })} aria-pressed={mode === 'cards'}>
             ▦ {t('play.cards')}
@@ -112,12 +129,19 @@ export function PlayView({ api }: { api: SheetApi }) {
         </div>
       </div>
 
-        {mana.length > 0 && (
+        {(mana.length > 0 || sp) && (
           <section className="mana panel">
             <h3>{t('play.mana')}</h3>
             {mana.map((r) => (
               <div key={`${r.kind}-${r.level}`} className={`mana-row mana-${r.kind}`}>
-                <span className="mana-label">{r.kind === 'pact' ? t('play.pactSlot', { n: r.level }) : t('play.slotLevel', { n: r.level })}</span>
+                <span className="mana-label">
+                  {r.kind === 'pact' ? t('play.pactSlot', { n: r.level }) : t('play.slotLevel', { n: r.level })}
+                  {r.bonus > 0 && (
+                    <span className="tag bonus-slot" title={t('flex.createdHint')}>
+                      +{r.bonus}
+                    </span>
+                  )}
+                </span>
                 <Pips
                   max={r.max}
                   left={r.max - r.used}
@@ -128,6 +152,22 @@ export function PlayView({ api }: { api: SheetApi }) {
                 />
               </div>
             ))}
+            {sp && (
+              <div className="mana-row mana-sorcery">
+                <span className="mana-label">{t('flex.points')}</span>
+                <Pips
+                  max={sp.max}
+                  left={sp.left}
+                  variant="sorcery"
+                  onSpend={() => update((x) => spendCard(x, { kind: 'feature', id: sp.featureId }, 1))}
+                  onRestore={() => update((x) => spendCard(x, { kind: 'feature', id: sp.featureId }, -1))}
+                  label={t('flex.pointsLeft', { left: sp.left, max: sp.max })}
+                />
+                <button className="btn btn-small flex-open" onClick={() => setFlexOpen(true)}>
+                  {t('flex.convert')}
+                </button>
+              </div>
+            )}
           </section>
         )}
 
@@ -175,13 +215,30 @@ export function PlayView({ api }: { api: SheetApi }) {
               <h3 className="zone-title">
                 <span className={`gem gem-${z}`}>{t(`zone.${z}.short`)}</span> {t(`zone.${z}`)}
               </h3>
-              {zc.length === 0 ? <p className="muted empty-zone">{t('play.emptyZone')}</p> : <div className={mode === 'cards' ? 'card-grid' : 'card-list'}>{zc.map(renderCard)}</div>}
+              {zc.length === 0 ? (
+                <p className="muted empty-zone">{t('play.emptyZone')}</p>
+              ) : kind !== 'all' ? (
+                <div className={mode === 'cards' ? 'card-grid' : 'card-list'}>{zc.map(renderCard)}</div>
+              ) : (
+                PLAY_KINDS.map((k) => {
+                  const kc = zc.filter((x) => x.kind === k)
+                  if (kc.length === 0) return null
+                  return (
+                    <div key={k} className={`kind-group kind-${k}`}>
+                      <h4 className="kind-title">
+                        {t(`kind.${k}`)} <span className="muted">({kc.length})</span>
+                      </h4>
+                      <div className={mode === 'cards' ? 'card-grid' : 'card-list'}>{kc.map(renderCard)}</div>
+                    </div>
+                  )
+                })
+              )}
             </section>
           )
         })}
       </div>
 
-      {cards.length === 0 && passives.length === 0 && (
+      {allCards.length === 0 && passives.length === 0 && !sp && (
         <div className="empty-state panel">
           <p>{t('play.emptyAll')}</p>
           <button className="btn" onClick={() => api.go('features')}>
@@ -193,7 +250,8 @@ export function PlayView({ api }: { api: SheetApi }) {
         </div>
       )}
 
-      {open && <CardZoom api={api} face={cards.find((x) => x.key === open.key) ?? open} onClose={() => setOpen(null)} onUse={use} />}
+      {flexOpen && <FlexibleCasting api={api} onClose={() => setFlexOpen(false)} />}
+      {open && <CardZoom api={api} face={allCards.find((x) => x.key === open.key) ?? open} onClose={() => setOpen(null)} onUse={use} />}
       {openPassive && (
         <Modal title={openPassive.name} onClose={() => setOpenPassive(null)}>
           <p className="muted">
@@ -311,6 +369,9 @@ function CardZoom({ api, face, onClose, onUse }: { api: SheetApi; face: CardFace
           <button className="btn" disabled={item.quantity <= 0} onClick={() => onUse(face)}>
             {t('card.useOne')}
           </button>
+          <button className="btn" onClick={() => onUse(face, -1)}>
+            {t('card.addOne')}
+          </button>
         </div>
       )}
 
@@ -356,6 +417,75 @@ function CardZoom({ api, face, onClose, onUse }: { api: SheetApi; face: CardFace
           </button>
         )}
       </div>
+    </Modal>
+  )
+}
+
+// ---------------- Flexible Casting (Sorcery Points <-> slots) ----------------
+
+export function FlexibleCasting({ api, onClose }: { api: SheetApi; onClose: () => void }) {
+  const { c, update, toast } = api
+  const sp = sorceryPoints(c)
+  const feature = sorceryFeature(c)
+  if (!sp) return null
+  const slotLevels = manaRows(c)
+    .filter((r) => r.kind === 'slot')
+    .map((r) => r.level)
+  const createLevels = Array.from({ length: MAX_CREATED_SLOT_LEVEL }, (_, i) => i + 1)
+
+  const toPoints = (level: number) => {
+    const r = slotToPoints(c, level)
+    if (!r) return
+    update(() => r.character)
+    toast({ title: t('flex.gotPoints', { n: r.gained ?? 0, level }), lines: (r.gained ?? 0) < level ? [t('flex.capped')] : [] })
+  }
+  const toSlot = (level: number) => {
+    const r = pointsToSlot(c, level)
+    if (!r) return
+    update(() => r.character)
+    toast({ title: t('flex.gotSlot', { level, cost: SLOT_COST[level] }), lines: [t('flex.createdHint')] })
+  }
+
+  return (
+    <Modal title={t('flex.title')} onClose={onClose} className="flex-casting">
+      <p className="flex-points">
+        {t('flex.points')}: <b>{sp.left}</b> / {sp.max}
+      </p>
+
+      <section>
+        <h3>{t('flex.toSlotTitle')}</h3>
+        <p className="hint">{t('flex.toSlotHint')}</p>
+        <div className="flex-buttons">
+          {createLevels.map((level) => (
+            <button key={level} className="btn" disabled={!canPointsToSlot(c, level)} onClick={() => toSlot(level)}>
+              {t('flex.toSlot', { cost: SLOT_COST[level], level })}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h3>{t('flex.toPointsTitle')}</h3>
+        <p className="hint">{t('flex.toPointsHint')}</p>
+        {slotLevels.length === 0 ? (
+          <p className="muted">{t('flex.noSlots')}</p>
+        ) : (
+          <div className="flex-buttons">
+            {slotLevels.map((level) => (
+              <button key={level} className="btn" disabled={!canSlotToPoints(c, level)} onClick={() => toPoints(level)}>
+                {t('flex.toPoints', { level, left: slotsLeftAt(c, level) })}
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {feature?.description && (
+        <details className="flex-rules">
+          <summary>{feature.name}</summary>
+          <RichText text={feature.description} />
+        </details>
+      )}
     </Modal>
   )
 }

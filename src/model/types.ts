@@ -61,7 +61,16 @@ export interface Uses {
   regain?: string
   /** Free text shown next to the counter. */
   note?: string
+  /**
+   * Marks a counter as a known class resource, so the app can show it in a special place.
+   * "sorcery-points": shown next to the spell slots, with Flexible Casting buttons.
+   * Optional: without it, Sorcery Points are still recognized by note or formula.
+   */
+  resource?: UsesResource
 }
+
+export const USES_RESOURCES = ['sorcery-points'] as const
+export type UsesResource = (typeof USES_RESOURCES)[number]
 
 export interface Feature {
   id: string
@@ -229,6 +238,11 @@ export interface Character {
     /** Replaces the computed slots entirely (index 0 = level 1). For homebrew. */
     slotsOverride?: number[]
     pactOverride?: { slots: number; level: number }
+    /**
+     * Extra slots created with Flexible Casting (Sorcery Points -> slot), index 0 = level 1.
+     * They add to the normal maximum and vanish on a Long Rest.
+     */
+    bonusSlots?: number[]
   }
   spells: Spell[]
   inventory: { items: Item[]; money: Money }

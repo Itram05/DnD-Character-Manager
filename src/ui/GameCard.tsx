@@ -1,3 +1,4 @@
+import type React from 'react'
 import type { ReactNode } from 'react'
 import { t } from '../i18n'
 import type { Frame, PlayCard } from '../model/play'
@@ -37,6 +38,25 @@ function CostGem({ card }: { card: CardFace }) {
   )
 }
 
+/** Potions, scrolls: "− ×8 +". Minus uses one, plus puts one back (mis-click, or you found another). */
+function QuantityStepper({ card, onUse, onUndo }: { card: CardFace; onUse?: () => void; onUndo?: () => void }) {
+  const stop = (fn?: () => void) => (e: React.MouseEvent) => {
+    e.stopPropagation()
+    fn?.()
+  }
+  return (
+    <span className="qty-step" role="group" aria-label={t('card.quantityOf', { name: card.name, n: card.quantity ?? 0 })}>
+      <button className="mini-btn" onClick={stop(onUse)} disabled={!onUse || (card.quantity ?? 0) <= 0} aria-label={t('card.useOneOf', { name: card.name })} title={t('card.useOne')}>
+        −
+      </button>
+      <span className="qty">×{card.quantity}</span>
+      <button className="mini-btn" onClick={stop(onUndo)} disabled={!onUndo} aria-label={t('card.addOneOf', { name: card.name })} title={t('card.addOne')}>
+        +
+      </button>
+    </span>
+  )
+}
+
 /** One card (or one list row). Clicking the body opens the zoomed view. */
 export function GameCard(props: { card: CardFace; mode: 'cards' | 'list'; onOpen: () => void; onUse?: () => void; onUndo?: () => void; useLabel?: string }) {
   const { card, mode } = props
@@ -51,10 +71,11 @@ export function GameCard(props: { card: CardFace; mode: 'cards' | 'list'; onOpen
     card.uses && card.uses.max > 0 ? (
       <Pips max={card.uses.max} left={card.uses.left} size="sm" onSpend={props.onUse} onRestore={props.onUndo} label={t('common.usesLeft', { left: card.uses.left, max: card.uses.max })} />
     ) : card.quantity !== undefined ? (
-      <span className="qty">×{card.quantity}</span>
+      <QuantityStepper card={card} onUse={props.onUse} onUndo={props.onUndo} />
     ) : null
 
-  const useBtn = props.onUse && (
+  // consumables are used with the stepper's minus button; a separate "Use" would do the same thing
+  const useBtn = props.onUse && card.quantity === undefined && (
     <button
       className="card-use"
       onClick={(e) => {

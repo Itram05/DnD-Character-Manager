@@ -56,7 +56,7 @@ export function Confirm(props: { title: string; message: ReactNode; confirmLabel
 // ---------------- Pips (uses, slots) ----------------
 
 /** Row of circles: filled = available, hollow = spent. Clicking a filled one spends, a hollow one restores. */
-export function Pips(props: { max: number; left: number; onSpend?: () => void; onRestore?: () => void; variant?: 'use' | 'mana' | 'pact' | 'death-ok' | 'death-fail'; label?: string; size?: 'sm' | 'md' }) {
+export function Pips(props: { max: number; left: number; onSpend?: () => void; onRestore?: () => void; variant?: 'use' | 'mana' | 'pact' | 'sorcery' | 'death-ok' | 'death-fail'; label?: string; size?: 'sm' | 'md' }) {
   const { max, left } = props
   if (max > 12) {
     return (

@@ -10,6 +10,7 @@
 //   Temporary HP end ("last until depleted or you finish a Long Rest").
 //   Concentration ends because you sleep (Unconscious -> Incapacitated ends Concentration).
 import { abilityMod, evalFormula, hitDicePool, usesMax } from './rules'
+import { clearBonusSlots } from './sorcery'
 import type { Character, Uses } from './types'
 
 export interface RestResult {
@@ -81,6 +82,8 @@ export function longRest(c: Character, opts: { dawn?: boolean } = { dawn: true }
   if (c.exhaustion > 0) out.restored.push(`Exhaustion ${c.exhaustion} → ${c.exhaustion - 1}`)
   if (c.combat.hp.temp > 0) out.reminders.push('Temporary Hit Points ended.')
   if (c.spellcasting.concentration) out.reminders.push(`Concentration on ${c.spellcasting.concentration} ended (you slept).`)
+  if (c.spellcasting.bonusSlots?.some((n) => n > 0)) out.reminders.push('Spell slots created with Sorcery Points vanished.')
+  next = clearBonusSlots(next)
   next = {
     ...next,
     combat: {

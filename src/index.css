@@ -2310,3 +2310,87 @@ details summary {
 .create-bar .btn-primary[aria-disabled='true'] {
   opacity: 0.55;
 }
+
+/* ---------------- wave 1: kind filter, consumables, Sorcery Points ---------------- */
+
+/* second filter row: Attacks / Features / Spells / Items */
+.play-controls .kind-filter {
+  flex: 1 1 300px;
+}
+.segmented button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+@media (max-width: 899px) {
+  .play-controls .kind-filter {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    flex-basis: 100%;
+  }
+  .play-controls .kind-filter button {
+    white-space: normal;
+    line-height: 1.1;
+    font-size: 0.78rem;
+    padding: 0.2rem 0.15rem;
+  }
+  .play-controls .kind-filter .count {
+    display: block;
+    margin: 0;
+  }
+}
+/* inside a hand: one small heading per kind of card */
+.kind-group + .kind-group {
+  margin-top: 0.6rem;
+}
+.kind-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin: 0 0 0.35rem 0.1rem;
+}
+
+/* potions and scrolls: − ×8 + */
+.qty-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.qty-step .mini-btn {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+/* Sorcery Points next to the spell slots */
+.pips-sorcery .pip {
+  --pip-color: var(--f-class);
+}
+.mana-sorcery {
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px dashed var(--line);
+}
+.mana-sorcery .mana-label {
+  color: var(--f-class);
+}
+.mana-sorcery .flex-open {
+  margin-left: auto;
+}
+.tag.bonus-slot {
+  color: var(--f-class);
+}
+.flex-casting section {
+  margin-top: 0.8rem;
+}
+.flex-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.flex-points {
+  font-size: 1.05rem;
+}
+.flex-rules {
+  margin-top: 1rem;
+}

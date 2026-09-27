@@ -5,12 +5,16 @@
 // Spent = "tapped" (turned sideways). Rests "untap" the cards they restore.
 // Spell slots are "mana". Passive features lie on the "battlefield".
 import { pactSlots, spellSlots, usesMax } from './rules'
+import { bonusSlotsAt, isSorceryPoints } from './sorcery'
 import type { Activation, Character, Feature, Item, SourceType, Spell, Uses } from './types'
 
 export type Zone = 'action' | 'bonus' | 'reaction' | 'other'
 export const ZONES: Zone[] = ['action', 'bonus', 'reaction', 'other']
 
 export type CardKind = 'feature' | 'spell' | 'item'
+/** Kinds the Play screen can be filtered by. Attacks are built in the UI, not here. */
+export type PlayKind = 'attack' | CardKind
+export const PLAY_KINDS: PlayKind[] = ['attack', 'feature', 'spell', 'item']
 export type Frame = SourceType | 'spell'
 
 export interface PlayCard {
@@ -26,7 +30,7 @@ export interface PlayCard {
   spellLevel?: number
   text: string
   uses?: { left: number; max: number }
-  /** For consumable items without charges: how many are left. */
+  /** For consumable items without charges (potions, scrolls): how many are left. Shown with - / + on the card. */
   quantity?: number
   tapped: boolean
   /** Spell with no way to pay for it right now. */
@@ -92,7 +96,7 @@ export function itemCard(c: Character, i: Item): PlayCard {
     id: i.id,
     name: i.name,
     frame: 'item',
-    sourceLabel: uses ? 'Item' : `Item x${i.quantity}`,
+    sourceLabel: 'Item',
     zone: activationZone(i.activation ?? 'action'),
     cost: COST[i.activation ?? 'action'] || 'A',
     text: shortText(i.description),
@@ -131,7 +135,8 @@ export const castableSpells = (c: Character) => c.spells.filter((s) => s.level =
 
 export function playCards(c: Character): PlayCard[] {
   const cards: PlayCard[] = []
-  for (const f of c.features) if (!isPassive(f)) cards.push(featureCard(c, f))
+  // Sorcery Points live next to the spell slots, not in a hand.
+  for (const f of c.features) if (!isPassive(f) && !isSorceryPoints(f.uses)) cards.push(featureCard(c, f))
   for (const s of castableSpells(c)) cards.push(spellCard(c, s))
   for (const i of c.inventory.items) if (i.charges || i.activation) cards.push(itemCard(c, i))
   return cards
@@ -142,17 +147,22 @@ export function playCards(c: Character): PlayCard[] {
 export interface ManaRow {
   kind: 'slot' | 'pact'
   level: number
+  /** Total available, including slots created with Flexible Casting. */
   max: number
   used: number
+  /** How many of max are created slots (they vanish on a Long Rest). */
+  bonus: number
 }
 
 export function manaRows(c: Character): ManaRow[] {
   const rows: ManaRow[] = []
-  spellSlots(c).forEach((max, i) => {
-    if (max > 0) rows.push({ kind: 'slot', level: i + 1, max, used: Math.min(max, c.spellcasting.slotsUsed[i] ?? 0) })
+  spellSlots(c).forEach((base, i) => {
+    const bonus = bonusSlotsAt(c, i + 1)
+    const max = base + bonus
+    if (max > 0) rows.push({ kind: 'slot', level: i + 1, max, used: Math.min(max, c.spellcasting.slotsUsed[i] ?? 0), bonus })
   })
   const p = pactSlots(c)
-  if (p.slots > 0) rows.push({ kind: 'pact', level: p.level, max: p.slots, used: Math.min(p.slots, c.spellcasting.pactSlotsUsed) })
+  if (p.slots > 0) rows.push({ kind: 'pact', level: p.level, max: p.slots, used: Math.min(p.slots, c.spellcasting.pactSlotsUsed), bonus: 0 })
   return rows
 }
 
@@ -177,7 +187,7 @@ export function spendSlot(c: Character, kind: 'slot' | 'pact', level: number, de
     const used = Math.min(max, Math.max(0, c.spellcasting.pactSlotsUsed + delta))
     return { ...c, spellcasting: { ...c.spellcasting, pactSlotsUsed: used } }
   }
-  const max = spellSlots(c)[level - 1] ?? 0
+  const max = (spellSlots(c)[level - 1] ?? 0) + bonusSlotsAt(c, level)
   const slotsUsed = [...c.spellcasting.slotsUsed]
   slotsUsed[level - 1] = Math.min(max, Math.max(0, (slotsUsed[level - 1] ?? 0) + delta))
   return { ...c, spellcasting: { ...c.spellcasting, slotsUsed } }

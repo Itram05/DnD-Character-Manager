@@ -10,6 +10,7 @@ import {
   RECHARGES,
   SKILL_IDS,
   SOURCE_TYPES,
+  USES_RESOURCES,
   type Ability,
   type Activation,
   type Attack,
@@ -152,6 +153,11 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     if (v.shortRestRegain !== undefined) out.shortRestRegain = r.formula(v.shortRestRegain, `${path}.shortRestRegain`, 0)
     if (v.regain !== undefined && v.regain !== '') out.regain = r.str(v.regain, `${path}.regain`)
     if (v.note !== undefined) out.note = r.str(v.note, `${path}.note`)
+    if (v.resource !== undefined && v.resource !== null && v.resource !== '') {
+      const res = String(v.resource).toLowerCase().trim()
+      if ((USES_RESOURCES as readonly string[]).includes(res)) out.resource = res as Uses['resource']
+      else warnings.push(`${path}.resource: "${String(v.resource)}" is not one of ${USES_RESOURCES.join(', ')}; ignored.`)
+    }
     return out
   }
 
@@ -327,6 +333,10 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
       slots: r.num(scRaw.pactOverride.slots, 'spellcasting.pactOverride.slots', 0, 0),
       level: r.num(scRaw.pactOverride.level, 'spellcasting.pactOverride.level', 1, 1, 9),
     }
+  if (scRaw.bonusSlots !== undefined && scRaw.bonusSlots !== null) {
+    const bs = r.arr(scRaw.bonusSlots, 'spellcasting.bonusSlots')
+    spellcasting.bonusSlots = Array.from({ length: 9 }, (_, i) => Math.round(r.num(bs[i], `spellcasting.bonusSlots[${i}]`, 0, 0)))
+  }
 
   // ----- inventory -----
   const invRaw = isObj(raw.inventory) ? raw.inventory : {}
