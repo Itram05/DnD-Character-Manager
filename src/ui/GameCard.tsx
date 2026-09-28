@@ -2,6 +2,7 @@ import type React from 'react'
 import type { ReactNode } from 'react'
 import { t } from '../i18n'
 import type { Frame, PlayCard } from '../model/play'
+import { titleRem } from './cardTitle'
 import { CategoryBand, CategoryIcons, cardCategories } from './categoryMarks'
 import { Highlighted, Pips } from './common'
 
@@ -155,7 +156,9 @@ export function GameCard(props: { card: CardFace; mode: 'cards' | 'list'; onOpen
       <div className={cls} onClick={props.onOpen} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && props.onOpen()} aria-label={card.tapped ? t('card.tappedLabel', { name: card.name }) : card.name}>
         <CategoryBand cats={cats} />
         <div className="card-head">
-          <span className="card-name">{card.name}</span>
+          <span className="card-name" style={{ fontSize: `${titleRem(card.name)}rem` }} title={card.name}>
+            {card.name}
+          </span>
           <CostGem card={card} />
         </div>
         <div className="card-type">

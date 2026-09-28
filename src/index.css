@@ -1339,8 +1339,16 @@ tr.clickable:hover {
   min-width: 0;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 0.98rem;
+  font-size: 0.98rem; /* a long name gets a smaller size inline (cardTitle.ts, TITLE_REM) */
   line-height: 1.2;
+  /* the same room on every card, two lines at the normal size, so the cards in a row match;
+     what still does not fit ends in "…" on the second line */
+  height: calc(2 * 1.2 * 0.98rem);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .card-type {
   display: flex;
