@@ -10,7 +10,8 @@ import {
   paymentOptions,
   playCards,
   playPassives,
-  playPotions,
+  kindGroup,
+  playHealingPotions,
   shortText,
   spendSlot,
   // plain function, not a React hook: the alias stops the linter from treating it as one
@@ -22,11 +23,11 @@ import {
 } from '../model/play'
 import { MAX_CREATED_SLOT_LEVEL, SLOT_COST, canPointsToSlot, canSlotToPoints, pointsToSlot, slotToPoints, slotsLeftAt, sorceryFeature, sorceryPoints } from '../model/sorcery'
 import { attackStats } from '../model/rules'
-import { isScroll, potionDice, potionLabel, readScroll, scrollInfo } from '../model/consumables'
+import { healingDice, isScroll, potionLabel, readScroll, scrollInfo } from '../model/consumables'
 import type { Character, Feature, Item } from '../model/types'
 import { Modal, Pips, RichText, fmtMod, useMediaQuery } from './common'
 import { FeatureEditor, ItemEditor, SpellEditor } from './editors'
-import { FRAME_GLYPH, GameCard, SCROLL_GLYPH, type CardFace } from './GameCard'
+import { FRAME_GLYPH, GameCard, POTION_GLYPH, SCROLL_GLYPH, type CardFace } from './GameCard'
 import type { SheetApi } from './Sheet'
 
 type HandFilter = Zone | 'all'
@@ -56,7 +57,16 @@ function attackFaces(c: Character): CardFace[] {
   })
 }
 
-const ORDER: Record<string, number> = { attack: 0, feature: 1, spell: 2, scroll: 3, item: 4 }
+// inside the "scroll" group, scrolls first, then potions
+const ORDER: Record<string, number> = { attack: 0, feature: 1, spell: 2, scroll: 3, potion: 4, item: 5 }
+
+/** Title of a group: the scroll group says what is in it ("Scrolls", "Potions" or "Scrolls & Potions"). */
+function groupTitle(k: PlayKind, cards: CardFace[]): string {
+  if (k !== 'scroll') return t(`kind.${k}`)
+  const hasScroll = cards.some((x) => x.kind === 'scroll')
+  const hasPotion = cards.some((x) => x.kind === 'potion')
+  return hasScroll && hasPotion ? t('kind.scrollPotion') : hasPotion ? t('kind.potion') : t('kind.scroll')
+}
 
 export function PlayView({ api }: { api: SheetApi }) {
   const { c, update, settings, setSettings, toast } = api
@@ -73,8 +83,8 @@ export function PlayView({ api }: { api: SheetApi }) {
     const all: CardFace[] = [...attackFaces(c), ...playCards(c, srd)]
     return all.sort((a, b) => ORDER[a.kind] - ORDER[b.kind] || (a.spellLevel ?? 0) - (b.spellLevel ?? 0) || a.name.localeCompare(b.name))
   }, [c, srd])
-  const potions = playPotions(c)
-  const cards = kind === 'all' ? allCards : allCards.filter((x) => x.kind === kind)
+  const potions = playHealingPotions(c)
+  const cards = kind === 'all' ? allCards : allCards.filter((x) => kindGroup(x.kind) === kind)
   const sp = sorceryPoints(c)
   const passives = playPassives(c)
   const mana = manaRows(c)
@@ -98,20 +108,28 @@ export function PlayView({ api }: { api: SheetApi }) {
       ],
     })
   }
+  /** Any potion: one fewer. A healing potion also says what to roll. */
   const drink = (i: Item) => {
     if (i.quantity <= 0) return
     update((x) => spendCard(x, { kind: 'item', id: i.id }, 1))
-    const dice = potionDice(i.description)
-    toast({ title: t('potion.used', { name: i.name }), lines: [...(dice ? [t('potion.roll', { dice })] : []), t('scroll.left', { n: i.quantity - 1 })] })
+    const dice = healingDice(i)
+    const left = i.quantity - 1
+    toast({ title: t('potion.used', { name: i.name }), lines: [...(dice ? [t('potion.roll', { dice })] : []), left > 0 ? t('scroll.left', { n: left }) : t('scroll.lastOne')] })
+  }
+  const drinkCard = (card: CardFace) => {
+    const i = c.inventory.items.find((x) => x.id === card.id)
+    if (i) drink(i)
   }
 
   const zonesToShow: Zone[] = hand === 'all' ? ZONES : [hand]
   const countIn = (z: Zone) => cards.filter((x) => x.zone === z).length
-  const countKind = (k: PlayKind) => allCards.filter((x) => x.kind === k).length
+  const countKind = (k: PlayKind) => allCards.filter((x) => kindGroup(x.kind) === k).length
 
   const renderCard = (card: CardFace) => {
     if (card.kind === 'scroll')
       return <GameCard key={card.key} card={card} mode={mode} onOpen={() => setOpen(card)} onUse={() => readOneScroll(card)} useLabel={t('scroll.use')} />
+    if (card.kind === 'potion')
+      return <GameCard key={card.key} card={card} mode={mode} onOpen={() => setOpen(card)} onUse={() => drinkCard(card)} useLabel={t('scroll.use')} />
     const isSpell = card.kind === 'spell'
     const hasCounter = !!card.uses || card.quantity !== undefined
     return (
@@ -141,7 +159,7 @@ export function PlayView({ api }: { api: SheetApi }) {
         <div className="segmented kind-filter" role="tablist" aria-label={t('play.kinds')}>
           {(['all', ...PLAY_KINDS] as KindFilter[]).map((k) => (
             <button key={k} role="tab" aria-selected={kind === k} className={kind === k ? 'active' : ''} onClick={() => setKind(k)} disabled={k !== 'all' && countKind(k) === 0}>
-              {t(`kind.${k}`)}
+              {k === 'all' ? t('kind.all') : groupTitle(k, allCards)}
               {k !== 'all' && <span className="count">{countKind(k)}</span>}
             </button>
           ))}
@@ -155,32 +173,6 @@ export function PlayView({ api }: { api: SheetApi }) {
           </button>
         </div>
       </div>
-
-        {potions.length > 0 && (
-          <section className="potions panel" aria-label={t('potion.title')}>
-            <h3>{t('potion.title')}</h3>
-            <div className="potion-list">
-              {potions.map((i) => {
-                const dice = potionDice(i.description)
-                return (
-                  <div key={i.id} className={`potion ${i.quantity <= 0 ? 'empty' : ''}`} role="group" aria-label={t('card.quantityOf', { name: i.name, n: i.quantity })}>
-                    <button className="mini-btn" onClick={() => drink(i)} disabled={i.quantity <= 0} aria-label={t('card.useOneOf', { name: i.name })} title={t('potion.drink')}>
-                      −
-                    </button>
-                    <button className="potion-name" onClick={() => setOpen(itemCard(c, i))} title={i.name}>
-                      <span className="pn">{potionLabel(i.name)}</span>
-                      {dice && <span className="pd">{dice}</span>}
-                    </button>
-                    <span className="pq">×{i.quantity}</span>
-                    <button className="mini-btn" onClick={() => use(itemCard(c, i), -1)} aria-label={t('card.addOneOf', { name: i.name })} title={t('card.addOne')}>
-                      +
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-          </section>
-        )}
 
         {(mana.length > 0 || sp) && (
           <section className="mana panel">
@@ -240,6 +232,32 @@ export function PlayView({ api }: { api: SheetApi }) {
           ) : (
             <div className="conc-empty">{t('play.notConcentrating')}</div>
           )}
+          {/* the four healing potions live here: HP and Concentration are what you check mid-fight */}
+          {potions.length > 0 && (
+            <div className="heal-potions" role="group" aria-label={t('potion.healing')}>
+              <h4>{t('potion.healing')}</h4>
+              <div className="potion-list">
+                {potions.map((i) => {
+                  const dice = healingDice(i)
+                  return (
+                    <div key={i.id} className={`potion ${i.quantity <= 0 ? 'empty' : ''}`} role="group" aria-label={t('card.quantityOf', { name: i.name, n: i.quantity })}>
+                      <button className="mini-btn" onClick={() => drink(i)} disabled={i.quantity <= 0} aria-label={t('card.useOneOf', { name: i.name })} title={t('potion.drink')}>
+                        −
+                      </button>
+                      <button className="potion-name" onClick={() => setOpen(itemCard(c, i))} title={i.name}>
+                        <span className="pn">{potionLabel(i.name)}</span>
+                        {dice && <span className="pd">{dice}</span>}
+                      </button>
+                      <span className="pq">×{i.quantity}</span>
+                      <button className="mini-btn" onClick={() => use(itemCard(c, i), -1)} aria-label={t('card.addOneOf', { name: i.name })} title={t('card.addOne')}>
+                        +
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </section>
 
         {passives.length > 0 && (
@@ -274,12 +292,12 @@ export function PlayView({ api }: { api: SheetApi }) {
                 <div className={mode === 'cards' ? 'card-grid' : 'card-list'}>{zc.map(renderCard)}</div>
               ) : (
                 PLAY_KINDS.map((k) => {
-                  const kc = zc.filter((x) => x.kind === k)
+                  const kc = zc.filter((x) => kindGroup(x.kind) === k)
                   if (kc.length === 0) return null
                   return (
                     <div key={k} className={`kind-group kind-${k}`}>
                       <h4 className="kind-title">
-                        {t(`kind.${k}`)} <span className="muted">({kc.length})</span>
+                        {groupTitle(k, kc)} <span className="muted">({kc.length})</span>
                       </h4>
                       <div className={mode === 'cards' ? 'card-grid' : 'card-list'}>{kc.map(renderCard)}</div>
                     </div>
@@ -310,9 +328,10 @@ export function PlayView({ api }: { api: SheetApi }) {
           face={allCards.find((x) => x.key === open.key) ?? open}
           onClose={() => setOpen(null)}
           onUse={(f, d = 1) => {
-            const potion = f.kind === 'item' ? potions.find((i) => i.id === f.id) : undefined
+            const healing = f.kind === 'item' ? potions.find((i) => i.id === f.id) : undefined
             if (d > 0 && f.kind === 'scroll') readOneScroll(f)
-            else if (d > 0 && potion) drink(potion)
+            else if (d > 0 && f.kind === 'potion') drinkCard(f)
+            else if (d > 0 && healing) drink(healing)
             else use(f, d)
           }}
           srd={srd}
@@ -369,7 +388,7 @@ function CardZoom({ api, face, onClose, onUse, srd }: { api: SheetApi; face: Car
   const [editing, setEditing] = useState(false)
   const feature = face.kind === 'feature' ? c.features.find((f) => f.id === face.id) : undefined
   const spell = face.kind === 'spell' ? c.spells.find((s) => s.id === face.id) : undefined
-  const item = face.kind === 'item' || face.kind === 'scroll' ? c.inventory.items.find((i) => i.id === face.id) : undefined
+  const item = face.kind === 'item' || face.kind === 'scroll' || face.kind === 'potion' ? c.inventory.items.find((i) => i.id === face.id) : undefined
   const scroll = face.kind === 'scroll' && item ? scrollInfo(c, item, srd) : undefined
   // what the spell table shows: the spell itself, or the spell a scroll holds
   const sm = spell ?? scroll
@@ -399,7 +418,7 @@ function CardZoom({ api, face, onClose, onUse, srd }: { api: SheetApi; face: Car
     <Modal title={<span className={`zoom-title frame-text-${face.frame}`}>{face.name}</span>} onClose={onClose} className={`zoom frame-${face.frame}`}>
       <div className="zoom-meta">
         <span>
-          {scroll ? SCROLL_GLYPH : FRAME_GLYPH[face.frame]} {face.sourceLabel}
+          {scroll ? SCROLL_GLYPH : face.kind === 'potion' ? POTION_GLYPH : FRAME_GLYPH[face.frame]} {face.sourceLabel}
         </span>
         {feature && <span className={`gem gem-${face.zone}`}>{t(`act.${feature.activation}`)}</span>}
         {sm && sm.level !== undefined && (
@@ -454,8 +473,8 @@ function CardZoom({ api, face, onClose, onUse, srd }: { api: SheetApi; face: Car
       {item && !item.charges && (
         <div className="zoom-uses">
           <span>{t('item.quantity')}</span> <b>{item.quantity}</b>
-          <button className={`btn ${scroll ? 'btn-primary' : ''}`} disabled={item.quantity <= 0} onClick={() => onUse(face)}>
-            {scroll ? t('scroll.use') : t('card.useOne')}
+          <button className={`btn ${scroll || face.kind === 'potion' ? 'btn-primary' : ''}`} disabled={item.quantity <= 0} onClick={() => onUse(face)}>
+            {scroll || face.kind === 'potion' ? t('scroll.use') : t('card.useOne')}
           </button>
           <button className="btn" onClick={() => onUse(face, -1)}>
             {t('card.addOne')}

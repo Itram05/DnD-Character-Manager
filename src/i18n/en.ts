@@ -227,6 +227,9 @@ export const en: Record<string, string> = {
   'kind.spell': 'Spells',
   'kind.item': 'Items',
   'kind.scroll': 'Scrolls',
+  // the scroll group also holds potions that are not healing potions; its title says what is in it
+  'kind.potion': 'Potions',
+  'kind.scrollPotion': 'Scrolls & Potions',
   'scroll.use': 'Use',
   'scroll.used': 'Used {name}',
   'scroll.left': '{n} left',
@@ -235,7 +238,7 @@ export const en: Record<string, string> = {
   'scroll.from.character': 'Spell text from your spell list ({name}).',
   'scroll.from.srd': 'Spell text from the SRD 5.2.1 ({name}).',
   'scroll.from.item': 'Spell not found by name, showing the item description instead.',
-  'potion.title': 'Potions',
+  'potion.healing': 'Healing potions',
   'potion.drink': 'Drink one',
   'potion.used': 'Drank {name}',
   'potion.roll': 'Roll {dice} and add it on the HP counter.',

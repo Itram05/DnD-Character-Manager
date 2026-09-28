@@ -17,7 +17,9 @@ export const FRAME_GLYPH: Record<Frame | 'attack', string> = {
 }
 /** Scrolls keep the spell frame (colour) but get their own glyph, so they read as "not from your slots". */
 export const SCROLL_GLYPH = '✉'
-const glyphOf = (card: CardFace) => (card.kind === 'scroll' ? SCROLL_GLYPH : FRAME_GLYPH[card.frame])
+/** Potions other than healing ones: item frame, their own glyph. */
+export const POTION_GLYPH = '⚗'
+const glyphOf = (card: CardFace) => (card.kind === 'scroll' ? SCROLL_GLYPH : card.kind === 'potion' ? POTION_GLYPH : FRAME_GLYPH[card.frame])
 
 export interface CardFace extends Omit<PlayCard, 'frame' | 'kind'> {
   frame: Frame | 'attack'
@@ -60,7 +62,7 @@ function QuantityStepper({ card, onUse, onUndo }: { card: CardFace; onUse?: () =
   )
 }
 
-/** Scrolls: "×2" next to a "Use" button; at 0 it says so and the card stays (tapped) until removed on the Gear tab. */
+/** Scrolls and potions: "×2" next to a "Use" button; at 0 it says so and the card stays (tapped) until removed on the Gear tab. */
 function ScrollCount({ card }: { card: CardFace }) {
   const n = card.quantity ?? 0
   return n > 0 ? (
@@ -85,15 +87,15 @@ export function GameCard(props: { card: CardFace; mode: 'cards' | 'list'; onOpen
   const counter =
     card.uses && card.uses.max > 0 ? (
       <Pips max={card.uses.max} left={card.uses.left} size="sm" onSpend={props.onUse} onRestore={props.onUndo} label={t('common.usesLeft', { left: card.uses.left, max: card.uses.max })} />
-    ) : card.kind === 'scroll' ? (
+    ) : card.kind === 'scroll' || card.kind === 'potion' ? (
       <ScrollCount card={card} />
     ) : card.quantity !== undefined ? (
       <QuantityStepper card={card} onUse={props.onUse} onUndo={props.onUndo} />
     ) : null
 
   // consumables are used with the stepper's minus button; a separate "Use" would do the same thing.
-  // Scrolls have no stepper: "Use" reads one (and can start concentration), the count sits beside it.
-  const useBtn = props.onUse && (card.quantity === undefined || card.kind === 'scroll') && (
+  // Scrolls and potions have no stepper: "Use" spends one (a scroll can start concentration), the count sits beside it.
+  const useBtn = props.onUse && (card.quantity === undefined || card.kind === 'scroll' || card.kind === 'potion') && (
     <button
       className="card-use"
       onClick={(e) => {

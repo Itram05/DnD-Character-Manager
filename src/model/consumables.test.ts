@@ -1,10 +1,10 @@
-// Potions as counters at the top of Play, spell scrolls as their own section right under the spells.
+// Healing potions as counters next to Concentration; spell scrolls and other potions as cards in one group right under the spells.
 import { describe, expect, it } from 'vitest'
 import srdSpells from '../data/srd/spells.json'
 import type { SrdSpell } from '../data/srd'
-import { isPotion, isScroll, potionDice, potionLabel, readScroll, scrollInfo, scrollSpellName } from './consumables'
+import { healingDice, healingTier, isPotion, isScroll, potionDice, potionLabel, readScroll, scrollInfo, scrollSpellName } from './consumables'
 import { tokenize } from './highlight'
-import { PLAY_KINDS, playCards, playPotions, useCard } from './play'
+import { PLAY_KINDS, kindGroup, playCards, playHealingPotions, useCard } from './play'
 import { normalizeCharacter } from './normalize'
 import type { Character } from './types'
 
@@ -29,6 +29,9 @@ const hero = (): Character =>
         { id: 'case', name: 'Scroll case', quantity: 1, activation: 'action' },
         { id: 'p1', name: 'Potion of Healing', quantity: 3, activation: 'action', description: 'Regain 2d4 + 2 HP.' },
         { id: 'p2', name: 'Elixir of Health', quantity: 0 },
+        { id: 'p3', name: 'greater healing potion', quantity: 2 },
+        { id: 'p-climb', name: 'Potion of Climbing', quantity: 1, description: 'You gain a Climb Speed equal to your Speed for 1 hour.' },
+        { id: 'fire', name: "Alchemist's Fire", quantity: 2, activation: 'action', description: '1d4 Fire damage at the start of each of its turns.' },
         { id: 'p-charged', name: 'Potion Flask of Endless Brew', quantity: 1, activation: 'action', charges: { max: 3, recharge: 'dawn' } },
         { id: 'rope', name: 'Rope', quantity: 1 },
       ],
@@ -98,16 +101,46 @@ describe('what a scroll shows', () => {
 })
 
 describe('Play screen', () => {
-  it('scrolls are cards of their own kind, right after spells; potions are not cards', () => {
+  it('scrolls are cards of their own kind, right after spells; healing potions are not cards, other potions are', () => {
     const c = hero()
     expect(PLAY_KINDS.indexOf('scroll')).toBe(PLAY_KINDS.indexOf('spell') + 1)
     const cards = playCards(c, SRD)
     const scrolls = cards.filter((x) => x.kind === 'scroll')
     expect(scrolls.map((x) => x.id).sort()).toEqual(['s-cmd', 's-hold', 's-prot', 's-shatter', 's-shield'])
-    expect(cards.some((x) => x.id === 'p1' || x.id === 'p2')).toBe(false)
+    expect(cards.some((x) => x.id === 'p1' || x.id === 'p3')).toBe(false)
+    // other potions: cards in the scroll group, even at 0 and without an activation
+    const potions = cards.filter((x) => x.kind === 'potion')
+    expect(potions.map((x) => x.id).sort()).toEqual(['p-climb', 'p2'])
+    expect(potions.every((x) => kindGroup(x.kind) === 'scroll')).toBe(true)
+    expect(cards.find((x) => x.id === 'p-climb')).toMatchObject({ quantity: 1, zone: 'action', tapped: false, text: 'You gain a Climb Speed equal to your Speed for 1 hour.' })
+    expect(cards.find((x) => x.id === 'p2')).toMatchObject({ quantity: 0, tapped: true })
     // a charged item keeps its card even with "potion" in the name
     expect(cards.find((x) => x.id === 'p-charged')?.kind).toBe('item')
     expect(cards.find((x) => x.id === 'case')?.kind).toBe('item')
+    // Alchemist's Fire is neither: an ordinary item card with its stepper
+    expect(cards.find((x) => x.id === 'fire')).toMatchObject({ kind: 'item', quantity: 2 })
+  })
+  it('the four healing potions are recognized by name, in any word order and case', () => {
+    const tier = (name: string) => healingTier({ name })
+    expect(tier('Potion of Healing')).toBe('healing')
+    expect(tier('Potion of Greater Healing')).toBe('greater')
+    expect(tier('Greater Healing Potion')).toBe('greater')
+    expect(tier('POTION OF SUPERIOR HEALING')).toBe('superior')
+    expect(tier('Potion of Supreme Healing')).toBe('supreme')
+    expect(tier('Отвара за лекуване')).toBe('healing')
+    for (const n of ['Potion of Climbing', 'Potion of Water Breathing', 'Elixir of Health', "Alchemist's Fire", 'Healing Kit', 'Rope'])
+      expect(tier(n)).toBeUndefined()
+    // a charged "healing potion" keeps its pips
+    expect(healingTier({ name: 'Potion of Healing', charges: { max: 3, used: 0, recharge: 'dawn' } })).toBeUndefined()
+  })
+  it('healing dice: the description wins, else the standard for the kind', () => {
+    expect(healingDice({ name: 'Potion of Healing', description: 'Regain 2d4 + 2 HP.' })).toBe('2d4+2')
+    expect(healingDice({ name: 'Potion of Healing', description: 'House rule: 3d4 + 3.' })).toBe('3d4+3')
+    expect(healingDice({ name: 'Potion of Healing' })).toBe('2d4+2')
+    expect(healingDice({ name: 'Greater Healing Potion' })).toBe('4d4+4')
+    expect(healingDice({ name: 'Potion of Superior Healing', description: '' })).toBe('8d4+8')
+    expect(healingDice({ name: 'Potion of Supreme Healing' })).toBe('10d4+20')
+    expect(healingDice({ name: 'Potion of Climbing' })).toBeUndefined()
   })
   it('a scroll card looks like its spell: level, hand by casting time, concentration, meta line', () => {
     const c = hero()
@@ -123,18 +156,26 @@ describe('Play screen', () => {
     expect(playCards(c, SRD).some((x) => x.id === 's-att')).toBe(false)
     const attuned = { ...c, inventory: { ...c.inventory, items: c.inventory.items.map((i) => (i.id === 's-att' ? { ...i, attuned: true } : i)) } }
     expect(playCards(attuned, SRD).some((x) => x.id === 's-att')).toBe(true)
-    const unattunedPotion = { ...c, inventory: { ...c.inventory, items: c.inventory.items.map((i) => (i.id === 'p1' ? { ...i, requiresAttunement: true } : i)) } }
-    expect(playPotions(unattunedPotion).map((x) => x.id)).toEqual(['p2'])
+    const unattuned = { ...c, inventory: { ...c.inventory, items: c.inventory.items.map((i) => (i.id === 'p1' || i.id === 'p-climb' ? { ...i, requiresAttunement: true } : i)) } }
+    expect(playHealingPotions(unattuned).map((x) => x.id)).toEqual(['p3'])
+    expect(playCards(unattuned, SRD).some((x) => x.id === 'p-climb')).toBe(false)
   })
-  it('potions: all of them, even at 0 and even without an activation; - and + change the quantity', () => {
+  it('healing potions: counters, even at 0 and even without an activation; - and + change the quantity', () => {
     let c = hero()
-    expect(playPotions(c).map((x) => [x.id, x.quantity])).toEqual([
+    expect(playHealingPotions(c).map((x) => [x.id, x.quantity])).toEqual([
       ['p1', 3],
-      ['p2', 0],
+      ['p3', 2],
     ])
     c = useCard(c, { kind: 'item', id: 'p1' }, 1)
-    c = useCard(c, { kind: 'item', id: 'p2' }, -1)
-    expect(playPotions(c).map((x) => x.quantity)).toEqual([2, 1])
+    c = useCard(c, { kind: 'item', id: 'p3' }, -1)
+    expect(playHealingPotions(c).map((x) => x.quantity)).toEqual([2, 3])
+    c = useCard(c, { kind: 'item', id: 'p1' }, 5)
+    expect(playHealingPotions(c)[0].quantity).toBe(0)
+  })
+  it('using another potion card takes one away', () => {
+    const c = useCard(hero(), { kind: 'potion', id: 'p-climb' }, 1)
+    expect(item(c, 'p-climb').quantity).toBe(0)
+    expect(playCards(c, SRD).find((x) => x.id === 'p-climb')!.tapped).toBe(true)
   })
   it('potion counter label and dice', () => {
     expect(potionLabel('Potion of Greater Healing')).toBe('Greater Healing')

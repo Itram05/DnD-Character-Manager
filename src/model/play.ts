@@ -5,7 +5,7 @@
 // Spent = "tapped" (turned sideways). Rests "untap" the cards they restore.
 // Spell slots are "mana". Passive features lie on the "battlefield".
 import type { SrdSpell } from '../data/srd'
-import { isPotion, isScroll, scrollInfo } from './consumables'
+import { isHealingPotion, isPotion, isScroll, scrollInfo } from './consumables'
 import { pactSlots, spellSlots, usesMax } from './rules'
 import { bonusSlotsAt, isSorceryPoints } from './sorcery'
 import type { Activation, Character, Feature, Item, SourceType, Spell, Uses } from './types'
@@ -13,11 +13,16 @@ import type { Activation, Character, Feature, Item, SourceType, Spell, Uses } fr
 export type Zone = 'action' | 'bonus' | 'reaction' | 'other'
 export const ZONES: Zone[] = ['action', 'bonus', 'reaction', 'other']
 
-export type CardKind = 'feature' | 'spell' | 'scroll' | 'item'
-/** Kinds the Play screen can be filtered by. Attacks are built in the UI, not here. */
-export type PlayKind = 'attack' | CardKind
+export type CardKind = 'feature' | 'spell' | 'scroll' | 'potion' | 'item'
+/**
+ * Groups the Play screen is split into and filtered by. Attacks are built in the UI, not here.
+ * Scrolls and (non-healing) potions share one group, "scroll"; see kindGroup.
+ */
+export type PlayKind = 'attack' | Exclude<CardKind, 'potion'>
 // scrolls come right after spells, so in every hand they sit directly under them
 export const PLAY_KINDS: PlayKind[] = ['attack', 'feature', 'spell', 'scroll', 'item']
+/** The group a card is shown in: potions sit with the scrolls. */
+export const kindGroup = (k: CardKind | 'attack'): PlayKind => (k === 'potion' ? 'scroll' : k)
 export type Frame = SourceType | 'spell'
 
 export interface PlayCard {
@@ -94,8 +99,8 @@ export function featureInPlay(c: Character, f: Feature): boolean {
   return !item || itemInPlay(item)
 }
 
-/** Potions: counters at the top of the Play screen, not cards. Same attunement filter as every item. */
-export const playPotions = (c: Character) => c.inventory.items.filter((i) => isPotion(i) && itemInPlay(i))
+/** The four healing potions: counters next to Concentration, not cards. Same attunement filter as every item. */
+export const playHealingPotions = (c: Character) => c.inventory.items.filter((i) => isHealingPotion(i) && itemInPlay(i))
 
 /** Passive features shown on the Play screen ("battlefield"). */
 export const playPassives = (c: Character) => c.features.filter((f) => isPassive(f) && featureInPlay(c, f))
@@ -158,6 +163,23 @@ export function scrollCard(c: Character, i: Item, srd?: readonly SrdSpell[]): Pl
   }
 }
 
+/** Any potion that is not a healing potion (Climbing, Water Breathing...): a card next to the scrolls, with "Use". */
+export function potionCard(i: Item): PlayCard {
+  return {
+    key: `potion:${i.id}`,
+    kind: 'potion',
+    id: i.id,
+    name: i.name,
+    frame: 'item',
+    sourceLabel: 'Potion',
+    zone: activationZone(i.activation ?? 'action'),
+    cost: COST[i.activation ?? 'action'] || 'A',
+    text: shortText(i.description),
+    quantity: i.quantity,
+    tapped: i.quantity <= 0,
+  }
+}
+
 export function spellCard(c: Character, s: Spell): PlayCard {
   const free = usesView(c, s.freeCasts)
   const opts = paymentOptions(c, s)
@@ -186,8 +208,9 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 export const castableSpells = (c: Character) => c.spells.filter((s) => s.level === 0 || s.prepared || s.alwaysPrepared)
 
 /**
- * All cards of the Play screen. Potions are not cards (they are counters at the top, see playPotions);
- * scrolls are cards of their own kind. `srd` (loaded lazily) fills in scroll spells the character lacks.
+ * All cards of the Play screen. Healing potions are not cards (they are counters next to Concentration,
+ * see playHealingPotions); scrolls and other potions are cards in their own group.
+ * `srd` (loaded lazily) fills in scroll spells the character lacks.
  */
 export function playCards(c: Character, srd?: readonly SrdSpell[]): PlayCard[] {
   const cards: PlayCard[] = []
@@ -195,8 +218,9 @@ export function playCards(c: Character, srd?: readonly SrdSpell[]): PlayCard[] {
   for (const f of c.features) if (!isPassive(f) && !isSorceryPoints(f.uses) && featureInPlay(c, f)) cards.push(featureCard(c, f))
   for (const s of castableSpells(c)) cards.push(spellCard(c, s))
   for (const i of c.inventory.items) {
-    if (!itemInPlay(i) || isPotion(i)) continue
+    if (!itemInPlay(i) || isHealingPotion(i)) continue
     if (isScroll(i)) cards.push(scrollCard(c, i, srd))
+    else if (isPotion(i)) cards.push(potionCard(i))
     else if (i.charges || i.activation) cards.push(itemCard(c, i))
   }
   return cards

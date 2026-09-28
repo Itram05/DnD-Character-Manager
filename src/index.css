@@ -2512,7 +2512,7 @@ details summary {
   border-top: 1px dashed var(--line);
   color: var(--muted);
 }
-/* six kinds now (All, Attacks, Features, Spells, Scrolls, Items) */
+/* six kinds now (All, Attacks, Features, Spells, Scrolls & Potions, Items) */
 @media (max-width: 899px) {
   .play-controls .kind-filter {
     grid-template-columns: none;
@@ -2521,27 +2521,19 @@ details summary {
   }
 }
 
-/* potions: compact counters right under the HP bar, next to the spell slots */
-.play > .potions {
-  grid-area: potions;
-  padding: 0.45rem 0.6rem;
+/* healing potions: compact counters inside the Concentration panel, one per row */
+.heal-potions {
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--line);
 }
-.play > .potions h3 {
+.heal-potions h4 {
   margin: 0 0 0.3rem;
-}
-.play {
-  grid-template-areas: 'controls' 'potions' 'mana' 'conc' 'hands' 'field' 'empty';
-}
-@media (min-width: 900px) {
-  .play {
-    grid-template-areas: 'controls controls controls' 'potions potions potions' 'mana conc field' 'hands hands hands' 'empty empty empty';
-  }
-  .play:not(:has(.mana)) {
-    grid-template-areas: 'controls controls controls' 'potions potions potions' 'conc field field' 'hands hands hands' 'empty empty empty';
-  }
-  .play > .potions {
-    margin-bottom: 0.8rem;
-  }
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
 }
 .potion-list {
   display: flex;
@@ -2605,12 +2597,4 @@ details summary {
 }
 .potion.empty .pq {
   color: var(--danger);
-}
-@media (max-width: 899px) {
-  .play > .potions {
-    margin-bottom: 0.6rem;
-  }
-  .play > .potions h3 {
-    font-size: 0.78rem;
-  }
 }

@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { importCharacterJson } from '../src/model/normalize'
-import { manaRows, playCards, playPotions, useCard } from '../src/model/play'
+import { manaRows, playCards, playHealingPotions, useCard } from '../src/model/play'
 import { longRest } from '../src/model/rest'
 import { pointsToSlot, slotToPoints, sorceryFeature, sorceryPoints } from '../src/model/sorcery'
 import type { Character } from '../src/model/types'
@@ -51,11 +51,11 @@ describe.skipIf(!existsSync(OWNER_FILE))("owner's character file", () => {
     expect(x.spellcasting.bonusSlots).toBeUndefined()
     expect(x.spellcasting.slotsOverride).toEqual([4, 3, 3, 3, 2, 1])
   })
-  it('potions are counters, scrolls are scroll cards with a quantity', () => {
-    const greater = playPotions(c).find((x) => x.name === 'Potion of Greater Healing')!
+  it('healing potions are counters, scrolls are scroll cards with a quantity', () => {
+    const greater = playHealingPotions(c).find((x) => x.name === 'Potion of Greater Healing')!
     expect(greater.quantity).toBe(8)
     const after = useCard(c, { kind: 'item', id: greater.id }, 1)
-    expect(playPotions(after).find((x) => x.name === 'Potion of Greater Healing')!.quantity).toBe(7)
+    expect(playHealingPotions(after).find((x) => x.name === 'Potion of Greater Healing')!.quantity).toBe(7)
     expect(playCards(c).filter((x) => x.kind === 'scroll').map((x) => x.name)).toContain('Scroll of Scorching Ray')
   })
   it('the Play screen renders with it (server render, no browser)', () => {
@@ -95,7 +95,7 @@ describe.skipIf(!existsSync(GRAV_FILE))("owner's character: attunement on the Pl
     expect(c.inventory.items.filter((i) => i.attuned).map((i) => i.name)).toEqual(['Staff of Ages', 'Silent Amulet', 'Pearl of Power'])
     const names = playCards(c).filter((x) => x.kind === 'item').map((x) => x.name)
     expect(names).toEqual(expect.arrayContaining(['Staff of Ages', 'Pearl of Power', 'Helm of the Constellation']))
-    expect(playPotions(c).map((x) => x.name)).toContain('Potion of Healing')
+    expect(playHealingPotions(c).map((x) => x.name)).toContain('Potion of Healing')
     expect(names).not.toContain('Wand of Web')
   })
   it('Play hides Wand of Web; the Gear tab shows the counter and every attunable item', () => {
@@ -108,23 +108,26 @@ describe.skipIf(!existsSync(GRAV_FILE))("owner's character: attunement on the Pl
   })
 })
 
-// Potions as counters at the top of Play, scrolls as their own section under the spells (Grav's real file).
+// Healing potions as counters next to Concentration, scrolls (and other potions) as their own group under the spells (Grav's real file).
 describe.skipIf(!existsSync(GRAV_FILE))("owner's character: potions and scrolls", async () => {
   const { loadSrdSpells } = await import('../src/data/srd')
-  const { scrollInfo, isScroll } = await import('../src/model/consumables')
+  const { scrollInfo, isScroll, isPotion, healingDice } = await import('../src/model/consumables')
   const { GameCard } = await import('../src/ui/GameCard')
   const srd = await loadSrdSpells()
   const text = existsSync(GRAV_FILE) ? readFileSync(GRAV_FILE, 'utf8') : '{}'
   const { character: c } = importCharacterJson(text)
   const strip = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
 
-  it('the three healing potions are counters, not cards', () => {
-    expect(playPotions(c).map((i) => [i.name, i.quantity])).toEqual([
+  it('the three healing potions are counters, not cards; dice from their descriptions', () => {
+    expect(playHealingPotions(c).map((i) => [i.name, i.quantity])).toEqual([
       ['Potion of Healing', 1],
       ['Potion of Greater Healing', 8],
       ['Potion of Superior Healing', 2],
     ])
     expect(playCards(c, srd).some((x) => x.name.startsWith('Potion'))).toBe(false)
+    expect(playHealingPotions(c).map((i) => healingDice(i))).toEqual(['2d4+2', '4d4+4', '8d4+8'])
+    // Flask of spirits is not a potion
+    expect(c.inventory.items.filter(isPotion).map((i) => i.name)).toEqual(['Potion of Healing', 'Potion of Greater Healing', 'Potion of Superior Healing'])
   })
   it('all six scrolls are scroll cards and every one finds its spell text', () => {
     const scrolls = c.inventory.items.filter(isScroll)
@@ -156,14 +159,37 @@ describe.skipIf(!existsSync(GRAV_FILE))("owner's character: potions and scrolls"
     expect(zoom).toContain('dmg-thunder')
     expect(zoom).toContain('class="hl-save"')
   })
-  it('the Play screen shows the potion bar and a Scrolls group; the Gear tab still lists the potions', () => {
-    const api: SheetApi = { c, update: () => {}, toast: () => {}, settings: { theme: 'dark', view: 'list' }, setSettings: () => {}, go: () => {} }
-    const play = strip(renderToString(<PlayView api={api} />))
-    expect(play).toContain('Potions')
-    expect(play).toContain('Greater Healing 4d4+4 × 8 +')
+  const apiFor = (ch: Character): SheetApi => ({ c: ch, update: () => {}, toast: () => {}, settings: { theme: 'dark', view: 'list' }, setSettings: () => {}, go: () => {} })
+  // the Concentration panel: from its opening tag to the next section
+  const concPanel = (html: string) => strip(html.slice(html.indexOf('in-play panel'), html.indexOf('<section', html.indexOf('in-play panel'))))
+  it('the healing potions sit in the Concentration panel; the scroll group is still "Scrolls"; the Gear tab still lists the potions', () => {
+    const api = apiFor(c)
+    const html = renderToString(<PlayView api={api} />)
+    const play = strip(html)
+    const conc = concPanel(html)
+    expect(conc).toContain('Concentration')
+    expect(conc).toContain('Healing potions')
+    expect(conc).toContain('Healing 2d4+2 × 1 +')
+    expect(conc).toContain('Greater Healing 4d4+4 × 8 +')
+    expect(conc).toContain('Superior Healing 8d4+8 × 2 +')
+    // no separate potion bar any more
+    expect(html).not.toContain('class="potions panel"')
     expect(play).toContain('Scrolls ( 6 )')
+    expect(play).not.toContain('Scrolls &amp; Potions')
     expect(play).not.toContain('Potion of Greater Healing')
     const gear = strip(renderToString(<InventoryView api={api} />))
     expect(gear).toContain('Potion of Greater Healing')
+  })
+  it('a potion that is not for healing (Climbing) becomes a card in "Scrolls & Potions" with Use', () => {
+    const climbing = { id: 'climb', name: 'Potion of Climbing', quantity: 1, description: 'You gain a Climb Speed equal to your Speed for 1 hour.' }
+    const c2: Character = { ...c, inventory: { ...c.inventory, items: [...c.inventory.items, climbing] } }
+    const html = renderToString(<PlayView api={apiFor(c2)} />)
+    const play = strip(html)
+    expect(play).toContain('Scrolls &amp; Potions ( 7 )')
+    expect(play).toContain('Potion of Climbing')
+    expect(concPanel(html)).not.toContain('Climbing')
+    const face = playCards(c2, srd).find((x) => x.id === 'climb')!
+    expect(face.kind).toBe('potion')
+    expect(strip(renderToString(<GameCard card={face} mode="cards" onOpen={() => {}} onUse={() => {}} useLabel="Use" />))).toContain('Use')
   })
 })

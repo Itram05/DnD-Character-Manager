@@ -8,6 +8,9 @@
 //   "Scroll: X", "Scroll - X", "X Scroll", "Свитък с/на/за X".
 // - Potion: an item without charges, not a scroll, whose name contains "potion", "elixir",
 //   "philter"/"philtre" (or "отвара").
+// - Healing potion: a potion whose name also says "healing" (or "лекуване"/"лечебна").
+//   The four kinds (Healing, Greater, Superior, Supreme) are counters next to Concentration;
+//   every other potion (Climbing, Water Breathing...) is a card next to the scrolls.
 // An item with charges is never a consumable here: it keeps its card with pips.
 // "Scroll case" / "scroll tube" are containers, not scrolls.
 import type { SrdSpell } from '../data/srd'
@@ -142,6 +145,42 @@ export function potionLabel(name: string): string {
 export function potionDice(description: string | undefined): string | undefined {
   const m = (description ?? '').match(/\b\d*d\d+(?:\s*[+\-−]\s*\d+)?(?!\w)/)
   return m ? m[0].replace(/\s+/g, '') : undefined
+}
+
+// ---------------- healing potions ----------------
+
+export type HealingTier = 'healing' | 'greater' | 'superior' | 'supreme'
+
+/** Standard healing of the four potions (SRD), used when the item's description has no dice. */
+export const HEALING_DICE: Record<HealingTier, string> = {
+  healing: '2d4+2',
+  greater: '4d4+4',
+  superior: '8d4+8',
+  supreme: '10d4+20',
+}
+
+const HEALING_WORD = /\bheal(ing)?\b|лекув|лечеб/i
+
+/**
+ * Which of the four healing potions this is, or undefined for any other item.
+ * "Potion of Greater Healing", "Greater Healing Potion", "potion of healing (superior)" all work.
+ */
+export function healingTier(i: Named): HealingTier | undefined {
+  if (!isPotion(i) || !HEALING_WORD.test(i.name)) return undefined
+  const n = i.name.toLowerCase()
+  if (/\bsupreme\b/.test(n)) return 'supreme'
+  if (/\bsuperior\b/.test(n)) return 'superior'
+  if (/\bgreater\b/.test(n)) return 'greater'
+  return 'healing'
+}
+
+export const isHealingPotion = (i: Named) => healingTier(i) !== undefined
+
+/** Healing potion dice: the item's own description wins, else the standard for its kind. */
+export function healingDice(i: Pick<Item, 'name' | 'charges' | 'description'>): string | undefined {
+  const tier = healingTier(i)
+  if (!tier) return undefined
+  return potionDice(i.description) ?? HEALING_DICE[tier]
 }
 
 /**

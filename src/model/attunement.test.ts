@@ -1,7 +1,7 @@
 // Attunement: the Play screen shows only items you can use now, and the 3-item limit is enforced loudly.
 import { describe, expect, it } from 'vitest'
 import { normalizeCharacter } from './normalize'
-import { featureInPlay, itemInPlay, playCards, playPassives, playPotions } from './play'
+import { featureInPlay, itemInPlay, playCards, playHealingPotions, playPassives } from './play'
 import { MAX_ATTUNED, armorClass, attunedCount, setAttunement } from './rules'
 import type { Character } from './types'
 
@@ -28,8 +28,8 @@ const hero = (): Character =>
     },
   }).character
 
-// potions are counters, not cards, but they are on the Play screen too
-const ids = (c: Character) => [...playCards(c), ...playPotions(c)].map((x) => x.id)
+// healing potions are counters, not cards, but they are on the Play screen too
+const ids = (c: Character) => [...playCards(c), ...playHealingPotions(c)].map((x) => x.id)
 
 describe('Play screen: attunement filter', () => {
   it('itemInPlay: no attunement needed, or attuned', () => {
