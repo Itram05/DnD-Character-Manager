@@ -2947,27 +2947,25 @@ details summary {
   scroll-margin-top: calc(var(--head-h, 0px) + 0.5rem);
 }
 /* computer: the content and a narrow column beside it that stays in place while scrolling.
-   The side comes from SIDE_NAV_SIDE in SectionNav.tsx (data-nav-side); folded, the column is a thin strip. */
+   The side comes from SIDE_NAV_SIDE in SectionNav.tsx (data-nav-side). Folded, the column takes no
+   room at all: the content gets the full width and only a small tab floats on the screen's edge. */
 .play-layout.has-nav {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 190px;
   gap: 0 0.9rem;
   align-items: start;
 }
-.play-layout.has-nav:has(> .section-nav.side.collapsed) {
-  grid-template-columns: minmax(0, 1fr) 24px;
-}
 .play-layout.has-nav[data-nav-side='left'] {
   grid-template-columns: 190px minmax(0, 1fr);
 }
-.play-layout.has-nav[data-nav-side='left']:has(> .section-nav.side.collapsed) {
-  grid-template-columns: 24px minmax(0, 1fr);
+.play-layout.has-nav:has(> .section-nav.side.collapsed) {
+  grid-template-columns: minmax(0, 1fr);
 }
 .play-layout.has-nav[data-nav-side='left'] > .section-nav.side {
   order: -1;
 }
 /* the column always takes the whole visible height under the sticky head, so "halfway down" is the
-   middle of what is on screen, and the handle does not move when the column folds */
+   middle of what is on screen */
 .section-nav.side {
   position: sticky;
   top: calc(var(--head-h, 0px) + 0.5rem);
@@ -2980,32 +2978,36 @@ details summary {
 .section-nav-body {
   height: 100%;
   overflow-y: auto;
-  padding: 0.5rem 0.4rem 0.5rem 0.8rem;
+  padding: 0.5rem 0.4rem 0.5rem 1rem;
 }
 [data-nav-side='left'] .section-nav-body {
-  padding: 0.5rem 0.8rem 0.5rem 0.4rem;
+  padding: 0.5rem 1rem 0.5rem 0.4rem;
 }
 /* the drawer handle: on the edge toward the content (left for a right column, right for a left one),
-   halfway down, half outside the column */
+   halfway down, half outside the column. The arrow is drawn in the text colour, so it stands out in
+   both themes; the accent marks it on hover. */
 .section-fold {
   position: absolute;
   top: 50%;
   left: 0;
   transform: translate(-50%, -50%);
   z-index: 1;
-  width: 18px;
-  height: 56px;
+  width: 28px;
+  height: 72px;
   display: grid;
   place-items: center;
   padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--text) 35%, var(--line));
+  border-radius: 10px;
   background: var(--panel);
-  color: var(--muted);
-  font-size: 1rem;
-  font-weight: 700;
-  line-height: 1;
+  color: var(--text);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
   cursor: pointer;
+}
+.fold-arrow {
+  display: block;
+  width: 20px;
+  height: 20px;
 }
 [data-nav-side='left'] .section-fold {
   left: auto;
@@ -3016,6 +3018,39 @@ details summary {
 .section-fold:focus-visible {
   color: var(--accent);
   border-color: var(--accent);
+}
+/* folded: out of the layout, a tab stuck to the screen's edge in the middle of what is visible under
+   the head. Half see-through until pointed at, so it does not hide the card it happens to float over. */
+.section-nav.side.collapsed {
+  position: fixed;
+  top: calc((100vh + var(--head-h, 0px)) / 2);
+  right: 0;
+  transform: translateY(-50%);
+  z-index: 15;
+  height: auto;
+  border: none;
+  background: none;
+}
+[data-nav-side='left'] .section-nav.side.collapsed {
+  right: auto;
+  left: 0;
+}
+.section-nav.side.collapsed .section-fold {
+  position: static;
+  transform: none;
+  border-right: none;
+  border-radius: 10px 0 0 10px;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+[data-nav-side='left'] .section-nav.side.collapsed .section-fold {
+  border-right: 1px solid color-mix(in srgb, var(--text) 35%, var(--line));
+  border-left: none;
+  border-radius: 0 10px 10px 0;
+}
+.section-nav.side.collapsed .section-fold:hover,
+.section-nav.side.collapsed .section-fold:focus-visible {
+  opacity: 1;
 }
 .section-nav h4 {
   margin: 0 0 0.35rem 0.4rem;

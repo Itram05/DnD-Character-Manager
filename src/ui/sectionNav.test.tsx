@@ -9,7 +9,8 @@ import { playCards, playPassivePowers, playPassives } from '../model/play'
 import type { CardFace } from './GameCard'
 import { PlayView } from './PlayView'
 import { playHands, playSections } from './playSections'
-import { SIDE_NAV_SIDE, SectionNavMenu, SectionNavSide } from './SectionNav'
+import { SIDE_NAV_SIDE, SectionNavMenu, SectionNavSide, type NavSection } from './SectionNav'
+import { ROW_TOLERANCE, groupByRow } from './sectionRows'
 import { loadSideNavCollapsed, saveSideNavCollapsed } from '../model/storage'
 import type { SheetApi } from './Sheet'
 
@@ -81,7 +82,7 @@ describe('quick navigation: folding the side column', () => {
     expect(html).toContain('section-list')
     expect(html).toContain('aria-label="Hide the section list"')
     expect(html).toContain('aria-expanded="true"')
-    expect(strip(html)).toContain(SIDE_NAV_SIDE === 'right' ? '»' : '«')
+    expect(html).toContain(`fold-arrow to-${SIDE_NAV_SIDE}`)
   })
   it('folded: only the arrow, turned back, that shows it again', () => {
     const html = renderToString(<SectionNavSide sections={sections} initiallyCollapsed />)
@@ -90,7 +91,8 @@ describe('quick navigation: folding the side column', () => {
     expect(html).not.toContain('<h4')
     expect(html).toContain('aria-label="Show the section list"')
     expect(html).toContain('aria-expanded="false"')
-    expect(strip(html)).toBe(SIDE_NAV_SIDE === 'right' ? '«' : '»')
+    expect(html).toContain(`fold-arrow to-${SIDE_NAV_SIDE === 'right' ? 'left' : 'right'}`)
+    expect(strip(html)).toBe('')
   })
 })
 
@@ -119,5 +121,83 @@ describe('quick navigation: the folded state is remembered', () => {
   it('no storage at all (server render): unfolded', () => {
     expect(loadSideNavCollapsed()).toBe(false)
     expect(renderToString(<SectionNavSide sections={sectionsFor([])} />)).not.toContain('collapsed')
+  })
+})
+
+describe('quick navigation: sections on one row are one entry', () => {
+  // made-up tops, as a wide screen draws the Play page: the top row of panels, the Action hand on its
+  // own row, then Bonus, Reaction and Free side by side
+  const list: NavSection[] = [
+    { id: 'play-mana', label: 'Spell slots' },
+    { id: 'play-conc', label: 'Concentration' },
+    { id: 'play-field', label: 'Always on', n: 5 },
+    { id: 'play-action', label: 'Action', n: 10 },
+    { id: 'play-action-spell', label: 'Spells', n: 6, sub: true },
+    { id: 'play-action-attack', label: 'Attacks', n: 4, sub: true },
+    { id: 'play-bonus', label: 'Bonus', n: 3 },
+    { id: 'play-bonus-spell', label: 'Spells', n: 2, sub: true },
+    { id: 'play-bonus-feature', label: 'Features', n: 1, sub: true },
+    { id: 'play-reaction', label: 'Reaction', n: 1 },
+    { id: 'play-other', label: 'Free / Other', n: 2 },
+    { id: 'play-other-item', label: 'Items', n: 2, sub: true },
+  ]
+  const wide: Record<string, number> = {
+    'play-mana': 100, 'play-conc': 100, 'play-field': 101,
+    'play-action': 300, 'play-action-spell': 340, 'play-action-attack': 700,
+    'play-bonus': 1000, 'play-bonus-spell': 1040, 'play-bonus-feature': 1300,
+    'play-reaction': 1002, 'play-other': 999, 'play-other-item': 1041,
+  }
+  const at = (tops: Record<string, number>) => (id: string) => tops[id]
+
+  it('side by side: one entry with the names joined and the cards counted together', () => {
+    const g = groupByRow(list, at(wide))
+    const row = g.find((e) => e.id === 'play-bonus')!
+    expect(row.label).toBe('Bonus · Reaction · Free / Other')
+    expect(row.n).toBe(6)
+    expect(row.members).toEqual(['play-bonus', 'play-reaction', 'play-other'])
+    expect(g.some((e) => e.id === 'play-reaction' || e.id === 'play-other')).toBe(false)
+  })
+  it('the top row of panels joins too; with no counts it shows none', () => {
+    const top = groupByRow(list, at(wide))[0]
+    expect(top.label).toBe('Spell slots · Concentration · Always on')
+    expect(top.n).toBe(5)
+    expect(groupByRow(list.slice(0, 2), at(wide))[0].n).toBeUndefined()
+  })
+  it('the kinds under a joined row: named with their hand, by height, joined again where they share a row', () => {
+    const g = groupByRow(list, at(wide))
+    const i = g.findIndex((e) => e.id === 'play-bonus')
+    const kids = g.slice(i + 1).map((e) => [e.label, e.n, !!e.sub])
+    expect(kids).toEqual([
+      ['Bonus: Spells · Free / Other: Items', 4, true],
+      ['Bonus: Features', 1, true],
+    ])
+  })
+  it('a lone section keeps its kinds exactly as they were', () => {
+    const g = groupByRow(list, at(wide))
+    const i = g.findIndex((e) => e.id === 'play-action')
+    expect(g.slice(i, i + 3).map((e) => [e.id, e.label, e.n, !!e.sub])).toEqual([
+      ['play-action', 'Action', 10, false],
+      ['play-action-spell', 'Spells', 6, true],
+      ['play-action-attack', 'Attacks', 4, true],
+    ])
+  })
+  it('narrow screen, one under another: every section on its own again', () => {
+    const narrow = Object.fromEntries(list.map((s, i) => [s.id, i * 200]))
+    const g = groupByRow(list, at(narrow))
+    expect(g.map((e) => e.id)).toEqual(list.map((s) => s.id))
+    expect(g.map((e) => e.label)).toEqual(list.map((s) => s.label))
+  })
+  it('only a few px apart counts as one row; more does not', () => {
+    const two: NavSection[] = [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }]
+    expect(groupByRow(two, at({ a: 10, b: 10 + ROW_TOLERANCE }))).toHaveLength(1)
+    expect(groupByRow(two, at({ a: 10, b: 11 + ROW_TOLERANCE }))).toHaveLength(2)
+  })
+  it('not measured (not on the page yet, or a server render): nothing is joined', () => {
+    expect(groupByRow(list, () => undefined).map((e) => e.id)).toEqual(list.map((s) => s.id))
+  })
+  it('a server render lists every section on its own', () => {
+    const html = strip(renderToString(<SectionNavSide sections={list} initiallyCollapsed={false} />))
+    expect(html).toContain('Bonus 3')
+    expect(html).toContain('Reaction 1')
   })
 })
