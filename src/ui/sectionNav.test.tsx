@@ -163,14 +163,20 @@ describe('quick navigation: sections on one row are one entry', () => {
     expect(top.n).toBe(5)
     expect(groupByRow(list.slice(0, 2), at(wide))[0].n).toBeUndefined()
   })
-  it('the kinds under a joined row: named with their hand, by height, joined again where they share a row', () => {
+  it('a joined row has no kinds under it: only the joined name and the total', () => {
     const g = groupByRow(list, at(wide))
     const i = g.findIndex((e) => e.id === 'play-bonus')
-    const kids = g.slice(i + 1).map((e) => [e.label, e.n, !!e.sub])
-    expect(kids).toEqual([
-      ['Bonus: Spells · Free / Other: Items', 4, true],
-      ['Bonus: Features', 1, true],
-    ])
+    expect(g.slice(i)).toHaveLength(1)
+    expect(g.some((e) => e.label.includes(':'))).toBe(false)
+    // nothing indented right after a joined entry, anywhere in the list
+    g.forEach((e, k) => {
+      if (e.members.length > 1) expect(g[k + 1]?.sub ?? false).toBe(false)
+    })
+  })
+  it('the § menu shows the same: the joined row without kinds', () => {
+    const html = strip(renderToString(<SectionNavMenu sections={groupByRow(list, at(wide))} initiallyOpen />))
+    expect(html).toContain('Bonus · Reaction · Free / Other 6')
+    expect(html).not.toMatch(/Bonus: |Free \/ Other: |Spells 2/)
   })
   it('a lone section keeps its kinds exactly as they were', () => {
     const g = groupByRow(list, at(wide))

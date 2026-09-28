@@ -23,9 +23,10 @@ const sumN = (xs: NavSection[]) => (xs.some((x) => x.n !== undefined) ? xs.reduc
  *
  * - Top-level sections next to each other in the list with the same top become one entry,
  *   "Bonus · Reaction · Free / Other", with the cards counted together.
- * - The kinds under them stay indented below it, named with their hand ("Bonus: Spells"), in the order
- *   they stand on the screen (top to bottom); kinds that again share a row are joined the same way.
- * - A lone section and its kinds come out exactly as they went in.
+ * - A joined entry has no kinds under it (only the joined name and count): the kinds of hands side by
+ *   side stand at about the same heights, so entries for them would only jump to the same place.
+ * - A lone section and its kinds come out exactly as they went in (there the kinds really stand
+ *   one under another).
  */
 export function groupByRow(sections: NavSection[], topOf: (id: string) => number | undefined, tol = ROW_TOLERANCE): NavEntry[] {
   // a top-level section with the kinds under it
@@ -53,22 +54,9 @@ export function groupByRow(sections: NavSection[], topOf: (id: string) => number
       continue
     }
     const heads = row.map((b) => b.head)
+    // one entry for the whole row and no kinds under it: the kinds of hands side by side stand at about
+    // the same heights, so entries for them would only lead to the same place again
     out.push({ id: heads[0].id, label: heads.map((h) => h.label).join(' · '), n: sumN(heads), members: heads.map((h) => h.id) })
-
-    // the kinds, named with their hand, sorted by where they stand (a stable sort keeps the list
-    // order for equal or unknown tops), then joined where they share a row
-    const kinds = row
-      .flatMap((b) => b.subs.map((s) => ({ ...s, label: `${b.head.label}: ${s.label}` })))
-      .map((s, i) => ({ s, i, top: topOf(s.id) }))
-      .sort((a, b) => (a.top ?? Infinity) - (b.top ?? Infinity) || a.i - b.i)
-    const joined: { list: NavSection[]; top?: number }[] = []
-    for (const k of kinds) {
-      const last = joined[joined.length - 1]
-      if (last && sameRow(last.top, k.top, tol)) last.list.push(k.s)
-      else joined.push({ list: [k.s], top: k.top })
-    }
-    for (const { list } of joined)
-      out.push({ id: list[0].id, label: list.map((s) => s.label).join(' · '), n: sumN(list), sub: true, members: list.map((s) => s.id) })
   }
   return out
 }
