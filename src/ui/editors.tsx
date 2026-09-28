@@ -3,7 +3,7 @@ import { loadSrdSpells, type SrdSpell } from '../data/srd'
 import { t } from '../i18n'
 import { newId } from '../model/normalize'
 import { evalFormula } from '../model/rules'
-import { ownTagsIn, spellAutoTags, textTags } from '../model/tags'
+import { autoPart, ownTagsIn, spellAutoTags, textTags } from '../model/tags'
 import { ACTIVATIONS, ABILITIES, RECHARGES, SOURCE_TYPES, type Activation, type Attack, type Feature, type Item, type ItemPower, type PowerCost, type Recharge, type SourceType, type Spell, type Uses } from '../model/types'
 import { Check, Confirm, Modal, NumberField, Select, TextArea, TextField } from './common'
 import type { SheetApi } from './Sheet'
@@ -115,7 +115,7 @@ export function FeatureEditor({ api, initial, onClose }: { api: SheetApi; initia
       </div>
       <UsesEditor api={api} value={f.uses} onChange={(uses) => setF({ ...f, uses })} label={t('feature.hasUses')} />
       <TextArea label={t('common.description')} rows={6} value={f.description} onChange={(description) => setF({ ...f, description })} />
-      <TagInput value={f.tags} onChange={(tags) => setF({ ...f, tags })} auto={textTags(f.description)} known={ownTagsIn(api.c)} />
+      <TagInput value={f.tags} onChange={(tags) => setF({ ...f, tags })} auto={autoPart(textTags(f.description), f.tags)} known={ownTagsIn(api.c)} />
     </EditorFrame>
   )
 }
@@ -206,7 +206,7 @@ export function SpellEditor({ api, initial, onClose }: { api: SheetApi; initial:
       </div>
       <UsesEditor api={api} value={s.freeCasts} onChange={(freeCasts) => setS({ ...s, freeCasts })} label={t('spell.hasFreeCasts')} />
       <TextArea label={t('common.description')} rows={6} value={s.description ?? ''} onChange={(description) => setS({ ...s, description })} />
-      <TagInput value={s.tags} onChange={(tags) => setS({ ...s, tags })} auto={spellAutoTags(s)} known={ownTagsIn(api.c)} />
+      <TagInput value={s.tags} onChange={(tags) => setS({ ...s, tags })} auto={autoPart(spellAutoTags(s), s.tags)} known={ownTagsIn(api.c)} />
     </EditorFrame>
   )
 }
@@ -270,7 +270,7 @@ export function ItemEditor({ api, initial, onClose }: { api: SheetApi; initial: 
       <UsesEditor api={api} value={it.charges} onChange={(charges) => setIt({ ...it, charges })} label={t('item.hasCharges')} allowRegain />
       <TextArea label={t('common.description')} rows={5} value={it.description ?? ''} onChange={(description) => setIt({ ...it, description })} />
       <PowersEditor api={api} item={it} onChange={(powers) => setIt({ ...it, powers: powers.length ? powers : undefined })} />
-      <TagInput value={it.tags} onChange={(tags) => setIt({ ...it, tags })} auto={textTags(it.description)} known={ownTagsIn(api.c)} />
+      <TagInput value={it.tags} onChange={(tags) => setIt({ ...it, tags })} auto={autoPart(textTags(it.description), it.tags)} known={ownTagsIn(api.c)} />
     </EditorFrame>
   )
 }
@@ -342,7 +342,7 @@ function PowersEditor({ api, item, onChange }: { api: SheetApi; item: Item; onCh
                 </div>
                 <UsesEditor api={api} value={p.uses} onChange={(uses) => setPower(p.id, { uses })} label={t('power.ownUses')} />
                 <TextArea label={t('common.description')} rows={4} value={p.description} onChange={(description) => setPower(p.id, { description })} />
-                <TagInput value={p.tags} onChange={(tags) => setPower(p.id, { tags })} auto={textTags(p.description)} known={ownTagsIn(api.c)} />
+                <TagInput value={p.tags} onChange={(tags) => setPower(p.id, { tags })} auto={autoPart(textTags(p.description), [...(p.tags ?? []), ...(item.tags ?? [])])} known={ownTagsIn(api.c)} />
               </div>
             )}
           </li>

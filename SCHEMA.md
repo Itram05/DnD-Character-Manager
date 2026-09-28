@@ -181,7 +181,7 @@ To-hit and damage bonus are computed. Attacks appear as cards in the Action hand
 | `ritual`, `concentration` | true/false. |
 | `school`, `castingTime`, `range`, `components`, `duration`, `description` | Text. `castingTime` starting with "Bonus Action" / "Reaction" puts the card in that hand. |
 | `freeCasts` | [uses](#uses) for casting without a slot (Magic Initiate, Divine Smite from Paladin's Smite, Mystic Arcanum...). |
-| `tags` | Optional list of your own [tags](#tags), e.g. `["buff", "aoe"]`. |
+| `tags` | Optional list of your own [tags](#tags), e.g. `["buff", "revive"]`. |
 
 ## items
 
@@ -236,23 +236,33 @@ Using a power spends its `cost` (and one of its own `uses`). Undo gives one use 
 
 ## tags
 
-`tags` is a list of short labels on spells, features, items and item powers: `["buff", "aoe"]` (a text `"buff, aoe"` also works).
-They are stored in lowercase, without duplicates. The Play screen and the Spells tab have a row of tag chips: tap one or more,
-and only what has **all** the selected tags stays (on the Play screen together with the hand and kind filters).
+`tags` is a list of short labels on spells, features, items and item powers: `["buff", "revive"]` (a text `"buff, revive"` also works).
+They are stored in lowercase, without duplicates. The app reads them in four groups:
 
-Besides your own tags, the app adds **automatic tags** every time it shows something (they are not saved in the file):
+| Group | Tags | Where they come from |
+|---|---|---|
+| Category | `damage`, `healing`, `control` | Read from the text (below); you can also add them yourself where the text misses. |
+| | `buff`, `defense`, `mobility`, `summon` | Only yours: add them in the editor or the file. |
+| | `utility` | Added by the app to anything with no other category; a category you add replaces it. |
+| Damage type | `fire`, `radiant`, `psychic`, ... | Read from the text; a finer choice under Damage in the filter. An own damage type counts as Damage too. |
+| Property | `concentration`, `ritual` | The spell flags. |
+| Other | anything else (`staff`, `revive`) | Yours, kept and shown as written. |
+
+Automatic tags are added every time something is shown; they are not saved in the file:
 
 | Tag | When |
 |---|---|
-| `concentration`, `ritual` | The spell is marked so. |
+| `damage` and the damage type | The text has dice followed by a type ("8d6 Fire") or "Fire damage". Attacks: their `damageType`. |
 | `healing` | The text says "regain(s) ... Hit Points", "heal", or "Temporary Hit Points" (not "can't regain"). |
-| `damage` and the damage type (`fire`, `radiant`, ...) | The text has dice followed by a type ("8d6 Fire") or "Fire damage". Attacks: their `damageType`. |
-| `save` | The text names a saving throw ("Wisdom save", "DC 15"); "+1 spell save DC" does not count. |
-| `attack` | Attacks, and texts with "spell attack", "melee attack", "attack roll"... |
-| `control` | The text has both a saving throw and a condition (Paralyzed, Prone, Restrained...). |
+| `control` | The text has both a saving throw and a condition (Paralyzed, Prone, Restrained...); "+1 spell save DC" is not a saving throw. |
 
-Automatic tags only read words; add your own tag where they miss (e.g. "control" on Command). Suggested own tags:
-`buff debuff defense control mobility utility aoe summon social` (nothing depends on them; any word works).
+Earlier versions of the app also had automatic `save` and `attack` tags and suggested `debuff`, `aoe` and `social`.
+Those are no longer built in; if your file has them as own tags, they are kept and show under "Other tags".
+
+**The filter** (the funnel on the Play screen and the Spells tab): groups Action (the hand), Kind, Category (with the
+damage types behind a separate ▾ next to Damage), Properties and Other tags. Inside one group any chosen option is enough
+(Action or Bonus; Healing or Buff); across groups all must hold (an Action card that heals). Chosen damage types narrow
+Damage down to those types. The active filters are listed under the controls, each with ✕.
 
 ## roleplay
 

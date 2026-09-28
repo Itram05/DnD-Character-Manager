@@ -976,9 +976,6 @@ tr.clickable:hover {
   gap: 0.5rem;
   margin-bottom: 0.7rem;
 }
-.play-controls .segmented:first-child {
-  flex: 1 1 300px;
-}
 .play-controls .segmented.small {
   flex: 0 0 auto;
   margin-left: auto;
@@ -1023,21 +1020,6 @@ tr.clickable:hover {
   }
 }
 @media (max-width: 899px) {
-  .play-controls .segmented:first-child {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    flex-basis: 100%;
-  }
-  .play-controls .segmented:first-child button {
-    white-space: normal;
-    line-height: 1.1;
-    font-size: 0.78rem;
-    padding: 0.2rem 0.15rem;
-  }
-  .play-controls .segmented:first-child .count {
-    display: block;
-    margin: 0;
-  }
   .play > .in-play {
     padding: 0.5rem 0.8rem;
   }
@@ -2406,30 +2388,9 @@ details summary {
 
 /* ---------------- wave 1: kind filter, consumables, Sorcery Points ---------------- */
 
-/* second filter row: Attacks / Features / Spells / Items */
-.play-controls .kind-filter {
-  flex: 1 1 300px;
-}
 .segmented button:disabled {
   opacity: 0.4;
   cursor: default;
-}
-@media (max-width: 899px) {
-  .play-controls .kind-filter {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    flex-basis: 100%;
-  }
-  .play-controls .kind-filter button {
-    white-space: normal;
-    line-height: 1.1;
-    font-size: 0.78rem;
-    padding: 0.2rem 0.15rem;
-  }
-  .play-controls .kind-filter .count {
-    display: block;
-    margin: 0;
-  }
 }
 /* inside a hand: one small heading per kind of card */
 .kind-group + .kind-group {
@@ -2512,14 +2473,6 @@ details summary {
   border-top: 1px dashed var(--line);
   color: var(--muted);
 }
-/* six kinds now (All, Attacks, Features, Spells, Scrolls & Potions, Items) */
-@media (max-width: 899px) {
-  .play-controls .kind-filter {
-    grid-template-columns: none;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(0, 1fr);
-  }
-}
 
 /* healing potions: compact counters inside the Concentration panel, one per row */
 .heal-potions {
@@ -2601,33 +2554,6 @@ details summary {
 
 /* ---------------- wave 2: tags, item powers ---------------- */
 
-/* tag filter: one row of chips; on a phone it scrolls sideways instead of wrapping into a wall */
-.tag-filter {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  overflow-x: auto;
-  scrollbar-width: thin;
-  padding-bottom: 2px;
-  min-width: 0;
-}
-.play-controls .tag-filter {
-  flex: 1 1 100%;
-}
-.spells-view > .tag-filter {
-  margin: 0.25rem 0 0.75rem;
-}
-@media (min-width: 900px) {
-  .tag-filter {
-    flex-wrap: wrap;
-    overflow-x: visible;
-  }
-}
-.tag-filter-label {
-  color: var(--muted);
-  font-weight: 700;
-  flex: 0 0 auto;
-}
 .tag-chip {
   --dmg: var(--accent);
   flex: 0 0 auto;
@@ -2652,8 +2578,17 @@ details summary {
   font-size: 0.7rem;
   opacity: 0.7;
 }
-.tag-chip.tag-auto {
+.tag-chip.tag-cat,
+.tag-chip.tag-prop {
   color: var(--muted);
+}
+.tag-chip.tag-cat.on,
+.tag-chip.tag-prop.on {
+  color: var(--text);
+}
+/* in the panel: an option no card has with the other filters on */
+.tag-chip.zero {
+  opacity: 0.45;
 }
 .tag-chip.tag-dmg {
   color: var(--dmg);
@@ -2667,17 +2602,6 @@ details summary {
 .tag-chip.tag-dmg.on {
   border-color: var(--dmg);
   background: color-mix(in srgb, var(--dmg) 18%, transparent);
-}
-.tag-chip.tag-group {
-  border-style: dashed;
-}
-.tag-chip.tag-group.open {
-  border-style: solid;
-  border-color: var(--accent);
-}
-.tag-caret {
-  font-size: 0.75rem;
-  opacity: 0.8;
 }
 .tag-chip.tag-clear {
   color: var(--muted);
@@ -2793,4 +2717,170 @@ details summary {
 .row-source {
   color: var(--muted);
   font-size: 0.78em;
+}
+
+/* ---------------- wave 2: the funnel filter (Play, Spells) ---------------- */
+
+.play-controls {
+  align-items: center;
+}
+.filter-anchor {
+  position: relative;
+  flex: 0 0 auto;
+}
+.filter-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--muted);
+}
+.filter-btn.active,
+.filter-btn[aria-expanded='true'] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.filter-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+/* phone: a sheet from the bottom over a dimmed screen */
+.filter-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgb(0 0 0 / 0.45);
+}
+.filter-panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 41;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px 14px 0 0;
+  box-shadow: var(--shadow);
+}
+/* computer: a popover under the funnel, the screen stays visible */
+@media (min-width: 900px) {
+  .filter-backdrop {
+    background: transparent;
+  }
+  .filter-panel {
+    position: absolute;
+    left: auto;
+    right: 0;
+    bottom: auto;
+    top: calc(100% + 6px);
+    width: 380px;
+    max-height: 70vh;
+    border-radius: 10px;
+  }
+}
+.filter-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.8rem 0.3rem;
+  border-bottom: 1px solid var(--line);
+}
+.filter-head h3 {
+  margin: 0;
+}
+.filter-body {
+  overflow-y: auto;
+  padding: 0.3rem 0.8rem 0.6rem;
+}
+.filter-group h4 {
+  margin: 0.6rem 0 0.35rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+/* the damage types under Category, set off by a line on the left */
+.filter-dmg {
+  margin-top: 0.45rem;
+  padding-left: 0.6rem;
+  border-left: 2px solid var(--line);
+}
+/* Damage chip + its arrow: two buttons that visibly belong together */
+.chip-split {
+  display: inline-flex;
+  align-items: stretch;
+}
+.chip-split > .tag-chip {
+  border-radius: 999px 0 0 999px;
+}
+.chip-arrow {
+  min-width: 32px;
+  border: 1px solid var(--line);
+  border-left-style: dashed;
+  border-radius: 0 999px 999px 0;
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 0.85rem;
+  padding: 0 0.5rem;
+}
+.chip-arrow.open {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.filter-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.8rem calc(0.5rem + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+}
+/* only the active filters, under the controls; wraps instead of hiding one */
+.active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  flex: 1 1 100%;
+}
+.active-filters .tag-chip {
+  min-height: 30px;
+}
+.tag-chip.tag-clear {
+  color: var(--muted);
+  border-style: dashed;
+}
+/* Spells tab: heading, funnel on the right, active row below */
+.spells-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.25rem 0 0.75rem;
+}
+.spells-filter h3 {
+  margin: 0;
+  margin-right: auto;
 }

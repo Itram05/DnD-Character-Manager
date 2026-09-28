@@ -8,7 +8,7 @@ import type { SrdSpell } from '../data/srd'
 import { isHealingPotion, isPotion, isScroll, scrollInfo } from './consumables'
 import { pactSlots, spellSlots, usesMax } from './rules'
 import { bonusSlotsAt, isSorceryPoints } from './sorcery'
-import { featureTags, itemTags, mergeTags, powerTags, spellTags, textTags } from './tags'
+import { featureTags, itemTags, mergeTags, powerTags, spellAutoTags, spellTags } from './tags'
 import type { Activation, Character, Feature, Item, ItemPower, PowerCost, SourceType, Spell, Uses } from './types'
 
 export type Zone = 'action' | 'bonus' | 'reaction' | 'other'
@@ -249,7 +249,7 @@ export function scrollCard(c: Character, i: Item, srd?: readonly SrdSpell[]): Pl
     concentration: s.concentration,
     ritual: s.ritual,
     meta: [s.castingTime, s.range].filter(Boolean).join(' · ') || undefined,
-    tags: mergeTags([...(s.concentration ? ['concentration'] : []), ...(s.ritual ? ['ritual'] : []), ...textTags(s.description)], i.tags),
+    tags: mergeTags(spellAutoTags(s), i.tags),
   }
 }
 

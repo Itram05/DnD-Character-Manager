@@ -3,7 +3,6 @@ import { loadSrdSpells, type SrdSpell } from '../data/srd'
 import { t } from '../i18n'
 import {
   PLAY_KINDS,
-  ZONES,
   castSpell,
   itemCard,
   manaRows,
@@ -26,16 +25,15 @@ import {
 import { MAX_CREATED_SLOT_LEVEL, SLOT_COST, canPointsToSlot, canSlotToPoints, pointsToSlot, slotToPoints, slotsLeftAt, sorceryFeature, sorceryPoints } from '../model/sorcery'
 import { attackStats } from '../model/rules'
 import { healingDice, isScroll, potionLabel, readScroll, scrollInfo } from '../model/consumables'
-import { attackTags, matchesTags, tagCounts } from '../model/tags'
+import { attackTags } from '../model/tags'
+import { filterOptions, matchesFilter, selectedKinds, selectedZones } from '../model/filter'
 import type { Character, Item } from '../model/types'
 import { Modal, Pips, RichText, fmtMod, useMediaQuery } from './common'
 import { FeatureEditor, ItemEditor, SpellEditor } from './editors'
 import { FRAME_GLYPH, GameCard, POTION_GLYPH, SCROLL_GLYPH, type CardFace } from './GameCard'
 import type { SheetApi } from './Sheet'
-import { TagFilter, TagList } from './tags'
-
-type HandFilter = Zone | 'all'
-type KindFilter = PlayKind | 'all'
+import { ActiveFilters, FilterButton } from './filter'
+import { TagList } from './tags'
 
 function attackFaces(c: Character): CardFace[] {
   return c.attacks.map((a) => {
@@ -86,12 +84,11 @@ function groupTitle(k: PlayKind, cards: CardFace[]): string {
 export function PlayView({ api }: { api: SheetApi }) {
   const { c, update, settings, setSettings, toast } = api
   const wide = useMediaQuery('(min-width: 900px)')
-  const [hand, setHand] = useState<HandFilter>(wide ? 'all' : 'action')
-  const [kind, setKind] = useState<KindFilter>('all')
+  // a phone starts on the Action hand (all four hands stacked are a long scroll); it shows as an active filter
+  const [filter, setFilter] = useState<string[]>(wide ? [] : ['zone:action'])
   const [open, setOpen] = useState<CardFace | null>(null)
   const [flexOpen, setFlexOpen] = useState(false)
   const [openPassive, setOpenPassive] = useState<PassiveChip | null>(null)
-  const [tags, setTags] = useState<string[]>([])
   const mode = settings.view
   const srd = useSrdForScrolls(c)
 
@@ -100,10 +97,11 @@ export function PlayView({ api }: { api: SheetApi }) {
     return all.sort((a, b) => ORDER[a.kind] - ORDER[b.kind] || (a.spellLevel ?? 0) - (b.spellLevel ?? 0) || a.name.localeCompare(b.name))
   }, [c, srd])
   const potions = playHealingPotions(c)
-  const kindCards = kind === 'all' ? allCards : allCards.filter((x) => kindGroup(x.kind) === kind)
-  // the tag filter works on top of the kind filter; its chips count the cards of the chosen kind
-  const tagChips = tagCounts(kindCards.map((x) => x.tags))
-  const cards = tags.length ? kindCards.filter((x) => matchesTags(x.tags, tags)) : kindCards
+  const cards = allCards.filter((x) => matchesFilter(x, filter))
+  const filterGroups = filterOptions(allCards, filter)
+  // "Scrolls & Potions" names what the group really holds
+  const kindLabel = (key: string) => (key === 'kind:scroll' ? groupTitle('scroll', allCards) : undefined)
+  const kinds = selectedKinds(filter)
   const sp = sorceryPoints(c)
   const passives: PassiveChip[] = [
     ...playPassives(c).map((f) => ({ key: f.id, name: f.name, glyph: FRAME_GLYPH[f.source.type], frame: f.source.type, source: f.source.name || t(`source.${f.source.type}`), description: f.description })),
@@ -143,9 +141,7 @@ export function PlayView({ api }: { api: SheetApi }) {
     if (i) drink(i)
   }
 
-  const zonesToShow: Zone[] = hand === 'all' ? ZONES : [hand]
-  const countIn = (z: Zone) => cards.filter((x) => x.zone === z).length
-  const countKind = (k: PlayKind) => allCards.filter((x) => kindGroup(x.kind) === k).length
+  const zonesToShow: Zone[] = selectedZones(filter)
 
   const renderCard = (card: CardFace) => {
     if (card.kind === 'scroll')
@@ -170,23 +166,6 @@ export function PlayView({ api }: { api: SheetApi }) {
   return (
     <div className="play">
       <div className="play-controls">
-        <div className="segmented" role="tablist" aria-label={t('play.hands')}>
-          {(['all', ...ZONES] as HandFilter[]).map((z) => (
-            <button key={z} role="tab" aria-selected={hand === z} className={hand === z ? 'active' : ''} onClick={() => setHand(z)}>
-              {t(`zone.${z}`)}
-              {z !== 'all' && <span className="count">{countIn(z)}</span>}
-            </button>
-          ))}
-        </div>
-        <div className="segmented kind-filter" role="tablist" aria-label={t('play.kinds')}>
-          {(['all', ...PLAY_KINDS] as KindFilter[]).map((k) => (
-            <button key={k} role="tab" aria-selected={kind === k} className={kind === k ? 'active' : ''} onClick={() => setKind(k)} disabled={k !== 'all' && countKind(k) === 0}>
-              {k === 'all' ? t('kind.all') : groupTitle(k, allCards)}
-              {k !== 'all' && <span className="count">{countKind(k)}</span>}
-            </button>
-          ))}
-        </div>
-        <TagFilter tags={tagChips} selected={tags} onChange={setTags} />
         <div className="segmented small" aria-label={t('play.viewMode')}>
           <button className={mode === 'cards' ? 'active' : ''} onClick={() => setSettings({ ...settings, view: 'cards' })} aria-pressed={mode === 'cards'}>
             ▦ {t('play.cards')}
@@ -195,6 +174,8 @@ export function PlayView({ api }: { api: SheetApi }) {
             ☰ {t('play.list')}
           </button>
         </div>
+        <FilterButton groups={filterGroups} selected={filter} onChange={setFilter} label={kindLabel} />
+        <ActiveFilters selected={filter} onChange={setFilter} label={kindLabel} />
       </div>
 
         {(mana.length > 0 || sp) && (
@@ -312,7 +293,7 @@ export function PlayView({ api }: { api: SheetApi }) {
               </h3>
               {zc.length === 0 ? (
                 <p className="muted empty-zone">{t('play.emptyZone')}</p>
-              ) : kind !== 'all' ? (
+              ) : kinds.length === 1 ? (
                 <div className={mode === 'cards' ? 'card-grid' : 'card-list'}>{zc.map(renderCard)}</div>
               ) : (
                 PLAY_KINDS.map((k) => {

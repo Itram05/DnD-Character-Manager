@@ -1,29 +1,45 @@
-// Tags: short labels on spells, features, items and item powers, used to filter the Play screen
-// and the spell list ("show me everything that heals", "fire", "concentration").
+// Tags: short labels on spells, features, items and item powers, used by the filter on the Play
+// screen and the Spells tab. Every tag belongs to one of four groups (see tagGroup):
 //
-// Two sources, merged at display time:
-// - automatic tags, read from the data every time (never stored, so they follow edits):
-//   concentration, ritual (spell flags); healing, damage + damage type, save, attack, control (from the text);
-// - your own tags, stored in the `tags` field (lowercase), anything you like.
-// Automatic tags are a reading aid, not a rules engine: they look for the same words the text
-// highlighting looks for (highlight.ts). Where they miss or overreach, add your own tag.
+// - categories: what a card is for. Damage, Healing and Control are read from the text; Buff, Defense,
+//   Mobility and Summon you add yourself; Utility is added when a card has no other category;
+// - damage types (fire, psychic...): read from the text, a finer choice under Damage;
+// - properties: Concentration and Ritual, from the spell flags;
+// - anything else: your own free tags ("staff", "revive"), kept as written.
+//
+// Automatic tags are read from the data every time (never stored, so they follow edits); your own
+// tags are stored in the `tags` field (lowercase). Automatic tags are a reading aid, not a rules
+// engine: they look for the same words the text highlighting looks for (highlight.ts). Where they
+// miss, add the category yourself (e.g. "control" on Command).
 import { DAMAGE_TYPES, tokenize } from './highlight'
 import { normalizeTag } from './normalize'
 import type { Attack, Character, Feature, Item, ItemPower, Spell } from './types'
 
-/** Automatic tags in display order. */
-export const AUTO_TAGS = ['concentration', 'ritual', 'healing', 'damage', ...DAMAGE_TYPES, 'save', 'attack', 'control'] as const
-/** Offered in the tag editor as a starting vocabulary; nothing depends on them. */
-export const SUGGESTED_TAGS = ['buff', 'debuff', 'defense', 'control', 'mobility', 'utility', 'aoe', 'summon', 'social'] as const
+/** Categories in display order. */
+export const CATEGORIES = ['damage', 'healing', 'control', 'buff', 'defense', 'mobility', 'summon', 'utility'] as const
+export type Category = (typeof CATEGORIES)[number]
+/** Read from the text. */
+export const AUTO_CATEGORIES: readonly Category[] = ['damage', 'healing', 'control']
+/** Offered in the tag editor: the categories the text never gives. (Any category can be added by hand.) */
+export const MANUAL_CATEGORIES: readonly Category[] = ['buff', 'defense', 'mobility', 'summon']
+/** Given to a card with no other category. */
+export const FALLBACK_CATEGORY: Category = 'utility'
+export const PROPERTIES = ['concentration', 'ritual'] as const
+/** Every tag with a built-in label. */
+export const BUILT_IN_TAGS: readonly string[] = [...CATEGORIES, ...DAMAGE_TYPES, ...PROPERTIES]
 
-const AUTO_ORDER = new Map<string, number>(AUTO_TAGS.map((t, i) => [t, i]))
-const SUGGESTED = new Set<string>(SUGGESTED_TAGS)
+export type TagGroup = 'cat' | 'dmg' | 'prop' | 'other'
+const CAT = new Set<string>(CATEGORIES)
+const DMG = new Set<string>(DAMAGE_TYPES)
+const PROP = new Set<string>(PROPERTIES)
+export const tagGroup = (t: string): TagGroup => (CAT.has(t) ? 'cat' : DMG.has(t) ? 'dmg' : PROP.has(t) ? 'prop' : 'other')
+
+const ORDER = new Map<string, number>(BUILT_IN_TAGS.map((t, i) => [t, i]))
 
 // "can't regain Hit Points" (Chill Touch) is the opposite of healing
 const NEGATED = /(?:can't|can’t|cannot|can not|no longer|doesn't|does not)\s+$/i
-const ATTACK = /\b(?:spell attack|melee attack|ranged attack|weapon attack|attack roll)s?\b/i
 
-/** Tags that can be read from a rules text. */
+/** Categories and damage types that can be read from a rules text. */
 export function textTags(text: string | undefined): string[] {
   const s = text ?? ''
   if (!s.trim()) return []
@@ -39,16 +55,12 @@ export function textTags(text: string | undefined): string[] {
       if (!NEGATED.test(prevText.slice(-20))) out.add('healing')
     } else if (tok.kind === 'save') {
       // "+1 spell save DC" on an item is a bonus, not a save the target makes
-      if (!/spell\s+save\s+dc/i.test(tok.text)) {
-        out.add('save')
-        hasSave = true
-      }
+      if (!/spell\s+save\s+dc/i.test(tok.text)) hasSave = true
     } else if (tok.kind === 'condition') hasCondition = true
     prevText = tok.kind === 'text' ? tok.text : ''
   }
-  // a save that can leave a condition on the target: Hold Person, Command, Thunderous Smite...
+  // a save that can leave a condition on the target: Hold Person, Thunderous Smite...
   if (hasSave && hasCondition) out.add('control')
-  if (ATTACK.test(s)) out.add('attack')
   return [...out]
 }
 
@@ -57,15 +69,27 @@ export function spellAutoTags(s: Pick<Spell, 'concentration' | 'ritual' | 'descr
 }
 
 export function attackAutoTags(a: Pick<Attack, 'damageType' | 'notes'>): string[] {
-  const out = ['attack', 'damage']
+  const out = ['damage']
   const dt = normalizeTag(a.damageType ?? '')
-  if ((DAMAGE_TYPES as readonly string[]).includes(dt)) out.push(dt)
+  if (DMG.has(dt)) out.push(dt)
   return [...out, ...textTags(a.notes)]
 }
 
-/** Own tags plus automatic tags, without duplicates, in a stable order (automatic first, then own A-Z). */
+/**
+ * Own tags plus automatic tags, without duplicates, in a stable order. A damage type implies Damage;
+ * a card with no category at all gets Utility (so a category you add yourself replaces it).
+ */
 export function mergeTags(auto: readonly string[], own: readonly string[] | undefined): string[] {
-  return sortTags([...new Set([...auto, ...(own ?? []).map(normalizeTag).filter(Boolean)])])
+  const all = new Set([...auto, ...(own ?? []).map(normalizeTag).filter(Boolean)])
+  if ([...all].some((t) => DMG.has(t))) all.add('damage')
+  if (![...all].some((t) => CAT.has(t))) all.add(FALLBACK_CATEGORY)
+  return sortTags([...all])
+}
+
+/** What the tag editor shows as automatic: everything mergeTags adds on top of your own tags. */
+export function autoPart(auto: readonly string[], own: readonly string[] | undefined): string[] {
+  const mine = new Set((own ?? []).map(normalizeTag))
+  return mergeTags(auto, own).filter((t) => !mine.has(t))
 }
 
 export const spellTags = (s: Spell) => mergeTags(spellAutoTags(s), s.tags)
@@ -75,19 +99,10 @@ export const itemTags = (i: Item) => mergeTags(textTags(i.description), i.tags)
 export const powerTags = (i: Item, p: ItemPower) => mergeTags(textTags(p.description), [...(p.tags ?? []), ...(i.tags ?? [])])
 export const attackTags = (a: Attack) => mergeTags(attackAutoTags(a), undefined)
 
-export const isAutoTag = (t: string) => AUTO_ORDER.has(t)
-
-/** Automatic tags in their fixed order, then suggested ones, then the rest alphabetically. */
+/** Categories, then damage types, then properties (each in their fixed order), then the rest A-Z. */
 export function sortTags(tags: readonly string[]): string[] {
-  const rank = (t: string) => (AUTO_ORDER.has(t) ? AUTO_ORDER.get(t)! : SUGGESTED.has(t) ? 100 : 200)
+  const rank = (t: string) => ORDER.get(t) ?? 1000
   return [...tags].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b))
-}
-
-/** Every tag used by a list of tagged things, with how many carry it; sorted like sortTags. */
-export function tagCounts(lists: readonly (readonly string[] | undefined)[]): { tag: string; n: number }[] {
-  const m = new Map<string, number>()
-  for (const l of lists) for (const t of new Set(l ?? [])) m.set(t, (m.get(t) ?? 0) + 1)
-  return sortTags([...m.keys()]).map((tag) => ({ tag, n: m.get(tag)! }))
 }
 
 /** Every own tag used anywhere on the character: offered as suggestions in the tag editor. */
@@ -95,6 +110,3 @@ export function ownTagsIn(c: Pick<Character, 'spells' | 'features' | 'inventory'
   const all = [...c.spells.flatMap((s) => s.tags ?? []), ...c.features.flatMap((f) => f.tags ?? []), ...c.inventory.items.flatMap((i) => [...(i.tags ?? []), ...(i.powers ?? []).flatMap((p) => p.tags ?? [])])]
   return sortTags([...new Set(all)])
 }
-
-/** A thing passes the tag filter when it has every selected tag (an empty selection lets everything through). */
-export const matchesTags = (tags: readonly string[] | undefined, selected: readonly string[]) => selected.every((t) => (tags ?? []).includes(t))

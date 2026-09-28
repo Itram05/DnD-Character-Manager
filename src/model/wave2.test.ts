@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { ImportError, importCharacterJson, normalizeCharacter } from './normalize'
 import { findPower, playCards, playPassivePowers, playPassives, powerAffordable, useCard, spendPower } from './play'
 import { longRest } from './rest'
-import { attackTags, matchesTags, spellTags, tagCounts, textTags } from './tags'
+import { attackTags, autoPart, mergeTags, spellTags, tagGroup, textTags } from './tags'
+import { damageOn, filterOptions, matchesFilter, selectedZones, sortSelection, toggleDamage, toggleDamageType, type Filterable } from './filter'
 import { CURRENT_SCHEMA_VERSION, type Character } from './types'
 
 import sampleText from '../../examples/sample-character.json?raw'
@@ -118,12 +119,12 @@ describe('tags in the file', () => {
   })
 })
 
-describe('automatic tags', () => {
-  it('read damage types, saves, healing and control from the text', () => {
-    expect(textTags('Each creature makes a Dexterity saving throw, taking 8d6 Fire damage on a failed save.')).toEqual(['save', 'damage', 'fire'])
+describe('automatic tags (categories)', () => {
+  it('read Damage with its type, Healing and Control from the text; no more "save" or "attack" tags', () => {
+    expect(textTags('Each creature makes a Dexterity saving throw, taking 8d6 Fire damage on a failed save.')).toEqual(['damage', 'fire'])
     expect(textTags('A creature of your choice regains Hit Points equal to 1d8 + your modifier.')).toEqual(['healing'])
-    expect(textTags('The target must succeed on a Wisdom saving throw or have the Paralyzed condition.')).toEqual(['save', 'control'])
-    expect(textTags('Make a melee spell attack. On a hit, 1d10 Necrotic damage.')).toEqual(['damage', 'necrotic', 'attack'])
+    expect(textTags('The target must succeed on a Wisdom saving throw or have the Paralyzed condition.')).toEqual(['control'])
+    expect(textTags('Make a melee spell attack. On a hit, 1d10 Necrotic damage.')).toEqual(['damage', 'necrotic'])
   })
   it('do not mistake the opposite for healing, or an item bonus for a save', () => {
     expect(textTags("the target can't regain Hit Points until the start of your next turn")).not.toContain('healing')
@@ -131,21 +132,89 @@ describe('automatic tags', () => {
     // advantage on saves against being charmed is a defence, not control
     expect(textTags('You have advantage on saving throws against being charmed.')).toEqual([])
   })
-  it('spells add concentration and ritual; own tags come after the automatic ones', () => {
-    const { character: c } = normalizeCharacter({ spells: [{ name: 'Web', level: 2, concentration: true, tags: ['control', 'aoe'], description: 'Dexterity saving throw or Restrained.' }] })
-    expect(spellTags(c.spells[0])).toEqual(['concentration', 'save', 'control', 'aoe'])
+  it('Utility when nothing else fits; a category you add yourself replaces it; free tags stay', () => {
+    expect(mergeTags([], undefined)).toEqual(['utility'])
+    expect(mergeTags(['concentration'], ['staff'])).toEqual(['utility', 'concentration', 'staff'])
+    expect(mergeTags([], ['mobility'])).toEqual(['mobility'])
+    expect(mergeTags(['healing'], undefined)).toEqual(['healing'])
+    // an own damage type means Damage too
+    expect(mergeTags([], ['fire'])).toEqual(['damage', 'fire'])
+    // the old vocabulary is kept as free tags, not lost
+    expect(mergeTags(['damage'], ['aoe', 'debuff'])).toEqual(['damage', 'aoe', 'debuff'])
+    expect(autoPart([], ['buff'])).toEqual([])
+    expect(autoPart(['concentration'], undefined)).toEqual(['utility', 'concentration'])
   })
-  it('attacks are tagged "attack", "damage" and their damage type', () => {
-    expect(attackTags({ id: 'a', name: 'Sword', ability: 'str', proficient: true, bonus: 0, damage: '1d8', damageType: 'Slashing', addAbilityToDamage: true, damageBonus: 0 })).toEqual(['damage', 'slashing', 'attack'])
+  it('groups: category, damage type, property, other', () => {
+    expect(['damage', 'fire', 'ritual', 'staff', 'save'].map(tagGroup)).toEqual(['cat', 'dmg', 'prop', 'other', 'other'])
   })
-  it('tag filter: a card needs every selected tag; counts list each tag once per card', () => {
-    expect(matchesTags(['fire', 'save'], [])).toBe(true)
-    expect(matchesTags(['fire', 'save'], ['fire'])).toBe(true)
-    expect(matchesTags(['fire', 'save'], ['fire', 'healing'])).toBe(false)
-    expect(tagCounts([['fire', 'save'], ['save'], undefined])).toEqual([
-      { tag: 'fire', n: 1 },
-      { tag: 'save', n: 2 },
+  it('spells: categories first, then damage types, properties, own tags', () => {
+    const { character: c } = normalizeCharacter({ spells: [{ name: 'Web', level: 2, concentration: true, tags: ['aoe'], description: 'Dexterity saving throw or Restrained.' }] })
+    expect(spellTags(c.spells[0])).toEqual(['control', 'concentration', 'aoe'])
+  })
+  it('attacks are Damage and their damage type', () => {
+    expect(attackTags({ id: 'a', name: 'Sword', ability: 'str', proficient: true, bonus: 0, damage: '1d8', damageType: 'Slashing', addAbilityToDamage: true, damageBonus: 0 })).toEqual(['damage', 'slashing'])
+  })
+})
+
+describe('the filter', () => {
+  const cards: Filterable[] = [
+    { zone: 'action', kind: 'spell', tags: ['damage', 'fire', 'concentration'] },
+    { zone: 'action', kind: 'spell', tags: ['damage', 'psychic', 'control'] },
+    { zone: 'bonus', kind: 'spell', tags: ['healing'] },
+    { zone: 'bonus', kind: 'power', tags: ['buff', 'staff'] },
+    { zone: 'reaction', kind: 'feature', tags: ['utility'] },
+  ]
+  const pick = (sel: string[]) => cards.map((x, i) => (matchesFilter(x, sel) ? i : -1)).filter((i) => i >= 0)
+  it('nothing selected: everything', () => expect(pick([])).toEqual([0, 1, 2, 3, 4]))
+  it('inside a group: OR (Action or Bonus; Healing or Buff)', () => {
+    expect(pick(['zone:action', 'zone:bonus'])).toEqual([0, 1, 2, 3])
+    expect(pick(['cat:healing', 'cat:buff'])).toEqual([2, 3])
+  })
+  it('between groups: AND', () => {
+    expect(pick(['zone:bonus', 'cat:healing'])).toEqual([2])
+    expect(pick(['kind:item', 'cat:buff'])).toEqual([3])
+    expect(pick(['zone:action', 'prop:concentration'])).toEqual([0])
+    expect(pick(['other:staff'])).toEqual([3])
+  })
+  it('damage types narrow Damage down', () => {
+    expect(pick(['cat:damage'])).toEqual([0, 1])
+    expect(pick(['dmg:psychic'])).toEqual([1])
+    expect(pick(['dmg:psychic', 'dmg:fire'])).toEqual([0, 1])
+    expect(pick(['dmg:fire', 'cat:healing'])).toEqual([0, 2])
+  })
+  it('Damage chip and type chips toggle as described', () => {
+    expect(toggleDamage([])).toEqual(['cat:damage'])
+    expect(toggleDamage(['cat:damage', 'zone:action'])).toEqual(['zone:action'])
+    expect(toggleDamage(['dmg:fire'])).toEqual([])
+    expect(toggleDamageType(['cat:damage'], 'fire')).toEqual(['dmg:fire'])
+    expect(toggleDamageType(['dmg:fire'], 'fire')).toEqual([])
+    expect(damageOn(['dmg:cold'])).toBe(true)
+  })
+  it('panel options: counts respect the other groups, not their own; selected options never vanish', () => {
+    const g = filterOptions(cards, ['zone:bonus'])
+    const zone = g.find((x) => x.group === 'zone')!.options
+    // Action still shows how many Action cards there are, so it can be added
+    expect(zone.map((o) => [o.value, o.n, o.on])).toEqual([
+      ['action', 2, false],
+      ['bonus', 2, true],
+      ['reaction', 1, false],
     ])
+    const cat = g.find((x) => x.group === 'cat')!.options
+    expect(cat.map((o) => [o.value, o.n])).toEqual([
+      ['damage', 0],
+      ['healing', 1],
+      ['control', 0],
+      ['buff', 1],
+      ['utility', 0],
+    ])
+    expect(g.find((x) => x.group === 'kind')!.options.map((o) => o.value)).toEqual(['feature', 'spell', 'item'])
+    expect(g.find((x) => x.group === 'other')!.options.map((o) => o.value)).toEqual(['staff'])
+    expect(filterOptions([], ['other:gone'])[0].options[0]).toEqual({ key: 'other:gone', value: 'gone', n: 0, on: true })
+  })
+  it('hands shown: the chosen ones in order, or all', () => {
+    expect(selectedZones(['zone:reaction', 'zone:action'])).toEqual(['action', 'reaction'])
+    expect(selectedZones(['cat:damage'])).toEqual(['action', 'bonus', 'reaction', 'other'])
+    expect(sortSelection(['other:x', 'dmg:fire', 'zone:bonus', 'cat:healing'])).toEqual(['zone:bonus', 'cat:healing', 'dmg:fire', 'other:x'])
   })
 })
 

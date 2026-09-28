@@ -1,7 +1,8 @@
 // Every static t('key') used in the source must exist in the English dictionary,
 // so a future translation has a complete list of strings to translate.
 import { describe, expect, it } from 'vitest'
-import { AUTO_TAGS, SUGGESTED_TAGS } from '../model/tags'
+import { FILTER_GROUPS } from '../model/filter'
+import { BUILT_IN_TAGS } from '../model/tags'
 import { en } from './en'
 
 const sources = import.meta.glob('../**/*.{ts,tsx}', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
@@ -30,7 +31,8 @@ describe('i18n keys', () => {
       'scroll.from.': ['character', 'srd', 'item'],
       'kind.': ['all', 'attack', 'feature', 'spell', 'scroll', 'potion', 'scrollPotion', 'item'],
       // built-in tags have labels; a missing one would show the raw id
-      'tag.': [...AUTO_TAGS, ...SUGGESTED_TAGS],
+      'tag.': [...BUILT_IN_TAGS],
+      'filter.group.': FILTER_GROUPS,
       'rules.': ['turn', 'actions', 'conditions', 'rest', 'concentration', 'dying', 'changes', 'about'],
     }
     const missing = Object.entries(families).flatMap(([p, ks]) => ks.map((k) => p + k).filter((k) => !(k in en)))

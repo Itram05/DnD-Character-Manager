@@ -202,7 +202,9 @@ describe.skipIf(!existsSync(GRAV_FILE))("owner's character: potions and scrolls"
 describe.skipIf(!existsSync(GRAV_FILE))("owner's character: item powers and tags", async () => {
   const { setAttunement } = await import('../src/model/rules')
   const { playPassivePowers, spendPower } = await import('../src/model/play')
-  const { spellTags, tagCounts } = await import('../src/model/tags')
+  const { CATEGORIES, spellTags } = await import('../src/model/tags')
+  const { filterOptions } = await import('../src/model/filter')
+  const { FilterButton } = await import('../src/ui/filter')
   const { ItemEditor } = await import('../src/ui/editors')
   const { GameCard } = await import('../src/ui/GameCard')
   const { SpellsView } = await import('../src/ui/SpellsView')
@@ -240,39 +242,85 @@ describe.skipIf(!existsSync(GRAV_FILE))("owner's character: item powers and tags
     expect(playCards(swapped.character).filter((x) => x.itemId === amulet.id).map((x) => [x.name, x.zone])).toEqual([['Outline of the unseen', 'reaction']])
     expect(playPassivePowers(swapped.character).map((p) => p.power.name)).toEqual(expect.arrayContaining(['Keen sight', 'Steady mind']))
   })
-  it('the Play screen shows the powers, their cost, the passive chips and the tag filter', () => {
-    const html = strip(renderToString(<PlayView api={apiFor(c)} />))
+  it('the Play screen shows the powers, their cost, the passive chips and the funnel filter', () => {
+    const raw = renderToString(<PlayView api={apiFor(c)} />)
+    const html = strip(raw)
     // (server render = phone width: only the Action hand is open)
     for (const s of ['Detect Thoughts', '1 ch.', 'Truesight 60 ft', '+3 spell attack']) expect(html).toContain(s)
     const echo = playCards(c).find((x) => x.name === 'Temporal Echo')!
     const card = strip(renderToString(<GameCard card={echo} mode="cards" onOpen={() => {}} onUse={() => {}} />))
     expect(card).toContain('all ch.')
     expect(card).toContain('Staff of Ages')
-    // tag filter chips, with counts
-    expect(html).toMatch(/Control \d+/)
-    expect(html).toMatch(/Healing \d+/)
-    // damage types folded under one Damage chip (closed by default)
-    expect(html).toMatch(/Damage \d+ ▸/)
-    expect(html).not.toMatch(/Radiant \d+/)
+    // the phone's Action hand is an active filter: funnel with 1, and "Action ✕" in the row under it
+    expect(raw).toMatch(/class="filter-badge">1</)
+    expect(html).toContain('Action ✕')
+    // the panel is closed: no category chips on the screen
+    expect(raw).not.toContain('filter-panel')
+    // opened: every group, Damage with its arrow, types folded
+    const panel = strip(renderToString(<FilterButton groups={filterOptions(playCards(c), [])} selected={[]} onChange={() => {}} initiallyOpen />))
+    for (const s of ['Action', 'Kind', 'Category', 'Properties']) expect(panel).toContain(s)
+    expect(panel).toMatch(/Damage \d+ ▾ Healing \d+ Control \d+ Buff \d+ Defense \d+ Mobility \d+ Summon \d+ Utility \d+/)
+    expect(panel).not.toMatch(/Radiant \d+/)
   })
-  it('his spells carry automatic and own tags', () => {
-    const tagsOf = (n: string) => spellTags(c.spells.find((s) => s.name === n)!)
-    expect(tagsOf('Spirit Guardians')).toEqual(expect.arrayContaining(['concentration', 'damage', 'radiant', 'save', 'aoe', 'control']))
-    expect(tagsOf('Hold Person')).toEqual(expect.arrayContaining(['concentration', 'save', 'control']))
-    expect(tagsOf('Cure Wounds')).toContain('healing')
-    expect(tagsOf('Synaptic Static')).toEqual(expect.arrayContaining(['damage', 'psychic', 'save', 'aoe', 'debuff']))
-    expect(tagsOf('Misty Step')).toEqual(['mobility'])
-    const counts = Object.fromEntries(tagCounts(c.spells.map(spellTags)).map((x) => [x.tag, x.n]))
-    expect(counts.control).toBeGreaterThanOrEqual(4)
+  it('his spells and Staff powers: categories after the switch (own tags + read from the text)', () => {
+    const cats = (tags: string[]) => tags.filter((x) => (CATEGORIES as readonly string[]).includes(x)).join(' ')
+    const bySpell = Object.fromEntries(c.spells.map((s) => [s.name, cats(spellTags(s))]))
+    expect(bySpell).toEqual({
+      'Booming Blade': 'damage',
+      'Green-Flame Blade': 'damage',
+      'Fire Bolt': 'damage',
+      'Toll the Dead': 'damage',
+      Guidance: 'buff',
+      'Shape Water': 'utility',
+      'Cure Wounds': 'healing',
+      Shield: 'defense',
+      'Healing Word': 'healing',
+      'Misty Step': 'mobility',
+      'Spiritual Weapon': 'damage summon',
+      'Spirit Guardians': 'damage control',
+      Counterspell: 'defense',
+      Revivify: 'healing',
+      'Death Ward': 'defense',
+      'Guardian of Faith': 'damage summon',
+      'Synaptic Static': 'damage control',
+      'Watery Sphere': 'control',
+      'Control Weather': 'utility',
+      Bane: 'control',
+      "Hunter's Mark": 'damage buff',
+      Command: 'control',
+      'Cure Wounds (Paladin)': 'healing',
+      'Detect Magic': 'utility',
+      'Protection from Evil and Good': 'defense',
+      'Shield of Faith': 'defense',
+      'Thunderous Smite': 'damage control',
+      'Hold Person': 'control',
+      'Misty Step (Oath)': 'mobility',
+      Aid: 'buff',
+      'Lesser Restoration': 'healing',
+    })
+    // no old vocabulary left in his file; "revive" stays as his own free tag
+    const own = c.spells.flatMap((s) => s.tags ?? [])
+    for (const old of ['aoe', 'debuff', 'social', 'save', 'attack']) expect(own).not.toContain(old)
+    expect(spellTags(c.spells.find((s) => s.name === 'Revivify')!)).toContain('revive')
+    expect(playCards(c).filter((x) => x.itemId === staff.id).map((x) => [x.name, cats(x.tags!)])).toEqual([
+      ['Temporal Echo', 'defense'],
+      ['Hourglass Ward', 'defense'],
+      ['Echo of Ages', 'buff'],
+    ])
   })
-  it('the Gear editor lists the Staff powers; the Spells tab has the tag filter', () => {
+  it('the Gear editor lists the Staff powers; the Spells tab has the funnel', () => {
     const ed = strip(renderToString(<ItemEditor api={apiFor(c)} initial={staff} onClose={() => {}} />))
     for (const s of ['Powers of this item', 'Temporal Echo', 'Hourglass Ward', 'Echo of Ages', 'Add power']) expect(ed).toContain(s)
-    const sp = strip(renderToString(<SpellsView api={apiFor(c)} />))
-    expect(sp).toMatch(/Concentration \d+/)
-    expect(sp).toContain('mobility'.replace('m', 'M'))
-    expect(sp).toMatch(/Damage \d+ ▸/)
-    expect(sp).not.toMatch(/Psychic \d+/)
+    const raw = renderToString(<SpellsView api={apiFor(c)} />)
+    expect(raw).toContain('filter-btn')
+    expect(raw).not.toContain('filter-badge')
+    expect(raw).not.toContain('active-filters')
+    const tagged = c.spells.map((s) => ({ tags: spellTags(s) }))
+    const panel = strip(renderToString(<FilterButton groups={filterOptions(tagged, [])} selected={[]} onChange={() => {}} initiallyOpen />))
+    expect(panel).toMatch(/Properties Concentration \d+/)
+    expect(panel).toMatch(/Other tags revive 1/)
+    // no hand or kind group for spells
+    expect(panel).not.toContain('Kind')
   })
   it('wave 1 still holds: scrolls, healing potions and attunement', () => {
     expect(playCards(c).filter((x) => x.kind === 'scroll')).toHaveLength(6)
