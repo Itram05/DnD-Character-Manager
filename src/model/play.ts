@@ -5,7 +5,8 @@
 // Spent = "tapped" (turned sideways). Rests "untap" the cards they restore.
 // Spell slots are "mana". Passive features lie on the "battlefield".
 import type { SrdSpell } from '../data/srd'
-import { isHealingPotion, isPotion, isScroll, scrollInfo } from './consumables'
+import { HEALING_NAME, HEALING_TIERS, healingDescription, healingTier, isHealingPotion, isPotion, isScroll, scrollInfo, type HealingTier } from './consumables'
+import { newId } from './normalize'
 import { pactSlots, spellSlots, usesMax } from './rules'
 import { bonusSlotsAt, isSorceryPoints } from './sorcery'
 import { featureTags, itemTags, mergeTags, powerTags, spellAutoTags, spellTags } from './tags'
@@ -107,6 +108,47 @@ export function featureInPlay(c: Character, f: Feature): boolean {
 
 /** The four healing potions: counters next to Concentration, not cards. Same attunement filter as every item. */
 export const playHealingPotions = (c: Character) => c.inventory.items.filter((i) => isHealingPotion(i) && itemInPlay(i))
+
+/** One counter in the Concentration panel. `item` is missing when the character has no potion of that kind. */
+export interface HealingRow {
+  tier: HealingTier
+  item?: Item
+  name: string
+  quantity: number
+}
+
+/**
+ * The healing-potion counters: always all four kinds, in order, so a potion found mid-game is one "+" away.
+ * A kind without an item is a row at 0 with no item (nothing is created just to show it);
+ * a kind with several items (two "Potion of Healing" entries) shows each of them.
+ */
+export function healingPotionRows(c: Character): HealingRow[] {
+  const have = playHealingPotions(c)
+  return HEALING_TIERS.flatMap((tier): HealingRow[] => {
+    const items = have.filter((i) => healingTier(i) === tier)
+    if (items.length === 0) return [{ tier, name: HEALING_NAME[tier], quantity: 0 }]
+    return items.map((i) => ({ tier, item: i, name: i.name, quantity: i.quantity }))
+  })
+}
+
+/**
+ * "+" on a kind the character has no item for: a new item in the inventory with the standard name,
+ * its dice in the description and quantity 1. If an item of that kind is on the Play screen, one more of it.
+ */
+export function addHealingPotion(c: Character, tier: HealingTier): Character {
+  const existing = playHealingPotions(c).find((i) => healingTier(i) === tier)
+  if (existing) return { ...c, inventory: { ...c.inventory, items: c.inventory.items.map((i) => (i.id === existing.id ? { ...i, quantity: i.quantity + 1 } : i)) } }
+  const potion: Item = {
+    id: newId(),
+    name: HEALING_NAME[tier],
+    quantity: 1,
+    equipped: false,
+    requiresAttunement: false,
+    attuned: false,
+    description: healingDescription(tier),
+  }
+  return { ...c, inventory: { ...c.inventory, items: [...c.inventory.items, potion] } }
+}
 
 /** Passive features shown on the Play screen ("battlefield"). */
 export const playPassives = (c: Character) => c.features.filter((f) => isPassive(f) && featureInPlay(c, f))

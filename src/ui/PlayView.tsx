@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { loadSrdSpells, type SrdSpell } from '../data/srd'
 import { t } from '../i18n'
 import {
-  PLAY_KINDS,
+  addHealingPotion,
   castSpell,
+  healingPotionRows,
   itemCard,
   manaRows,
   paymentOptions,
@@ -11,7 +12,6 @@ import {
   playCards,
   playPassivePowers,
   playPassives,
-  kindGroup,
   playHealingPotions,
   shortText,
   spendSlot,
@@ -19,12 +19,11 @@ import {
   useCard as spendCard,
   type Payment,
   type PlayCard,
-  type PlayKind,
   type Zone,
 } from '../model/play'
 import { MAX_CREATED_SLOT_LEVEL, SLOT_COST, canPointsToSlot, canSlotToPoints, pointsToSlot, slotToPoints, slotsLeftAt, sorceryFeature, sorceryPoints } from '../model/sorcery'
 import { attackStats } from '../model/rules'
-import { healingDice, isScroll, potionLabel, readScroll, scrollInfo } from '../model/consumables'
+import { HEALING_DICE, HEALING_NAME, healingDice, isScroll, potionLabel, readScroll, scrollInfo, type HealingTier } from '../model/consumables'
 import { attackTags } from '../model/tags'
 import { filterOptions, matchesFilter, selectedKinds, selectedZones } from '../model/filter'
 import type { Character, Item } from '../model/types'
@@ -34,6 +33,8 @@ import { FRAME_GLYPH, GameCard, POTION_GLYPH, SCROLL_GLYPH, type CardFace } from
 import type { SheetApi } from './Sheet'
 import { ActiveFilters, FilterButton } from './filter'
 import { TagList } from './tags'
+import { SectionNavMenu, SectionNavSide } from './SectionNav'
+import { groupTitle, playHands, playSections, sectionId } from './playSections'
 
 function attackFaces(c: Character): CardFace[] {
   return c.attacks.map((a) => {
@@ -73,17 +74,12 @@ interface PassiveChip {
   description: string
 }
 
-/** Title of a group: the scroll group says what is in it ("Scrolls", "Potions" or "Scrolls & Potions"). */
-function groupTitle(k: PlayKind, cards: CardFace[]): string {
-  if (k !== 'scroll') return t(`kind.${k}`)
-  const hasScroll = cards.some((x) => x.kind === 'scroll')
-  const hasPotion = cards.some((x) => x.kind === 'potion')
-  return hasScroll && hasPotion ? t('kind.scrollPotion') : hasPotion ? t('kind.potion') : t('kind.scroll')
-}
 
 export function PlayView({ api }: { api: SheetApi }) {
   const { c, update, settings, setSettings, toast } = api
   const wide = useMediaQuery('(min-width: 900px)')
+  // the side column with the sections needs room next to the cards; narrower windows get a button in the head
+  const sideNav = useMediaQuery('(min-width: 1100px)')
   // a phone starts on the Action hand (all four hands stacked are a long scroll); it shows as an active filter
   const [filter, setFilter] = useState<string[]>(wide ? [] : ['zone:action'])
   const [open, setOpen] = useState<CardFace | null>(null)
@@ -97,6 +93,7 @@ export function PlayView({ api }: { api: SheetApi }) {
     return all.sort((a, b) => ORDER[a.kind] - ORDER[b.kind] || (a.spellLevel ?? 0) - (b.spellLevel ?? 0) || a.name.localeCompare(b.name))
   }, [c, srd])
   const potions = playHealingPotions(c)
+  const healingRows = healingPotionRows(c)
   const cards = allCards.filter((x) => matchesFilter(x, filter))
   const filterGroups = filterOptions(allCards, filter)
   // "Scrolls & Potions" names what the group really holds
@@ -136,12 +133,19 @@ export function PlayView({ api }: { api: SheetApi }) {
     const left = i.quantity - 1
     toast({ title: t('potion.used', { name: i.name }), lines: [...(dice ? [t('potion.roll', { dice })] : []), left > 0 ? t('scroll.left', { n: left }) : t('scroll.lastOne')] })
   }
+  /** "+" on a kind the character has no item for: the item is created in the inventory. */
+  const addPotion = (tier: HealingTier) => {
+    update((x) => addHealingPotion(x, tier))
+    toast({ title: t('potion.added', { name: HEALING_NAME[tier] }), lines: [t('potion.addedHint')] })
+  }
   const drinkCard = (card: CardFace) => {
     const i = c.inventory.items.find((x) => x.id === card.id)
     if (i) drink(i)
   }
 
   const zonesToShow: Zone[] = selectedZones(filter)
+  const hands = playHands(zonesToShow, cards, kinds.length !== 1)
+  const sections = playSections({ mana: mana.length > 0 || !!sp, passives: passives.length, hands, passivesFirst: wide })
 
   const renderCard = (card: CardFace) => {
     if (card.kind === 'scroll')
@@ -164,9 +168,11 @@ export function PlayView({ api }: { api: SheetApi }) {
   }
 
   return (
+    <div className={`play-layout ${sideNav && sections.length > 1 ? 'has-nav' : ''}`}>
     <div className="play">
       {/* Cards/List and the funnel live in the sheet's sticky head, so they are at hand anywhere down the page */}
       <InHead at={api.head?.tools}>
+        {!sideNav && sections.length > 1 && <SectionNavMenu sections={sections} />}
         <div className="segmented small view-toggle" role="group" aria-label={t('play.viewMode')}>
           <button className={mode === 'cards' ? 'active' : ''} onClick={() => setSettings({ ...settings, view: 'cards' })} aria-pressed={mode === 'cards'} title={t('play.cards')}>
             <span aria-hidden="true">▦</span> <span className="seg-text">{t('play.cards')}</span>
@@ -182,7 +188,7 @@ export function PlayView({ api }: { api: SheetApi }) {
       </InHead>
 
         {(mana.length > 0 || sp) && (
-          <section className="mana panel">
+          <section id={sectionId('mana')} className="mana panel nav-target">
             <h3>{t('play.mana')}</h3>
             {mana.map((r) => (
               <div key={`${r.kind}-${r.level}`} className={`mana-row mana-${r.kind}`}>
@@ -223,7 +229,7 @@ export function PlayView({ api }: { api: SheetApi }) {
           </section>
         )}
 
-        <section className={`in-play panel ${conc ? 'active' : ''}`}>
+        <section id={sectionId('conc')} className={`in-play panel nav-target ${conc ? 'active' : ''}`}>
           <h3>{t('play.inPlay')}</h3>
           {conc ? (
             <div className="conc-card">
@@ -240,35 +246,50 @@ export function PlayView({ api }: { api: SheetApi }) {
             <div className="conc-empty">{t('play.notConcentrating')}</div>
           )}
           {/* the four healing potions live here: HP and Concentration are what you check mid-fight */}
-          {potions.length > 0 && (
-            <div className="heal-potions" role="group" aria-label={t('potion.healing')}>
-              <h4>{t('potion.healing')}</h4>
-              <div className="potion-list">
-                {potions.map((i) => {
-                  const dice = healingDice(i)
-                  return (
-                    <div key={i.id} className={`potion ${i.quantity <= 0 ? 'empty' : ''}`} role="group" aria-label={t('card.quantityOf', { name: i.name, n: i.quantity })}>
-                      <button className="mini-btn" onClick={() => drink(i)} disabled={i.quantity <= 0} aria-label={t('card.useOneOf', { name: i.name })} title={t('potion.drink')}>
-                        −
+          {/* always all four kinds; a kind without an item shows ×0 and "+" creates the item */}
+          <div className="heal-potions" role="group" aria-label={t('potion.healing')}>
+            <h4>{t('potion.healing')}</h4>
+            <div className="potion-list">
+              {healingRows.map(({ tier, item: i, name, quantity }) => {
+                const dice = i ? healingDice(i) : HEALING_DICE[tier]
+                const label = (
+                  <>
+                    <span className="pn">{potionLabel(name)}</span>
+                    {dice && <span className="pd">{dice}</span>}
+                  </>
+                )
+                return (
+                  <div key={i?.id ?? `none-${tier}`} className={`potion ${quantity <= 0 ? 'empty' : ''}`} role="group" aria-label={t('card.quantityOf', { name, n: quantity })}>
+                    <button className="mini-btn" onClick={() => i && drink(i)} disabled={!i || quantity <= 0} aria-label={t('card.useOneOf', { name })} title={t('potion.drink')}>
+                      −
+                    </button>
+                    {i ? (
+                      <button className="potion-name" onClick={() => setOpen(itemCard(c, i))} title={name}>
+                        {label}
                       </button>
-                      <button className="potion-name" onClick={() => setOpen(itemCard(c, i))} title={i.name}>
-                        <span className="pn">{potionLabel(i.name)}</span>
-                        {dice && <span className="pd">{dice}</span>}
-                      </button>
-                      <span className="pq">×{i.quantity}</span>
-                      <button className="mini-btn" onClick={() => use(itemCard(c, i), -1)} aria-label={t('card.addOneOf', { name: i.name })} title={t('card.addOne')}>
-                        +
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
+                    ) : (
+                      <span className="potion-name" title={name}>
+                        {label}
+                      </span>
+                    )}
+                    <span className="pq">×{quantity}</span>
+                    <button
+                      className="mini-btn"
+                      onClick={() => (i ? use(itemCard(c, i), -1) : addPotion(tier))}
+                      aria-label={t('card.addOneOf', { name })}
+                      title={i ? t('card.addOne') : t('potion.addNew')}
+                    >
+                      +
+                    </button>
+                  </div>
+                )
+              })}
             </div>
-          )}
+          </div>
         </section>
 
         {passives.length > 0 && (
-          <section className="battlefield panel">
+          <section id={sectionId('field')} className="battlefield panel nav-target">
             <h3>
               {t('play.battlefield')} <span className="muted">({passives.length})</span>
             </h3>
@@ -286,35 +307,28 @@ export function PlayView({ api }: { api: SheetApi }) {
           </section>
         )}
 
-      <div className={`hands hands-${zonesToShow.length > 1 ? 'multi' : 'single'} mode-${mode}`}>
-        {zonesToShow.map((z) => {
-          const zc = cards.filter((x) => x.zone === z)
-          return (
-            <section key={z} className={`zone zone-${z}`}>
-              <h3 className="zone-title">
-                <span className={`gem gem-${z}`}>{t(`zone.${z}.short`)}</span> {t(`zone.${z}`)}
-              </h3>
-              {zc.length === 0 ? (
-                <p className="muted empty-zone">{t('play.emptyZone')}</p>
-              ) : kinds.length === 1 ? (
-                <div className={mode === 'cards' ? 'card-grid' : 'card-list'}>{zc.map(renderCard)}</div>
-              ) : (
-                PLAY_KINDS.map((k) => {
-                  const kc = zc.filter((x) => kindGroup(x.kind) === k)
-                  if (kc.length === 0) return null
-                  return (
-                    <div key={k} className={`kind-group kind-${k}`}>
-                      <h4 className="kind-title">
-                        {groupTitle(k, kc)} <span className="muted">({kc.length})</span>
-                      </h4>
-                      <div className={mode === 'cards' ? 'card-grid' : 'card-list'}>{kc.map(renderCard)}</div>
-                    </div>
-                  )
-                })
-              )}
-            </section>
-          )
-        })}
+      <div className={`hands hands-${hands.length > 1 ? 'multi' : 'single'} mode-${mode}`}>
+        {hands.map(({ zone: z, cards: zc, groups }) => (
+          <section key={z} id={sectionId(z)} className={`zone zone-${z} nav-target`}>
+            <h3 className="zone-title">
+              <span className={`gem gem-${z}`}>{t(`zone.${z}.short`)}</span> {t(`zone.${z}`)}
+            </h3>
+            {zc.length === 0 ? (
+              <p className="muted empty-zone">{t('play.emptyZone')}</p>
+            ) : !groups ? (
+              <div className={mode === 'cards' ? 'card-grid' : 'card-list'}>{zc.map(renderCard)}</div>
+            ) : (
+              groups.map(({ kind: k, cards: kc }) => (
+                <div key={k} id={sectionId(z, k)} className={`kind-group kind-${k} nav-target`}>
+                  <h4 className="kind-title">
+                    {groupTitle(k, kc)} <span className="muted">({kc.length})</span>
+                  </h4>
+                  <div className={mode === 'cards' ? 'card-grid' : 'card-list'}>{kc.map(renderCard)}</div>
+                </div>
+              ))
+            )}
+          </section>
+        ))}
       </div>
 
       {allCards.length === 0 && passives.length === 0 && !sp && potions.length === 0 && (
@@ -353,6 +367,8 @@ export function PlayView({ api }: { api: SheetApi }) {
           <RichText text={openPassive.description} />
         </Modal>
       )}
+    </div>
+    {sideNav && sections.length > 1 && <SectionNavSide sections={sections} />}
     </div>
   )
 }

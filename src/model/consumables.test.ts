@@ -4,7 +4,7 @@ import srdSpells from '../data/srd/spells.json'
 import type { SrdSpell } from '../data/srd'
 import { healingDice, healingTier, isPotion, isScroll, potionDice, potionLabel, readScroll, scrollInfo, scrollSpellName } from './consumables'
 import { tokenize } from './highlight'
-import { PLAY_KINDS, kindGroup, playCards, playHealingPotions, useCard } from './play'
+import { PLAY_KINDS, addHealingPotion, healingPotionRows, kindGroup, playCards, playHealingPotions, useCard } from './play'
 import { normalizeCharacter } from './normalize'
 import type { Character } from './types'
 
@@ -208,5 +208,53 @@ describe('using a scroll', () => {
     expect(card).toMatchObject({ quantity: 0, tapped: true })
     c = useCard(c, card, -1) // "put one back"
     expect(item(c, 's-cmd').quantity).toBe(1)
+  })
+})
+
+describe('the four healing potions are always on the Play screen', () => {
+  it('every kind has a row, in order; a kind without an item is ×0 and nothing is created for it', () => {
+    const c = hero()
+    const rows = healingPotionRows(c)
+    expect(rows.map((r) => [r.tier, r.item?.id, r.quantity])).toEqual([
+      ['healing', 'p1', 3],
+      ['greater', 'p3', 2],
+      ['superior', undefined, 0],
+      ['supreme', undefined, 0],
+    ])
+    expect(rows[3].name).toBe('Potion of Supreme Healing')
+    // showing them adds nothing to the inventory
+    expect(c.inventory.items.length).toBe(hero().inventory.items.length)
+  })
+  it('a character with no potions at all still gets the four rows', () => {
+    const c = { ...hero(), inventory: { ...hero().inventory, items: [] } }
+    expect(healingPotionRows(c).map((r) => [r.tier, r.quantity])).toEqual([
+      ['healing', 0],
+      ['greater', 0],
+      ['superior', 0],
+      ['supreme', 0],
+    ])
+  })
+  it('"+" on a missing kind creates the item with the standard name, its dice and quantity 1', () => {
+    const c = addHealingPotion(hero(), 'supreme')
+    const made = c.inventory.items.find((i) => i.name === 'Potion of Supreme Healing')!
+    expect(made).toMatchObject({ quantity: 1, equipped: false, requiresAttunement: false, attuned: false })
+    expect(made.description).toContain('10d4 + 20')
+    expect(healingDice(made)).toBe('10d4+20')
+    expect(healingTier(made)).toBe('supreme')
+    expect(healingPotionRows(c)[3]).toMatchObject({ tier: 'supreme', quantity: 1, item: { id: made.id } })
+    // a second "+" adds to it, it does not create another
+    const again = addHealingPotion(c, 'supreme')
+    expect(again.inventory.items.filter((i) => healingTier(i) === 'supreme').map((i) => i.quantity)).toEqual([2])
+  })
+  it('"+" on a kind the character has adds one to that item', () => {
+    const c = addHealingPotion(hero(), 'healing')
+    expect(item(c, 'p1').quantity).toBe(4)
+    expect(c.inventory.items.length).toBe(hero().inventory.items.length)
+  })
+  it('two items of one kind are both shown; "−" at 0 changes nothing', () => {
+    const base = hero()
+    const c = { ...base, inventory: { ...base.inventory, items: [...base.inventory.items, { ...item(base, 'p1'), id: 'p1b', quantity: 0 }] } }
+    expect(healingPotionRows(c).filter((r) => r.tier === 'healing').map((r) => r.item?.id)).toEqual(['p1', 'p1b'])
+    expect(item(useCard(c, { kind: 'item', id: 'p1b' }, 1), 'p1b').quantity).toBe(0)
   })
 })

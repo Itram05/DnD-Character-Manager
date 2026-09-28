@@ -10,6 +10,8 @@ export const en: Record<string, string> = {
   // navigation
   'nav.sections': 'Sheet sections',
   'nav.allCharacters': 'All characters',
+  'nav.onThisScreen': 'On this screen',
+  'nav.jump': 'Jump to a section',
   'tab.play': 'Play',
   'tab.stats': 'Stats',
   'tab.spells': 'Spells',
@@ -240,6 +242,9 @@ export const en: Record<string, string> = {
   'potion.drink': 'Drink one',
   'potion.used': 'Drank {name}',
   'potion.roll': 'Roll {dice} and add it on the HP counter.',
+  'potion.addNew': 'Add one (creates the potion in Gear)',
+  'potion.added': 'Added {name}',
+  'potion.addedHint': 'It is now in Gear, quantity 1.',
   'flex.points': 'Sorcery Points',
   'flex.pointsLeft': '{left} of {max} Sorcery Points left',
   'flex.convert': 'Convert',

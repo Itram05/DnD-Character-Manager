@@ -90,6 +90,19 @@ export function Sheet(props: { initial: Character; tab: Tab; onTab: (t: Tab) => 
     setUndo(undo.slice(0, -1))
   }
 
+  // the sticky head's height as the CSS variable --head-h: a section scrolled to (quick navigation)
+  // stops under the head instead of behind it (scroll-margin-top), and the side column sticks under it
+  useEffect(() => {
+    const head = document.querySelector<HTMLElement>('.sheet-head')
+    if (!head || typeof ResizeObserver === 'undefined') return
+    const root = document.documentElement
+    const set = () => root.style.setProperty('--head-h', `${Math.round(head.getBoundingClientRect().height)}px`)
+    set()
+    const ro = new ResizeObserver(set)
+    ro.observe(head)
+    return () => ro.disconnect()
+  }, [])
+
   // the head's slots: callback refs, so the screens re-render (before paint) once the slots exist
   const [tools, setTools] = useState<HTMLElement | null>(null)
   const [chips, setChips] = useState<HTMLElement | null>(null)

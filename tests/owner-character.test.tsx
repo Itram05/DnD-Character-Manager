@@ -184,6 +184,11 @@ describe.skipIf(!existsSync(GRAV_FILE))("owner's character: potions and scrolls"
     const gear = strip(renderToString(<InventoryView api={api} />))
     expect(gear).toContain('Potion of Greater Healing')
   })
+  it('Grav has no Supreme potion: the panel still shows Supreme Healing ×0, and nothing is added to his items', () => {
+    const conc = concPanel(renderToString(<PlayView api={apiFor(c)} />))
+    expect(conc).toContain('Supreme Healing 10d4+20 × 0 +')
+    expect(c.inventory.items.some((i) => /supreme/i.test(i.name))).toBe(false)
+  })
   it('a potion that is not for healing (Climbing) becomes a card in "Scrolls & Potions" with Use', () => {
     const climbing = { id: 'climb', name: 'Potion of Climbing', quantity: 1, description: 'You gain a Climb Speed equal to your Speed for 1 hour.' }
     const c2: Character = { ...c, inventory: { ...c.inventory, items: [...c.inventory.items, climbing] } }

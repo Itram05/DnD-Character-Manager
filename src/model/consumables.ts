@@ -9,7 +9,8 @@
 // - Potion: an item without charges, not a scroll, whose name contains "potion", "elixir",
 //   "philter"/"philtre" (or "отвара").
 // - Healing potion: a potion whose name also says "healing" (or "лекуване"/"лечебна").
-//   The four kinds (Healing, Greater, Superior, Supreme) are counters next to Concentration;
+//   The four kinds (Healing, Greater, Superior, Supreme) are counters next to Concentration, always all four
+//   (a kind without an item shows ×0; "+" on it creates the item, see addHealingPotion in play.ts);
 //   every other potion (Climbing, Water Breathing...) is a card next to the scrolls.
 // An item with charges is never a consumable here: it keeps its card with pips.
 // "Scroll case" / "scroll tube" are containers, not scrolls.
@@ -158,6 +159,20 @@ export const HEALING_DICE: Record<HealingTier, string> = {
   superior: '8d4+8',
   supreme: '10d4+20',
 }
+
+/** The four kinds in the order the Concentration panel shows them. */
+export const HEALING_TIERS: HealingTier[] = ['healing', 'greater', 'superior', 'supreme']
+
+/** Standard item name of each kind, used when "+" creates a potion the character did not have. */
+export const HEALING_NAME: Record<HealingTier, string> = {
+  healing: 'Potion of Healing',
+  greater: 'Potion of Greater Healing',
+  superior: 'Potion of Superior Healing',
+  supreme: 'Potion of Supreme Healing',
+}
+
+/** Description of a created potion: it names the dice, so healingDice reads them back like on any other potion. */
+export const healingDescription = (tier: HealingTier) => `You regain ${HEALING_DICE[tier].replace('+', ' + ')} Hit Points when you drink this potion.`
 
 const HEALING_WORD = /\bheal(ing)?\b|лекув|лечеб/i
 
