@@ -54,6 +54,17 @@
   --hl-heal: var(--good);
   --hl-cond: #e39a8e;
 
+  /* categories (what a spell or item power does): the band and the tint of those cards. Kept deeper
+     and duller than the --dmg-* colours of the text, so the two never read as the same thing. */
+  --cat-damage: #c24450;
+  --cat-healing: #3f9a73;
+  --cat-control: #8a63c9;
+  --cat-defense: #5b7fa6;
+  --cat-buff: #b8902f;
+  --cat-mobility: #2b9f9b;
+  --cat-summon: #9a6b45;
+  --cat-utility: #858090;
+
   --card-w: 150px;
   --radius: 12px;
   --t: 180ms;
@@ -101,6 +112,14 @@
   --dmg-physical: #5c574e;
   --hl-save: #11756a;
   --hl-cond: #a4402f;
+  --cat-damage: #a8323d;
+  --cat-healing: #2e7d5b;
+  --cat-control: #6b44a8;
+  --cat-defense: #3f6388;
+  --cat-buff: #93700f;
+  --cat-mobility: #177c78;
+  --cat-summon: #7a4f2c;
+  --cat-utility: #6e6878;
   color-scheme: light;
 }
 
@@ -1400,6 +1419,109 @@ body.untap-step .card:not(.tapped) {
   100% {
     box-shadow: var(--shadow);
   }
+}
+
+/* category colour (spells, scrolls, item powers; see categoryMarks.tsx): the category takes the place
+   of the frame colour, so the border, the glyph and the faint tint follow it; a band along the top
+   (a list row: its left edge) shows one colour or two halves */
+.cat-damage {
+  --cc: var(--cat-damage);
+}
+.cat-healing {
+  --cc: var(--cat-healing);
+}
+.cat-control {
+  --cc: var(--cat-control);
+}
+.cat-defense {
+  --cc: var(--cat-defense);
+}
+.cat-buff {
+  --cc: var(--cat-buff);
+}
+.cat-mobility {
+  --cc: var(--cat-mobility);
+}
+.cat-summon {
+  --cc: var(--cat-summon);
+}
+.cat-utility {
+  --cc: var(--cat-utility);
+}
+.has-cat {
+  --fc: var(--cc);
+  position: relative;
+}
+.card.has-cat {
+  padding-top: 0.75rem; /* room for the band */
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--cc) 14%, transparent), transparent 55%),
+    var(--panel);
+}
+.cat-band {
+  position: absolute;
+  display: flex;
+  overflow: hidden;
+  pointer-events: none;
+}
+.card .cat-band {
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 7px;
+  border-radius: calc(var(--radius) - 2px) calc(var(--radius) - 2px) 0 0;
+}
+.cat-seg {
+  flex: 1;
+  background: var(--cc);
+}
+.card .cat-seg + .cat-seg {
+  border-left: 2px solid var(--panel);
+}
+.card-row .cat-band {
+  top: 0;
+  bottom: 0;
+  left: -4px; /* over the 4px frame edge */
+  width: 5px;
+  flex-direction: column;
+  border-radius: 9px 0 0 9px;
+}
+.card-row .cat-seg + .cat-seg {
+  border-top: 2px solid var(--panel);
+}
+.card-row.has-cat {
+  background: color-mix(in srgb, var(--cc) 8%, var(--panel));
+}
+.cat-icons {
+  display: inline-flex;
+  gap: 2px;
+  flex: none;
+  vertical-align: -2px;
+}
+.row-name .cat-icons {
+  margin-right: 0.3rem;
+}
+.cat-icon {
+  display: inline-grid;
+  place-items: center;
+  color: var(--cc);
+}
+/* the spell's level, big in the corner, in the text colour so it stands out on any category */
+.card.has-cat .gem-spell {
+  min-width: 34px;
+  height: 34px;
+  margin: -0.2rem -0.15rem 0 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  background: var(--text);
+  color: var(--bg);
+  text-shadow: none;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+}
+.card.has-cat .gem-spell.gem-cantrip {
+  background: var(--panel);
+  color: var(--text);
+  border: 2px solid var(--text);
 }
 
 /* list mode */

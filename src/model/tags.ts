@@ -99,6 +99,18 @@ export const itemTags = (i: Item) => mergeTags(textTags(i.description), i.tags)
 export const powerTags = (i: Item, p: ItemPower) => mergeTags(textTags(p.description), [...(p.tags ?? []), ...(i.tags ?? [])])
 export const attackTags = (a: Attack) => mergeTags(attackAutoTags(a), undefined)
 
+/**
+ * Which category wins the colour of a card when it has several (the first two are shown). A separate
+ * order from CATEGORIES (the filter's display order): here Defense comes before Buff.
+ */
+export const CATEGORY_PRIORITY: readonly Category[] = ['damage', 'healing', 'control', 'defense', 'buff', 'mobility', 'summon', 'utility']
+
+/** The categories that colour a card: at most `max` of its tags that are categories, by CATEGORY_PRIORITY. */
+export function colourCategories(tags: readonly string[] | undefined, max = 2): Category[] {
+  const have = new Set(tags ?? [])
+  return CATEGORY_PRIORITY.filter((c) => have.has(c)).slice(0, max)
+}
+
 /** Categories, then damage types, then properties (each in their fixed order), then the rest A-Z. */
 export function sortTags(tags: readonly string[]): string[] {
   const rank = (t: string) => ORDER.get(t) ?? 1000

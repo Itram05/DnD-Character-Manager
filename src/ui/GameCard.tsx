@@ -2,6 +2,7 @@ import type React from 'react'
 import type { ReactNode } from 'react'
 import { t } from '../i18n'
 import type { Frame, PlayCard } from '../model/play'
+import { CategoryBand, CategoryIcons, cardCategories } from './categoryMarks'
 import { Highlighted, Pips } from './common'
 
 export const FRAME_GLYPH: Record<Frame | 'attack', string> = {
@@ -88,9 +89,12 @@ function ChargeCost({ card }: { card: CardFace }) {
 /** One card (or one list row). Clicking the body opens the zoomed view. */
 export function GameCard(props: { card: CardFace; mode: 'cards' | 'list'; onOpen: () => void; onUse?: () => void; onUndo?: () => void; useLabel?: string }) {
   const { card, mode } = props
+  // spells, scrolls and item powers: coloured by what they do (categoryMarks.tsx)
+  const cats = cardCategories(card)
   const cls = [
     mode === 'cards' ? 'card' : 'card-row',
     `frame-${card.frame}`,
+    cats.length ? `has-cat cat-${cats[0]}` : '',
     card.tapped ? 'tapped' : '',
     card.unaffordable ? 'unaffordable' : '',
   ].join(' ')
@@ -123,11 +127,13 @@ export function GameCard(props: { card: CardFace; mode: 'cards' | 'list'; onOpen
   if (mode === 'list') {
     return (
       <div className={cls} onClick={props.onOpen} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && props.onOpen()}>
+        <CategoryBand cats={cats} />
         <CostGem card={card} />
         <span className="row-name">
           <span className="glyph" aria-hidden="true">
             {glyphOf(card)}
           </span>
+          <CategoryIcons cats={cats} />
           {card.name}
           {card.kind === 'power' && <span className="muted row-source"> · {card.sourceLabel}</span>}
           {card.concentration && <span className="tag">C</span>}
@@ -147,6 +153,7 @@ export function GameCard(props: { card: CardFace; mode: 'cards' | 'list'; onOpen
   return (
     <div className="card-slot">
       <div className={cls} onClick={props.onOpen} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && props.onOpen()} aria-label={card.tapped ? t('card.tappedLabel', { name: card.name }) : card.name}>
+        <CategoryBand cats={cats} />
         <div className="card-head">
           <span className="card-name">{card.name}</span>
           <CostGem card={card} />
@@ -155,6 +162,7 @@ export function GameCard(props: { card: CardFace; mode: 'cards' | 'list'; onOpen
           <span className="glyph" aria-hidden="true">
             {glyphOf(card)}
           </span>
+          <CategoryIcons cats={cats} />
           <span className="type-text">{card.sourceLabel}</span>
           {card.concentration && <span className="tag" title={t('spell.concentration')}>C</span>}
           {card.ritual && <span className="tag" title={t('spell.ritual')}>R</span>}
