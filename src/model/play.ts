@@ -8,21 +8,22 @@ import type { SrdSpell } from '../data/srd'
 import { isHealingPotion, isPotion, isScroll, scrollInfo } from './consumables'
 import { pactSlots, spellSlots, usesMax } from './rules'
 import { bonusSlotsAt, isSorceryPoints } from './sorcery'
-import type { Activation, Character, Feature, Item, SourceType, Spell, Uses } from './types'
+import { featureTags, itemTags, mergeTags, powerTags, spellTags, textTags } from './tags'
+import type { Activation, Character, Feature, Item, ItemPower, PowerCost, SourceType, Spell, Uses } from './types'
 
 export type Zone = 'action' | 'bonus' | 'reaction' | 'other'
 export const ZONES: Zone[] = ['action', 'bonus', 'reaction', 'other']
 
-export type CardKind = 'feature' | 'spell' | 'scroll' | 'potion' | 'item'
+export type CardKind = 'feature' | 'spell' | 'scroll' | 'potion' | 'item' | 'power'
 /**
  * Groups the Play screen is split into and filtered by. Attacks are built in the UI, not here.
- * Scrolls and (non-healing) potions share one group, "scroll"; see kindGroup.
+ * Scrolls and (non-healing) potions share one group, "scroll"; item powers are in the "item" group; see kindGroup.
  */
-export type PlayKind = 'attack' | Exclude<CardKind, 'potion'>
+export type PlayKind = 'attack' | Exclude<CardKind, 'potion' | 'power'>
 // scrolls come right after spells, so in every hand they sit directly under them
 export const PLAY_KINDS: PlayKind[] = ['attack', 'feature', 'spell', 'scroll', 'item']
-/** The group a card is shown in: potions sit with the scrolls. */
-export const kindGroup = (k: CardKind | 'attack'): PlayKind => (k === 'potion' ? 'scroll' : k)
+/** The group a card is shown in: potions sit with the scrolls, item powers with the items. */
+export const kindGroup = (k: CardKind | 'attack'): PlayKind => (k === 'potion' ? 'scroll' : k === 'power' ? 'item' : k)
 export type Frame = SourceType | 'spell'
 
 export interface PlayCard {
@@ -47,6 +48,11 @@ export interface PlayCard {
   ritual?: boolean
   /** Short line under the type, e.g. "Action · 60 feet" on a scroll. */
   meta?: string
+  /** Own + automatic tags (tags.ts), for the tag filter. */
+  tags?: string[]
+  /** Item power: the item it belongs to, and what one use costs from the item's charges. */
+  itemId?: string
+  chargeCost?: PowerCost
 }
 
 export const activationZone = (a: Activation | undefined): Zone =>
@@ -119,6 +125,7 @@ export function featureCard(c: Character, f: Feature): PlayCard {
     text: shortText(f.description),
     uses,
     tapped: !!uses && uses.max > 0 && uses.left === 0,
+    tags: featureTags(f),
   }
 }
 
@@ -137,7 +144,89 @@ export function itemCard(c: Character, i: Item): PlayCard {
     uses,
     quantity: uses ? undefined : i.quantity,
     tapped: uses ? uses.max > 0 && uses.left === 0 : i.quantity <= 0,
+    tags: itemTags(i),
   }
+}
+
+// ---------------- item powers ----------------
+// A magic item with several abilities (Staff of Ages: Temporal Echo, Hourglass Ward, Echo of Ages)
+// lists them in `powers`. Each active power is its own card, in the hand of its activation; using it
+// spends `cost` charges from the item's pool (and one of its own `uses`, if it has them).
+// Passive powers are chips next to the passive features. An item with active powers shows no card
+// of its own: the powers are the item on the Play screen.
+
+export const activePowers = (i: Item) => (i.powers ?? []).filter((p) => p.activation !== 'passive')
+export const passivePowers = (i: Item) => (i.powers ?? []).filter((p) => p.activation === 'passive')
+
+/** Charges one use takes now: a number, or for "all" every charge left (at least 1). 0 = free. */
+export function chargesNeeded(c: Character, i: Item, p: ItemPower): number {
+  if (!p.cost || !i.charges) return 0
+  if (p.cost === 'all') return Math.max(1, usesView(c, i.charges)!.left)
+  return p.cost
+}
+
+/** Can this power be used right now (enough charges in the item, own uses left)? */
+export function powerAffordable(c: Character, i: Item, p: ItemPower): boolean {
+  const own = usesView(c, p.uses)
+  if (own && own.max > 0 && own.left <= 0) return false
+  const need = chargesNeeded(c, i, p)
+  if (need === 0) return true
+  return usesView(c, i.charges)!.left >= need
+}
+
+export function powerCard(c: Character, i: Item, p: ItemPower): PlayCard {
+  // the counter on the card: the power's own uses if it has them, else the item's charges
+  const uses = usesView(c, p.uses) ?? (p.cost && i.charges ? usesView(c, i.charges) : undefined)
+  return {
+    key: `power:${i.id}:${p.id}`,
+    kind: 'power',
+    id: p.id,
+    itemId: i.id,
+    name: p.name,
+    frame: 'item',
+    sourceLabel: i.name,
+    zone: activationZone(p.activation),
+    cost: COST[p.activation] || '*',
+    text: shortText(p.description),
+    uses,
+    chargeCost: p.cost && i.charges ? p.cost : undefined,
+    tapped: !powerAffordable(c, i, p),
+    tags: powerTags(i, p),
+  }
+}
+
+/** The item and power behind a power card id. */
+export function findPower(c: Character, powerId: string): { item: Item; power: ItemPower } | undefined {
+  for (const item of c.inventory.items) {
+    const power = item.powers?.find((p) => p.id === powerId)
+    if (power) return { item, power }
+  }
+  return undefined
+}
+
+/** Passive powers of the items usable in Play (attunement filter), for the "Always on" row. */
+export function playPassivePowers(c: Character): { item: Item; power: ItemPower }[] {
+  return c.inventory.items.filter(itemInPlay).flatMap((item) => passivePowers(item).map((power) => ({ item, power })))
+}
+
+/**
+ * Uses a power: spends its cost from the item's charges and one of its own uses.
+ * Nothing happens when it cannot be paid. delta -1 (undo) gives back one own use and the cost
+ * (for "all": one charge, since how many were spent is not remembered).
+ */
+export function usePower(c: Character, powerId: string, delta = 1): Character {
+  const hit = findPower(c, powerId)
+  if (!hit) return c
+  const { item, power } = hit
+  if (delta > 0 && !powerAffordable(c, item, power)) return c
+  const clamp = (u: Uses, d: number): Uses => ({ ...u, used: Math.min(usesMax(c, u.max), Math.max(0, u.used + d)) })
+  const pay = delta > 0 ? chargesNeeded(c, item, power) : power.cost === 'all' ? 1 : (power.cost ?? 0)
+  const next: Item = {
+    ...item,
+    charges: item.charges && pay > 0 ? clamp(item.charges, delta > 0 ? pay : -pay) : item.charges,
+    powers: item.powers!.map((p) => (p.id === power.id && p.uses ? { ...p, uses: clamp(p.uses, delta > 0 ? 1 : -1) } : p)),
+  }
+  return { ...c, inventory: { ...c.inventory, items: c.inventory.items.map((x) => (x.id === item.id ? next : x)) } }
 }
 
 /** A spell scroll: looks like the spell it holds, counts like an item. */
@@ -160,6 +249,7 @@ export function scrollCard(c: Character, i: Item, srd?: readonly SrdSpell[]): Pl
     concentration: s.concentration,
     ritual: s.ritual,
     meta: [s.castingTime, s.range].filter(Boolean).join(' · ') || undefined,
+    tags: mergeTags([...(s.concentration ? ['concentration'] : []), ...(s.ritual ? ['ritual'] : []), ...textTags(s.description)], i.tags),
   }
 }
 
@@ -177,6 +267,7 @@ export function potionCard(i: Item): PlayCard {
     text: shortText(i.description),
     quantity: i.quantity,
     tapped: i.quantity <= 0,
+    tags: itemTags(i),
   }
 }
 
@@ -199,6 +290,7 @@ export function spellCard(c: Character, s: Spell): PlayCard {
     unaffordable: s.level > 0 && opts.length === 0,
     concentration: s.concentration,
     ritual: s.ritual,
+    tags: spellTags(s),
   }
 }
 
@@ -221,6 +313,7 @@ export function playCards(c: Character, srd?: readonly SrdSpell[]): PlayCard[] {
     if (!itemInPlay(i) || isHealingPotion(i)) continue
     if (isScroll(i)) cards.push(scrollCard(c, i, srd))
     else if (isPotion(i)) cards.push(potionCard(i))
+    else if (activePowers(i).length > 0) for (const p of activePowers(i)) cards.push(powerCard(c, i, p))
     else if (i.charges || i.activation) cards.push(itemCard(c, i))
   }
   return cards
@@ -309,6 +402,7 @@ export function useCard(c: Character, card: Pick<PlayCard, 'kind' | 'id'>, delta
   if (card.kind === 'feature') {
     return { ...c, features: c.features.map((f) => (f.id === card.id && f.uses ? { ...f, uses: bump(f.uses) } : f)) }
   }
+  if (card.kind === 'power') return usePower(c, card.id, delta)
   if (card.kind === 'spell') {
     return { ...c, spells: c.spells.map((s) => (s.id === card.id && s.freeCasts ? { ...s, freeCasts: bump(s.freeCasts) } : s)) }
   }

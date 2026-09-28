@@ -2,7 +2,7 @@
 // Every field is described in SCHEMA.md. When you change a shape here, bump
 // CURRENT_SCHEMA_VERSION and add a migration in normalize.ts.
 
-export const CURRENT_SCHEMA_VERSION = 1
+export const CURRENT_SCHEMA_VERSION = 2
 
 export const ABILITIES = ['str', 'dex', 'con', 'int', 'wis', 'cha'] as const
 export type Ability = (typeof ABILITIES)[number]
@@ -81,6 +81,8 @@ export interface Feature {
   description: string
   /** Character level or class level at which it was gained (informational). */
   level?: number
+  /** Your own tags (lowercase). Automatic tags (damage type, healing, save...) are added at display time, see tags.ts. */
+  tags?: string[]
 }
 
 export interface ClassEntry {
@@ -115,6 +117,8 @@ export interface Spell {
   description?: string
   /** Free casts without a slot (Magic Initiate, Mystic Arcanum, Favored Enemy...). */
   freeCasts?: Uses
+  /** Your own tags (lowercase), e.g. "buff", "control". */
+  tags?: string[]
 }
 
 export interface Attack {
@@ -141,6 +145,26 @@ export interface ArmorInfo {
   dexCap: number | null
 }
 
+/** Charges a power takes from its item's pool: a number, or "all" = every charge left (at least 1). */
+export type PowerCost = number | 'all'
+
+/**
+ * One ability of a magic item (Staff of Ages: Temporal Echo, Hourglass Ward...).
+ * Active powers are cards in the hand of their activation; passive ones sit with "Always on".
+ * They follow the item's attunement: an item that is not usable in Play takes its powers with it.
+ */
+export interface ItemPower {
+  id: string
+  name: string
+  activation: Activation
+  /** Charges spent from the item's `charges` when used. Absent or 0 = free. */
+  cost?: PowerCost
+  /** Its own counter, separate from the item's charges (e.g. "once per long rest"). */
+  uses?: Uses
+  description: string
+  tags?: string[]
+}
+
 export interface Item {
   id: string
   name: string
@@ -159,6 +183,9 @@ export interface Item {
   /** Set this to make the item a card on the play screen. Potions and scrolls are recognized by name and do not need it (see consumables.ts). */
   activation?: Activation
   description?: string
+  /** Separate abilities of the item, each its own card (or "Always on" chip when passive). */
+  powers?: ItemPower[]
+  tags?: string[]
 }
 
 export interface Money {

@@ -48,7 +48,13 @@ function restoreUses(c: Character, u: Uses, kind: Kind, dawn: boolean, name: str
 function restoreAll(c: Character, kind: Kind, dawn: boolean, out: RestResult): Character {
   const features = c.features.map((f) => (f.uses ? { ...f, uses: restoreUses(c, f.uses, kind, dawn, f.name, out) } : f))
   const spells = c.spells.map((s) => (s.freeCasts ? { ...s, freeCasts: restoreUses(c, s.freeCasts, kind, dawn, `${s.name} (free cast)`, out) } : s))
-  const items = c.inventory.items.map((i) => (i.charges ? { ...i, charges: restoreUses(c, i.charges, kind, dawn, `${i.name} charges`, out) } : i))
+  const items = c.inventory.items.map((i) => {
+    let next = i.charges ? { ...i, charges: restoreUses(c, i.charges, kind, dawn, `${i.name} charges`, out) } : i
+    // item powers with their own counter ("once per long rest")
+    if (i.powers?.some((p) => p.uses))
+      next = { ...next, powers: i.powers.map((p) => (p.uses ? { ...p, uses: restoreUses(c, p.uses, kind, dawn, `${i.name}: ${p.name}`, out) } : p)) }
+    return next
+  })
   return { ...c, features, spells, inventory: { ...c.inventory, items } }
 }
 

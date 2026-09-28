@@ -23,7 +23,7 @@ describe.skipIf(!existsSync(OWNER_FILE))("owner's character file", () => {
 
   it('imports without warnings and loses nothing', () => {
     expect(warnings).toEqual([])
-    expect(JSON.parse(JSON.stringify(c))).toEqual(JSON.parse(text))
+    expect(JSON.parse(JSON.stringify(c))).toEqual({ ...JSON.parse(text), schemaVersion: 2 })
   })
   it('finds Sorcery Points in Font of Magic (max "sorcerer" = 9)', () => {
     expect(sorceryFeature(c)!.name).toBe('Font of Magic')
@@ -85,7 +85,8 @@ describe.skipIf(!existsSync(GRAV_FILE))("owner's character: attunement on the Pl
   it('imports without warnings and loses nothing', () => {
     expect(warnings).toEqual([])
     // hand-written file: the import only adds defaults, every field written in it survives unchanged
-    expect(JSON.parse(JSON.stringify(c))).toMatchObject(JSON.parse(text))
+    // (a version 1 file comes out as version 2: that number is the only change the migration makes)
+    expect(JSON.parse(JSON.stringify(c))).toMatchObject({ ...JSON.parse(text), schemaVersion: 2 })
     // and an export of it imports back identically
     const again = importCharacterJson(JSON.stringify(c))
     expect(again.warnings).toEqual([])

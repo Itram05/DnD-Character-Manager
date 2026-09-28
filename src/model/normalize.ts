@@ -2,6 +2,10 @@
 // Philosophy: be forgiving. Missing fields get defaults, wrong types are coerced when the
 // intent is obvious, and everything that was changed or dropped is reported as a warning.
 // Only a few things are fatal (not an object, a newer schema version than we know).
+//
+// Unknown fields are never dropped (since schema version 2): a field the app does not know is kept
+// as it is, in the same place, and exported again; the import dialog lists it. That way a file
+// written by a newer app, or by hand with extra notes, survives a round trip through this app.
 import { srdClass } from '../data/srd'
 import {
   ABILITIES,
@@ -19,6 +23,8 @@ import {
   type Feature,
   type Formula,
   type Item,
+  type ItemPower,
+  type PowerCost,
   type Recharge,
   type SessionNote,
   type SkillProficiency,
@@ -86,7 +92,79 @@ function makeReader(warnings: string[]) {
     if (v !== undefined && v !== null) warnings.push(`${path}: expected a number or formula; using ${def}.`)
     return def
   }
-  return { str, num, bool, arr, oneOf, formula }
+  /** Tags: a list of text or "a, b, c". Lowercase, trimmed, no duplicates. Undefined when empty. */
+  const tags = (v: unknown, path: string): string[] | undefined => {
+    if (v === undefined || v === null || v === '') return undefined
+    const list = typeof v === 'string' ? v.split(',') : Array.isArray(v) ? v : null
+    if (!list) {
+      warnings.push(`${path}: expected a list of tags, ignored.`)
+      return undefined
+    }
+    const out = [...new Set(list.map((x) => normalizeTag(String(x ?? ''))).filter(Boolean))]
+    return out.length ? out : undefined
+  }
+  return { str, num, bool, arr, oneOf, formula, tags }
+}
+
+/** One tag as stored: lowercase, single spaces, no commas. */
+export const normalizeTag = (s: string) => s.replace(/,/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase()
+
+/**
+ * Copies every field of `raw` that is not in `known` onto `out`, unchanged, and says so.
+ * `known` lists the fields the importer reads (including aliases it consumes, like "race").
+ */
+function keepUnknown(raw: Obj, out: object, known: readonly string[], path: string, warnings: string[]) {
+  for (const [k, v] of Object.entries(raw)) {
+    if (known.includes(k) || v === undefined) continue
+    ;(out as Obj)[k] = v
+    warnings.push(`${path ? `${path}.` : ''}${k}: not a field this app uses; kept unchanged.`)
+  }
+}
+
+// The fields each object has, as read by normalizeCharacter. Anything else is kept by keepUnknown.
+const KNOWN = {
+  top: ['schemaVersion', 'id', 'name', 'player', 'species', 'race', 'background', 'alignment', 'xp', 'classes', 'abilities', 'proficiencies', 'combat', 'conditions', 'exhaustion', 'heroicInspiration', 'features', 'attacks', 'spellcasting', 'spells', 'inventory', 'items', 'money', 'roleplay', 'sessionNotes', 'updatedAt'],
+  species: ['name', 'size'],
+  abilities: ['str', 'dex', 'con', 'int', 'wis', 'cha', 'strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'],
+  class: ['id', 'name', 'level', 'subclass', 'hitDie', 'casterType', 'spellcastingAbility'],
+  proficiencies: ['savingThrows', 'skills', 'jackOfAllTrades', 'armor', 'weapons', 'tools', 'languages', 'weaponMasteries'],
+  combat: ['unarmoredAc', 'acBonus', 'initiativeBonus', 'speed', 'hp', 'hitDiceUsed', 'deathSaves'],
+  hp: ['max', 'current', 'temp'],
+  deathSaves: ['successes', 'failures'],
+  feature: ['id', 'name', 'source', 'activation', 'uses', 'description', 'level', 'tags'],
+  source: ['type', 'name'],
+  uses: ['max', 'used', 'recharge', 'shortRestRegain', 'regain', 'note', 'resource'],
+  attack: ['id', 'name', 'ability', 'proficient', 'bonus', 'damage', 'damageType', 'addAbilityToDamage', 'damageBonus', 'mastery', 'notes'],
+  spell: ['id', 'name', 'level', 'source', 'prepared', 'alwaysPrepared', 'ritual', 'concentration', 'school', 'castingTime', 'range', 'components', 'duration', 'description', 'freeCasts', 'tags'],
+  spellcasting: ['slotsUsed', 'pactSlotsUsed', 'concentration', 'slotsOverride', 'pactOverride', 'bonusSlots'],
+  pactOverride: ['slots', 'level'],
+  inventory: ['items', 'money'],
+  item: ['id', 'name', 'quantity', 'equipped', 'requiresAttunement', 'attuned', 'weight', 'armor', 'acBonus', 'saveBonus', 'charges', 'activation', 'description', 'powers', 'tags'],
+  armor: ['base', 'dexCap'],
+  power: ['id', 'name', 'activation', 'cost', 'uses', 'description', 'tags'],
+  money: ['cp', 'sp', 'ep', 'gp', 'pp'],
+  roleplay: ['appearance', 'personality', 'ideals', 'bonds', 'flaws', 'voice', 'mannerisms', 'goals', 'backstory', 'allies', 'notes'],
+  sessionNote: ['id', 'date', 'title', 'text'],
+} as const
+
+/**
+ * Brings an older file up to the current schema, step by step, before it is read.
+ * MIGRATIONS[n] turns a raw object of version n into one of version n + 1.
+ */
+const MIGRATIONS: Record<number, (raw: Obj, warnings: string[]) => Obj> = {
+  // v1 -> v2 adds only optional fields (tags on spells, features and items; item powers) and stops
+  // dropping unknown fields. Nothing in a v1 file changes meaning, so the step is a plain copy.
+  // Item descriptions are NOT split into powers automatically: that would be guessing at rules text.
+  1: (raw) => ({ ...raw }),
+}
+
+export function migrate(raw: Obj, from: number, warnings: string[]): Obj {
+  let out = raw
+  for (let v = Math.max(1, Math.floor(from)); v < CURRENT_SCHEMA_VERSION; v++) {
+    const step = MIGRATIONS[v]
+    if (step) out = step(out, warnings)
+  }
+  return out
 }
 
 const ACTIVATION_ALIASES: Record<string, Activation> = {
@@ -121,14 +199,22 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
   const warnings: string[] = []
   const r = makeReader(warnings)
   if (!isObj(input)) throw new ImportError('The file does not contain a character object (expected { ... }).')
-  const raw = input
-
-  const version = r.num(raw.schemaVersion, 'schemaVersion', CURRENT_SCHEMA_VERSION)
+  // a file without schemaVersion is read as the oldest format (1): its fields mean what they meant then
+  const version = r.num(input.schemaVersion, 'schemaVersion', 1)
   if (version > CURRENT_SCHEMA_VERSION)
     throw new ImportError(
       `This file uses schema version ${version}, but this app only knows version ${CURRENT_SCHEMA_VERSION}. Update the app.`,
     )
-  // Future migrations go here: if (version < 2) { ... }
+  const raw = migrate(input, version, warnings)
+  const keep = (src: unknown, out: object, known: readonly string[], path: string) => {
+    if (isObj(src)) keepUnknown(src, out, known, path, warnings)
+  }
+  const powerCost = (v: unknown, path: string): PowerCost | undefined => {
+    if (v === undefined || v === null || v === '' || v === 0 || v === '0') return undefined
+    if (typeof v === 'string' && /^(all|all charges)$/i.test(v.trim())) return 'all'
+    const n = r.num(v, path, 0, 0)
+    return n > 0 ? Math.round(n) : undefined
+  }
 
   const ability = (v: unknown, path: string): Ability | undefined => {
     const s = String(v ?? '').toLowerCase()
@@ -158,6 +244,7 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
       if ((USES_RESOURCES as readonly string[]).includes(res)) out.resource = res as Uses['resource']
       else warnings.push(`${path}.resource: "${String(v.resource)}" is not one of ${USES_RESOURCES.join(', ')}; ignored.`)
     }
+    keep(v, out, KNOWN.uses, path)
     return out
   }
 
@@ -169,6 +256,7 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     const long = Object.entries(ABILITY_ALIASES).find(([, v]) => v === a)![0]
     abilities[a] = r.num(abilitiesRaw[a] ?? abilitiesRaw[long], `abilities.${a}`, 10, 1, 30)
   }
+  keep(abilitiesRaw, abilities, KNOWN.abilities, 'abilities')
 
   // ----- classes -----
   const classes: ClassEntry[] = []
@@ -192,6 +280,7 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     if (k.casterType !== undefined)
       entry.casterType = r.oneOf(k.casterType, ['full', 'half', 'third', 'pact', 'none'] as const, `${p}.casterType`, 'none')
     if (k.spellcastingAbility !== undefined) entry.spellcastingAbility = ability(k.spellcastingAbility, `${p}.spellcastingAbility`)
+    keep(k, entry, KNOWN.class, p)
     classes.push(entry)
   })
   if (classes.length === 0) {
@@ -263,9 +352,13 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
       activation: r.oneOf(f.activation, ACTIVATIONS, `${p}.activation`, 'passive', ACTIVATION_ALIASES),
       description: r.str(f.description, `${p}.description`),
     }
+    if (isObj(f.source)) keep(f.source, feat.source, KNOWN.source, `${p}.source`)
     const u = uses(f.uses, `${p}.uses`)
     if (u) feat.uses = u
     if (f.level !== undefined) feat.level = r.num(f.level, `${p}.level`, 1, 1, 20)
+    const tg = r.tags(f.tags, `${p}.tags`)
+    if (tg) feat.tags = tg
+    keep(f, feat, KNOWN.feature, p)
     features.push(feat)
   })
 
@@ -275,7 +368,7 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     const p = `attacks[${i}]`
     if (!isObj(a)) return warnings.push(`${p}: expected an object, ignored.`)
     const abil = String(a.ability ?? 'str').toLowerCase()
-    attacks.push({
+    const atk: Attack = {
       id: r.str(a.id, `${p}.id`) || newId(),
       name: r.str(a.name, `${p}.name`, 'Attack'),
       ability: abil === 'spell' || abil === 'finesse' ? abil : (ability(abil, `${p}.ability`) ?? 'str'),
@@ -287,7 +380,9 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
       damageBonus: r.num(a.damageBonus, `${p}.damageBonus`, 0),
       mastery: r.str(a.mastery, `${p}.mastery`),
       notes: r.str(a.notes, `${p}.notes`),
-    })
+    }
+    keep(a, atk, KNOWN.attack, p)
+    attacks.push(atk)
   })
 
   // ----- spells -----
@@ -315,6 +410,9 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     }
     const fc = uses(s.freeCasts, `${p}.freeCasts`)
     if (fc) sp.freeCasts = fc
+    const tg = r.tags(s.tags, `${p}.tags`)
+    if (tg) sp.tags = tg
+    keep(s, sp, KNOWN.spell, p)
     spells.push(sp)
   })
 
@@ -333,10 +431,12 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
       slots: r.num(scRaw.pactOverride.slots, 'spellcasting.pactOverride.slots', 0, 0),
       level: r.num(scRaw.pactOverride.level, 'spellcasting.pactOverride.level', 1, 1, 9),
     }
+  if (spellcasting.pactOverride) keep(scRaw.pactOverride, spellcasting.pactOverride, KNOWN.pactOverride, 'spellcasting.pactOverride')
   if (scRaw.bonusSlots !== undefined && scRaw.bonusSlots !== null) {
     const bs = r.arr(scRaw.bonusSlots, 'spellcasting.bonusSlots')
     spellcasting.bonusSlots = Array.from({ length: 9 }, (_, i) => Math.round(r.num(bs[i], `spellcasting.bonusSlots[${i}]`, 0, 0)))
   }
+  keep(scRaw, spellcasting, KNOWN.spellcasting, 'spellcasting')
 
   // ----- inventory -----
   const invRaw = isObj(raw.inventory) ? raw.inventory : {}
@@ -366,6 +466,33 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     if (ch) item.charges = ch
     if (it.activation !== undefined) item.activation = r.oneOf(it.activation, ACTIVATIONS, `${p}.activation`, 'action', ACTIVATION_ALIASES)
     if (item.attuned && !item.requiresAttunement) item.requiresAttunement = true
+    if (item.armor) keep(it.armor, item.armor, KNOWN.armor, `${p}.armor`)
+    if (it.powers !== undefined) {
+      const powers: ItemPower[] = []
+      r.arr(it.powers, `${p}.powers`).forEach((w, j) => {
+        const pp = `${p}.powers[${j}]`
+        if (typeof w === 'string') w = { name: w }
+        if (!isObj(w)) return warnings.push(`${pp}: expected an object, ignored.`)
+        const pw: ItemPower = {
+          id: r.str(w.id, `${pp}.id`) || newId(),
+          name: r.str(w.name, `${pp}.name`, 'Unnamed power'),
+          activation: r.oneOf(w.activation, ACTIVATIONS, `${pp}.activation`, 'action', ACTIVATION_ALIASES),
+          description: r.str(w.description, `${pp}.description`),
+        }
+        const cost = powerCost(w.cost, `${pp}.cost`)
+        if (cost !== undefined) pw.cost = cost
+        const pu = uses(w.uses, `${pp}.uses`)
+        if (pu) pw.uses = pu
+        const tg = r.tags(w.tags, `${pp}.tags`)
+        if (tg) pw.tags = tg
+        keep(w, pw, KNOWN.power, pp)
+        powers.push(pw)
+      })
+      if (powers.length) item.powers = powers
+    }
+    const tg = r.tags(it.tags, `${p}.tags`)
+    if (tg) item.tags = tg
+    keep(it, item, KNOWN.item, p)
     items.push(item)
   })
   const attuned = items.filter((i) => i.attuned)
@@ -381,22 +508,26 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     gp: r.num(moneyRaw.gp, 'money.gp', 0, 0),
     pp: r.num(moneyRaw.pp, 'money.pp', 0, 0),
   }
+  keep(moneyRaw, money, KNOWN.money, 'inventory.money')
 
   // ----- roleplay -----
   const rp = isObj(raw.roleplay) ? raw.roleplay : {}
   const rpKeys = ['appearance', 'personality', 'ideals', 'bonds', 'flaws', 'voice', 'mannerisms', 'goals', 'backstory', 'allies', 'notes'] as const
   const roleplay = Object.fromEntries(rpKeys.map((k) => [k, r.str(rp[k], `roleplay.${k}`)])) as unknown as Character['roleplay']
+  keep(rp, roleplay, KNOWN.roleplay, 'roleplay')
 
   const sessionNotes: SessionNote[] = []
   r.arr(raw.sessionNotes, 'sessionNotes').forEach((n, i) => {
     if (typeof n === 'string') n = { text: n }
     if (!isObj(n)) return warnings.push(`sessionNotes[${i}]: expected an object, ignored.`)
-    sessionNotes.push({
+    const note: SessionNote = {
       id: r.str(n.id, `sessionNotes[${i}].id`) || newId(),
       date: r.str(n.date, `sessionNotes[${i}].date`),
       title: r.str(n.title, `sessionNotes[${i}].title`),
       text: r.str(n.text, `sessionNotes[${i}].text`),
-    })
+    }
+    keep(n, note, KNOWN.sessionNote, `sessionNotes[${i}]`)
+    sessionNotes.push(note)
   })
 
   const conditions = r
@@ -456,6 +587,13 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     sessionNotes,
     updatedAt: r.str(raw.updatedAt, 'updatedAt') || new Date().toISOString(),
   }
+  keep(speciesRaw, character.species, KNOWN.species, 'species')
+  keep(prof, character.proficiencies, KNOWN.proficiencies, 'proficiencies')
+  keep(combat, character.combat, KNOWN.combat, 'combat')
+  keep(hpRaw, character.combat.hp, KNOWN.hp, 'combat.hp')
+  keep(dsRaw, character.combat.deathSaves, KNOWN.deathSaves, 'combat.deathSaves')
+  keep(invRaw, character.inventory, KNOWN.inventory, 'inventory')
+  keep(raw, character, KNOWN.top, '')
   return { character, warnings }
 }
 
