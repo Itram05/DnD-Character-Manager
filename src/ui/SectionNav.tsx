@@ -123,8 +123,9 @@ function SectionList({ sections, active, onPick }: { sections: NavSection[]; act
 }
 
 /**
- * The column beside the content (computer). An arrow at its top folds it into a thin strip
- * (only the arrow, turned back) so the cards get the room; the choice is remembered.
+ * The column beside the content (computer). It keeps the full visible height under the sticky head;
+ * a handle on its inner edge (toward the content), halfway down, folds it into a thin strip, like the
+ * handle of a drawer. Folded, the handle stays in the same place, turned back; the choice is remembered.
  * `initiallyCollapsed` is for tests; otherwise it comes from storage.
  */
 export function SectionNavSide({ sections, initiallyCollapsed }: { sections: NavSection[]; initiallyCollapsed?: boolean }) {
@@ -141,21 +142,21 @@ export function SectionNavSide({ sections, initiallyCollapsed }: { sections: Nav
   const label = collapsed ? t('nav.show') : t('nav.hide')
   return (
     <nav className={`section-nav side ${collapsed ? 'collapsed' : ''}`} aria-label={t('nav.onThisScreen')}>
-      <div className="section-nav-top">
-        {!collapsed && <h4>{t('nav.onThisScreen')}</h4>}
-        <button className="section-fold" onClick={toggle} aria-expanded={!collapsed} aria-label={label} title={label}>
-          <span aria-hidden="true">{collapsed ? towardContent : towardEdge}</span>
-        </button>
-      </div>
+      <button className="section-fold" onClick={toggle} aria-expanded={!collapsed} aria-label={label} title={label}>
+        <span aria-hidden="true">{collapsed ? towardContent : towardEdge}</span>
+      </button>
       {!collapsed && (
-        <SectionList
-          sections={sections}
-          active={active}
-          onPick={(id) => {
-            pin(id)
-            scrollToSection(id)
-          }}
-        />
+        <div className="section-nav-body">
+          <h4>{t('nav.onThisScreen')}</h4>
+          <SectionList
+            sections={sections}
+            active={active}
+            onPick={(id) => {
+              pin(id)
+              scrollToSection(id)
+            }}
+          />
+        </div>
       )}
     </nav>
   )
