@@ -2598,3 +2598,188 @@ details summary {
 .potion.empty .pq {
   color: var(--danger);
 }
+
+/* ---------------- wave 2: tags, item powers ---------------- */
+
+/* tag filter: one row of chips; on a phone it scrolls sideways instead of wrapping into a wall */
+.tag-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding-bottom: 2px;
+  min-width: 0;
+}
+.play-controls .tag-filter {
+  flex: 1 1 100%;
+}
+.spells-view > .tag-filter {
+  margin: 0.25rem 0 0.75rem;
+}
+@media (min-width: 900px) {
+  .tag-filter {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+}
+.tag-filter-label {
+  color: var(--muted);
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+.tag-chip {
+  --dmg: var(--accent);
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid var(--line);
+  background: transparent;
+  border-radius: 999px;
+  padding: 0.15rem 0.65rem;
+  min-height: 32px;
+  font-size: 0.82rem;
+  color: var(--text);
+  white-space: nowrap;
+}
+.tag-chip.static {
+  min-height: 0;
+  padding: 0.05rem 0.55rem;
+  font-size: 0.78rem;
+}
+.tag-chip .count {
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+.tag-chip.tag-auto {
+  color: var(--muted);
+}
+.tag-chip.tag-dmg {
+  color: var(--dmg);
+  border-color: color-mix(in srgb, var(--dmg) 45%, var(--line));
+}
+.tag-chip.on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--text);
+}
+.tag-chip.tag-dmg.on {
+  border-color: var(--dmg);
+  background: color-mix(in srgb, var(--dmg) 18%, transparent);
+}
+.tag-chip.tag-clear {
+  color: var(--muted);
+  border-style: dashed;
+}
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.6rem 0 0;
+}
+.tag-mini {
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+/* tag editor */
+.tag-input {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem 0.6rem;
+  margin: 0.5rem 0;
+}
+.tag-input legend {
+  font-size: 0.85rem;
+  color: var(--muted);
+  padding: 0 0.3rem;
+}
+.tag-chips,
+.tag-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.4rem;
+}
+.tag-suggestions {
+  margin: 0.4rem 0 0;
+}
+.tag-chip.tag-suggest {
+  color: var(--muted);
+  border-style: dashed;
+  min-height: 30px;
+}
+.tag-chip.mine {
+  border-color: var(--accent);
+}
+.tag-remove {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.1rem;
+  min-width: 24px;
+  min-height: 24px;
+}
+.tag-input input {
+  width: 100%;
+}
+
+/* item powers */
+.powers-editor {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem 0.6rem;
+  margin: 0.5rem 0;
+}
+.powers-editor legend {
+  font-size: 0.85rem;
+  color: var(--muted);
+  padding: 0 0.3rem;
+}
+.power-rows {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+}
+.power-rows li {
+  border-top: 1px solid var(--line);
+  padding: 0.3rem 0;
+}
+.power-rows li.open {
+  background: color-mix(in srgb, var(--f-item) 6%, transparent);
+}
+.power-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+.power-head .link-btn {
+  text-align: left;
+  flex: 1 1 10rem;
+  min-height: 36px;
+}
+.power-move {
+  display: inline-flex;
+  gap: 0.2rem;
+  margin-left: auto;
+}
+.power-body {
+  padding: 0.3rem 0 0.2rem 0.8rem;
+}
+.power-cost {
+  color: var(--f-item);
+  font-weight: 600;
+  margin: 0.2rem 0 0.5rem;
+}
+.charge-cost {
+  color: var(--f-item);
+}
+.chip-source,
+.row-source {
+  color: var(--muted);
+  font-size: 0.78em;
+}

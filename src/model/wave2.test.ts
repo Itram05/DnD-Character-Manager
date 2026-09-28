@@ -1,7 +1,7 @@
 // Wave 2 (first part): schema version 2 with migration, item powers as cards, tags and the tag filter.
 import { describe, expect, it } from 'vitest'
 import { ImportError, importCharacterJson, normalizeCharacter } from './normalize'
-import { findPower, playCards, playPassivePowers, playPassives, powerAffordable, useCard, usePower } from './play'
+import { findPower, playCards, playPassivePowers, playPassives, powerAffordable, useCard, spendPower } from './play'
 import { longRest } from './rest'
 import { attackTags, matchesTags, spellTags, tagCounts, textTags } from './tags'
 import { CURRENT_SCHEMA_VERSION, type Character } from './types'
@@ -215,23 +215,23 @@ describe('item powers', () => {
   })
   it('using a power spends its cost from the shared pool; "all" takes everything left', () => {
     let c = staffHero()
-    c = usePower(c, 'ward')
+    c = spendPower(c, 'ward')
     expect(c.inventory.items[0].charges!.used).toBe(1)
     c = useCard(c, { kind: 'power', id: 'init' })
     expect(c.inventory.items[0].charges!.used).toBe(2)
-    c = usePower(c, 'echo')
+    c = spendPower(c, 'echo')
     expect(c.inventory.items[0].charges!.used).toBe(3)
     // empty pool: every staff power is tapped and using one does nothing
     expect(playCards(c).filter((x) => x.itemId === 'staff').every((x) => x.tapped)).toBe(true)
-    expect(usePower(c, 'ward')).toBe(c)
+    expect(spendPower(c, 'ward')).toBe(c)
     // undo gives one charge back
-    c = usePower(c, 'ward', -1)
+    c = spendPower(c, 'ward', -1)
     expect(c.inventory.items[0].charges!.used).toBe(2)
     expect(powerAffordable(c, c.inventory.items[0], findPower(c, 'ward')!.power)).toBe(true)
   })
   it('a power with its own uses counts them, and a Long Rest restores them', () => {
     let c = staffHero()
-    c = usePower(c, 'see')
+    c = spendPower(c, 'see')
     expect(findPower(c, 'see')!.power.uses!.used).toBe(1)
     expect(playCards(c).find((x) => x.id === 'see')!.tapped).toBe(true)
     const r = longRest(c)
@@ -239,7 +239,7 @@ describe('item powers', () => {
     expect(r.restored).toContain('Amulet: See the unseen')
   })
   it('a staff that regains 1d3 at dawn reminds you to roll instead of refilling', () => {
-    const r = longRest(usePower(staffHero(), 'ward'))
+    const r = longRest(spendPower(staffHero(), 'ward'))
     expect(r.character.inventory.items[0].charges!.used).toBe(1)
     expect(r.reminders.join(' ')).toMatch(/Staff of Ages charges: roll 1d3/)
   })
@@ -259,7 +259,7 @@ describe('item powers', () => {
     expect(playPassivePowers(c).map((x) => x.power.name)).toEqual(['Glow'])
   })
   it('round-trips through export and import', () => {
-    const c = usePower(staffHero(), 'ward')
+    const c = spendPower(staffHero(), 'ward')
     const again = importCharacterJson(JSON.stringify(c))
     expect(again.warnings).toEqual([])
     expect(again.character).toEqual(c)

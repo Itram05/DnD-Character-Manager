@@ -95,7 +95,10 @@ describe.skipIf(!existsSync(GRAV_FILE))("owner's character: attunement on the Pl
   it('keeps its 3 attuned items and shows only usable items in Play', () => {
     expect(c.inventory.items.filter((i) => i.attuned).map((i) => i.name)).toEqual(['Staff of Ages', 'Silent Amulet', 'Pearl of Power'])
     const names = playCards(c).filter((x) => x.kind === 'item').map((x) => x.name)
-    expect(names).toEqual(expect.arrayContaining(['Staff of Ages', 'Pearl of Power', 'Helm of the Constellation']))
+    expect(names).toEqual(expect.arrayContaining(['Pearl of Power']))
+    // since wave 2 the Staff and the Helm are on the table as their powers, not as one card each
+    const fromItem = playCards(c).filter((x) => x.kind === 'power').map((x) => x.sourceLabel)
+    expect(fromItem).toEqual(expect.arrayContaining(['Staff of Ages', 'Helm of the Constellation']))
     expect(playHealingPotions(c).map((x) => x.name)).toContain('Potion of Healing')
     expect(names).not.toContain('Wand of Web')
   })
@@ -192,5 +195,84 @@ describe.skipIf(!existsSync(GRAV_FILE))("owner's character: potions and scrolls"
     const face = playCards(c2, srd).find((x) => x.id === 'climb')!
     expect(face.kind).toBe('potion')
     expect(strip(renderToString(<GameCard card={face} mode="cards" onOpen={() => {}} onUse={() => {}} useLabel="Use" />))).toContain('Use')
+  })
+})
+
+// Wave 2 on Grav's real file: item powers as cards, passive powers apart, tags on his spells.
+describe.skipIf(!existsSync(GRAV_FILE))("owner's character: item powers and tags", async () => {
+  const { setAttunement } = await import('../src/model/rules')
+  const { playPassivePowers, spendPower } = await import('../src/model/play')
+  const { spellTags, tagCounts } = await import('../src/model/tags')
+  const { ItemEditor } = await import('../src/ui/editors')
+  const { GameCard } = await import('../src/ui/GameCard')
+  const { SpellsView } = await import('../src/ui/SpellsView')
+  const text = existsSync(GRAV_FILE) ? readFileSync(GRAV_FILE, 'utf8') : '{}'
+  const { character: c } = importCharacterJson(text)
+  const strip = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
+  const apiFor = (ch: Character): SheetApi => ({ c: ch, update: () => {}, toast: () => {}, settings: { theme: 'dark', view: 'cards' }, setSettings: () => {}, go: () => {} })
+  const staff = c.inventory.items.find((i) => i.name === 'Staff of Ages')!
+
+  it('is a version 2 file', () => {
+    expect(JSON.parse(text).schemaVersion).toBe(2)
+  })
+  it('Staff of Ages: three active powers in their hands, sharing the 3 charges; no separate Staff card', () => {
+    const cards = playCards(c).filter((x) => x.itemId === staff.id)
+    expect(cards.map((x) => [x.name, x.zone, x.chargeCost])).toEqual([
+      ['Temporal Echo', 'reaction', 'all'],
+      ['Hourglass Ward', 'bonus', 1],
+      ['Echo of Ages', 'other', 1],
+    ])
+    expect(cards.every((x) => x.uses?.max === 3 && x.uses.left === 3)).toBe(true)
+    expect(playCards(c).some((x) => x.kind === 'item' && x.name === 'Staff of Ages')).toBe(false)
+    const ward = cards.find((x) => x.name === 'Hourglass Ward')!
+    let x = spendPower(c, ward.id)
+    expect(x.inventory.items.find((i) => i.id === staff.id)!.charges!.used).toBe(1)
+    x = spendPower(x, cards[0].id) // Temporal Echo takes the 2 left
+    expect(x.inventory.items.find((i) => i.id === staff.id)!.charges!.used).toBe(3)
+  })
+  it('passive powers of usable items sit under "Always on"; the un-attuned Amulet stays hidden until attuned', () => {
+    expect(playPassivePowers(c).map((p) => p.power.name)).toEqual(['+3 spell attack', '+1 spell save DC', 'Truesight 60 ft'])
+    const amulet = c.inventory.items.find((i) => i.name === 'Amulet of the Half-Closed Eye')!
+    expect(playCards(c).some((x) => x.itemId === amulet.id)).toBe(false)
+    const pearl = c.inventory.items.find((i) => i.name === 'Pearl of Power')!
+    const swapped = setAttunement(setAttunement(c, pearl.id, false).character, amulet.id, true)
+    expect(swapped.ok).toBe(true)
+    expect(playCards(swapped.character).filter((x) => x.itemId === amulet.id).map((x) => [x.name, x.zone])).toEqual([['Outline of the unseen', 'reaction']])
+    expect(playPassivePowers(swapped.character).map((p) => p.power.name)).toEqual(expect.arrayContaining(['Keen sight', 'Steady mind']))
+  })
+  it('the Play screen shows the powers, their cost, the passive chips and the tag filter', () => {
+    const html = strip(renderToString(<PlayView api={apiFor(c)} />))
+    // (server render = phone width: only the Action hand is open)
+    for (const s of ['Detect Thoughts', '1 ch.', 'Truesight 60 ft', '+3 spell attack']) expect(html).toContain(s)
+    const echo = playCards(c).find((x) => x.name === 'Temporal Echo')!
+    const card = strip(renderToString(<GameCard card={echo} mode="cards" onOpen={() => {}} onUse={() => {}} />))
+    expect(card).toContain('all ch.')
+    expect(card).toContain('Staff of Ages')
+    // tag filter chips, with counts
+    expect(html).toMatch(/Control \d+/)
+    expect(html).toMatch(/Healing \d+/)
+    expect(html).toMatch(/Radiant \d+/)
+  })
+  it('his spells carry automatic and own tags', () => {
+    const tagsOf = (n: string) => spellTags(c.spells.find((s) => s.name === n)!)
+    expect(tagsOf('Spirit Guardians')).toEqual(expect.arrayContaining(['concentration', 'damage', 'radiant', 'save', 'aoe', 'control']))
+    expect(tagsOf('Hold Person')).toEqual(expect.arrayContaining(['concentration', 'save', 'control']))
+    expect(tagsOf('Cure Wounds')).toContain('healing')
+    expect(tagsOf('Synaptic Static')).toEqual(expect.arrayContaining(['damage', 'psychic', 'save', 'aoe', 'debuff']))
+    expect(tagsOf('Misty Step')).toEqual(['mobility'])
+    const counts = Object.fromEntries(tagCounts(c.spells.map(spellTags)).map((x) => [x.tag, x.n]))
+    expect(counts.control).toBeGreaterThanOrEqual(4)
+  })
+  it('the Gear editor lists the Staff powers; the Spells tab has the tag filter', () => {
+    const ed = strip(renderToString(<ItemEditor api={apiFor(c)} initial={staff} onClose={() => {}} />))
+    for (const s of ['Powers of this item', 'Temporal Echo', 'Hourglass Ward', 'Echo of Ages', 'Add power']) expect(ed).toContain(s)
+    const sp = strip(renderToString(<SpellsView api={apiFor(c)} />))
+    expect(sp).toMatch(/Concentration \d+/)
+    expect(sp).toContain('mobility'.replace('m', 'M'))
+  })
+  it('wave 1 still holds: scrolls, healing potions and attunement', () => {
+    expect(playCards(c).filter((x) => x.kind === 'scroll')).toHaveLength(6)
+    expect(playHealingPotions(c).map((i) => i.name)).toEqual(['Potion of Healing', 'Potion of Greater Healing', 'Potion of Superior Healing'])
+    expect(playCards(c).some((x) => x.name === 'Wand of Web')).toBe(false)
   })
 })

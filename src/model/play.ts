@@ -214,7 +214,7 @@ export function playPassivePowers(c: Character): { item: Item; power: ItemPower 
  * Nothing happens when it cannot be paid. delta -1 (undo) gives back one own use and the cost
  * (for "all": one charge, since how many were spent is not remembered).
  */
-export function usePower(c: Character, powerId: string, delta = 1): Character {
+export function spendPower(c: Character, powerId: string, delta = 1): Character {
   const hit = findPower(c, powerId)
   if (!hit) return c
   const { item, power } = hit
@@ -402,7 +402,7 @@ export function useCard(c: Character, card: Pick<PlayCard, 'kind' | 'id'>, delta
   if (card.kind === 'feature') {
     return { ...c, features: c.features.map((f) => (f.id === card.id && f.uses ? { ...f, uses: bump(f.uses) } : f)) }
   }
-  if (card.kind === 'power') return usePower(c, card.id, delta)
+  if (card.kind === 'power') return spendPower(c, card.id, delta)
   if (card.kind === 'spell') {
     return { ...c, spells: c.spells.map((s) => (s.id === card.id && s.freeCasts ? { ...s, freeCasts: bump(s.freeCasts) } : s)) }
   }

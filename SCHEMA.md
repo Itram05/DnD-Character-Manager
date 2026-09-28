@@ -1,4 +1,4 @@
-# Character file format (schemaVersion 1)
+# Character file format (schemaVersion 2)
 
 A character is one JSON object. The app exports it with **Export JSON** and reads it with **Import JSON**.
 A full example: [`examples/sample-character.json`](examples/sample-character.json) (Paladin 3 / Sorcerer 3 / Warlock 1).
@@ -8,8 +8,10 @@ A full example: [`examples/sample-character.json`](examples/sample-character.jso
 - **Almost everything is optional.** A missing field gets a sensible default. `{}` is a valid (empty) character.
 - **The importer forgives.** Numbers written as text (`"16"`) are converted, `"Bonus Action"` is read as `"bonus"`,
   `"Long Rest"` as `"long"`, `"Strength"` as `"str"`, a skill list `["Perception"]` means proficient, etc.
-  Every change it makes is listed in the import dialog. Nothing it cannot understand crashes the app; it is skipped with a warning.
+  Every change it makes is listed in the import dialog. Nothing it cannot understand crashes the app: a value of the wrong kind is skipped with a warning.
+- **Unknown fields are kept.** A field the app does not use (`"summary"`, `"rarity"`, your own notes) stays where it is, unchanged, and is exported again. The import dialog lists it ("not a field this app uses; kept unchanged"), so a typo such as `"descripton"` is easy to spot. (Version 1 of the app dropped such fields silently; since version 2 nothing is dropped.)
 - **Fatal errors** (the file is rejected with a message): not valid JSON, not an object, or `schemaVersion` newer than the app.
+- A **version 1** file is converted on import (see [Versioning](#versioning)); the app always exports version 2.
 - `id` fields are generated if missing. Keep them if you re-import the same character (the app then offers to replace it).
 - Everything that is **not in the SRD** (PHB subclasses, feats, items, homebrew) is described completely in the character file.
 
@@ -39,7 +41,7 @@ Class table column names = the table header in lowercase with dashes: `rages`, `
 
 | Field | Type | Default | Notes |
 |---|---|---|---|
-| `schemaVersion` | number | 1 | Bump only through the app. |
+| `schemaVersion` | number | 1 | Bump only through the app. A file without it is read as version 1. The app writes 2. |
 | `id` | text | generated | |
 | `name` | text | "Unnamed hero" | |
 | `player` | text | "" | |
@@ -128,6 +130,7 @@ then + every equipped item's `acBonus` (items that require attunement count only
 | `uses` | Optional [uses](#uses). |
 | `description` | Text. `**bold**`, `_italic_`, lines starting with `• ` and `| table | rows |` are rendered. |
 | `level` | Optional, informational. |
+| `tags` | Optional list of your own [tags](#tags). |
 
 ## uses
 
@@ -178,6 +181,7 @@ To-hit and damage bonus are computed. Attacks appear as cards in the Action hand
 | `ritual`, `concentration` | true/false. |
 | `school`, `castingTime`, `range`, `components`, `duration`, `description` | Text. `castingTime` starting with "Bonus Action" / "Reaction" puts the card in that hand. |
 | `freeCasts` | [uses](#uses) for casting without a slot (Magic Initiate, Divine Smite from Paladin's Smite, Mystic Arcanum...). |
+| `tags` | Optional list of your own [tags](#tags), e.g. `["buff", "aoe"]`. |
 
 ## items
 
@@ -196,8 +200,59 @@ To-hit and damage bonus are computed. Attacks appear as cards in the Action hand
 | `saveBonus` | Added to all saving throws under the same condition (Ring/Cloak of Protection). |
 | `charges` | [uses](#uses). |
 | `activation` | Makes the item a card: `action`, `bonus`, ... Without `charges`, the card is a consumable: − and + on the card lower and raise `quantity`. Potions and scrolls are recognized by name instead (below) and need no `activation`. |
+| `powers` | Optional list of [item powers](#item-powers): the item's separate abilities, each its own card. |
+| `tags` | Optional list of your own [tags](#tags). They also apply to every power of the item. |
 
 **Potions and scrolls** are ordinary items; the Play screen only reads their name (src/model/consumables.ts). An item **without `charges`** is a *scroll* if its name contains "scroll" (not "scroll case/tube"); the spell is taken from "Scroll of X", "Spell Scroll of X", "Spell Scroll (X)", "Scroll: X" or "X scroll", and its text from the character's spells, then the SRD, then the item's `description`. Otherwise it is a *potion* if its name contains "potion", "elixir" or "philter". A potion whose name also says "healing" is a *healing potion* (Healing / Greater / Superior / Supreme, from the name): a counter in the Concentration panel, not a card; its dice come from `description`, else the standard 2d4+2 / 4d4+4 / 8d4+8 / 10d4+20. Every other potion is a card in the scroll group with "Use".
+
+## item powers
+
+A magic item with several abilities lists them in `powers`. Each **active** power is its own card, in the hand of its
+activation (Action, Bonus Action, Reaction, Free / Other); each **passive** power is a chip under "Always on", next to the
+passive features. An item with at least one active power shows no card of its own: its powers are the item on the Play screen.
+Powers follow the item's attunement: an item that needs attunement and is not attuned hides all its powers.
+
+```json
+{ "name": "Staff of Ages", "requiresAttunement": true, "attuned": true,
+  "charges": { "max": 3, "used": 0, "recharge": "dawn", "regain": "1d3" },
+  "powers": [
+    { "name": "+3 spell attack", "activation": "passive", "description": "+3 to spell attack rolls while holding it." },
+    { "name": "Temporal Echo", "activation": "reaction", "cost": "all", "description": "..." },
+    { "name": "Hourglass Ward", "activation": "bonus", "cost": 1, "description": "Absorb Elements on you or an ally within 30 ft." }
+  ] }
+```
+
+| Field | Notes |
+|---|---|
+| `id` | Generated if missing. |
+| `name` | |
+| `activation` | `passive`, `action`, `bonus`, `reaction`, `free`, `special` (same words and aliases as for [features](#features)). Default `action`. |
+| `cost` | Charges one use takes from the item's `charges`: a number, or `"all"` = every charge left (at least 1). Leave it out (or `0`) for a free power. The card shows the item's charges and is greyed out when there are not enough. |
+| `uses` | Optional [uses](#uses) of its own, separate from the item's charges ("once per long rest"). Rests restore them like any other counter. |
+| `description` | Text, rendered like feature descriptions. |
+| `tags` | Optional list of your own [tags](#tags). |
+
+Using a power spends its `cost` (and one of its own `uses`). Undo gives one use and the cost back; for `"all"` it gives back one charge.
+
+## tags
+
+`tags` is a list of short labels on spells, features, items and item powers: `["buff", "aoe"]` (a text `"buff, aoe"` also works).
+They are stored in lowercase, without duplicates. The Play screen and the Spells tab have a row of tag chips: tap one or more,
+and only what has **all** the selected tags stays (on the Play screen together with the hand and kind filters).
+
+Besides your own tags, the app adds **automatic tags** every time it shows something (they are not saved in the file):
+
+| Tag | When |
+|---|---|
+| `concentration`, `ritual` | The spell is marked so. |
+| `healing` | The text says "regain(s) ... Hit Points", "heal", or "Temporary Hit Points" (not "can't regain"). |
+| `damage` and the damage type (`fire`, `radiant`, ...) | The text has dice followed by a type ("8d6 Fire") or "Fire damage". Attacks: their `damageType`. |
+| `save` | The text names a saving throw ("Wisdom save", "DC 15"); "+1 spell save DC" does not count. |
+| `attack` | Attacks, and texts with "spell attack", "melee attack", "attack roll"... |
+| `control` | The text has both a saving throw and a condition (Paralyzed, Prone, Restrained...). |
+
+Automatic tags only read words; add your own tag where they miss (e.g. "control" on Command). Suggested own tags:
+`buff debuff defense control mobility utility aoe summon social` (nothing depends on them; any word works).
 
 ## roleplay
 
@@ -206,5 +261,12 @@ Blank lines separate paragraphs.
 
 ## Versioning
 
-`schemaVersion` is 1. When the format changes, the app will bump it and convert older files on import
-(`src/model/normalize.ts`, "Future migrations go here"). Files from a newer app version are rejected with a clear message.
+`schemaVersion` is 2. When the format changes, the app bumps it and converts older files on import, one step per version
+(`MIGRATIONS` in `src/model/normalize.ts`). Files from a newer app version are rejected with a clear message.
+
+| Version | What changed | Conversion of older files |
+|---|---|---|
+| 1 | First format. | |
+| 2 | New optional fields: `tags` (spells, features, items, item powers) and `powers` (items). Unknown fields are kept instead of dropped. | None needed: every version 1 field means the same in version 2, so a version 1 file imports unchanged and is exported as version 2. Item descriptions are **not** split into powers automatically (that would be guessing at rules text); add powers on the Gear tab or in the file. |
+
+**Careful with older copies of the app:** a version 1 app refuses version 2 files ("Update the app"). Export from the app you will import into.

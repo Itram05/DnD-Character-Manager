@@ -74,6 +74,17 @@ function ScrollCount({ card }: { card: CardFace }) {
   )
 }
 
+/** Item power: how many of the item's charges one use takes ("1 ch.", "all ch."). */
+function ChargeCost({ card }: { card: CardFace }) {
+  if (!card.chargeCost) return null
+  const all = card.chargeCost === 'all'
+  return (
+    <span className="tag charge-cost" title={all ? t('power.costAllHint') : t('power.costHint', { n: card.chargeCost })}>
+      {all ? t('power.costAllShort') : t('power.costShort', { n: card.chargeCost })}
+    </span>
+  )
+}
+
 /** One card (or one list row). Clicking the body opens the zoomed view. */
 export function GameCard(props: { card: CardFace; mode: 'cards' | 'list'; onOpen: () => void; onUse?: () => void; onUndo?: () => void; useLabel?: string }) {
   const { card, mode } = props
@@ -118,8 +129,10 @@ export function GameCard(props: { card: CardFace; mode: 'cards' | 'list'; onOpen
             {glyphOf(card)}
           </span>
           {card.name}
+          {card.kind === 'power' && <span className="muted row-source"> · {card.sourceLabel}</span>}
           {card.concentration && <span className="tag">C</span>}
           {card.ritual && <span className="tag">R</span>}
+          <ChargeCost card={card} />
         </span>
         {card.stat && <span className="row-stat">{card.stat}</span>}
         {card.meta && <span className="row-stat muted">{card.meta}</span>}
@@ -145,6 +158,7 @@ export function GameCard(props: { card: CardFace; mode: 'cards' | 'list'; onOpen
           <span className="type-text">{card.sourceLabel}</span>
           {card.concentration && <span className="tag" title={t('spell.concentration')}>C</span>}
           {card.ritual && <span className="tag" title={t('spell.ritual')}>R</span>}
+          <ChargeCost card={card} />
         </div>
         {card.stat && <div className="card-stat">{card.stat}</div>}
         {card.meta && <div className="card-meta">{card.meta}</div>}

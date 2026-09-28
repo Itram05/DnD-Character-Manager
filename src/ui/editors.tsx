@@ -3,9 +3,11 @@ import { loadSrdSpells, type SrdSpell } from '../data/srd'
 import { t } from '../i18n'
 import { newId } from '../model/normalize'
 import { evalFormula } from '../model/rules'
-import { ACTIVATIONS, ABILITIES, RECHARGES, SOURCE_TYPES, type Activation, type Attack, type Feature, type Item, type Recharge, type SourceType, type Spell, type Uses } from '../model/types'
+import { ownTagsIn, spellAutoTags, textTags } from '../model/tags'
+import { ACTIVATIONS, ABILITIES, RECHARGES, SOURCE_TYPES, type Activation, type Attack, type Feature, type Item, type ItemPower, type PowerCost, type Recharge, type SourceType, type Spell, type Uses } from '../model/types'
 import { Check, Confirm, Modal, NumberField, Select, TextArea, TextField } from './common'
 import type { SheetApi } from './Sheet'
+import { TagInput } from './tags'
 
 // ---------------- uses (shared) ----------------
 
@@ -113,6 +115,7 @@ export function FeatureEditor({ api, initial, onClose }: { api: SheetApi; initia
       </div>
       <UsesEditor api={api} value={f.uses} onChange={(uses) => setF({ ...f, uses })} label={t('feature.hasUses')} />
       <TextArea label={t('common.description')} rows={6} value={f.description} onChange={(description) => setF({ ...f, description })} />
+      <TagInput value={f.tags} onChange={(tags) => setF({ ...f, tags })} auto={textTags(f.description)} known={ownTagsIn(api.c)} />
     </EditorFrame>
   )
 }
@@ -165,7 +168,7 @@ export function SpellEditor({ api, initial, onClose }: { api: SheetApi; initial:
   }
   const fillFromSrd = (name: string) => {
     const m = srd?.find((x) => x.name.toLowerCase() === name.toLowerCase())
-    if (m) setS({ ...fromSrdSpell(m, s.source), id: s.id, prepared: s.prepared, alwaysPrepared: s.alwaysPrepared, freeCasts: s.freeCasts })
+    if (m) setS({ ...fromSrdSpell(m, s.source), id: s.id, prepared: s.prepared, alwaysPrepared: s.alwaysPrepared, freeCasts: s.freeCasts, tags: s.tags })
   }
   return (
     <EditorFrame
@@ -203,6 +206,7 @@ export function SpellEditor({ api, initial, onClose }: { api: SheetApi; initial:
       </div>
       <UsesEditor api={api} value={s.freeCasts} onChange={(freeCasts) => setS({ ...s, freeCasts })} label={t('spell.hasFreeCasts')} />
       <TextArea label={t('common.description')} rows={6} value={s.description ?? ''} onChange={(description) => setS({ ...s, description })} />
+      <TagInput value={s.tags} onChange={(tags) => setS({ ...s, tags })} auto={spellAutoTags(s)} known={ownTagsIn(api.c)} />
     </EditorFrame>
   )
 }
@@ -217,7 +221,10 @@ export function ItemEditor({ api, initial, onClose }: { api: SheetApi; initial: 
   const [it, setIt] = useState(initial)
   const exists = api.c.inventory.items.some((x) => x.id === it.id)
   const save = () => {
-    api.update((c) => ({ ...c, inventory: { ...c.inventory, items: exists ? c.inventory.items.map((x) => (x.id === it.id ? it : x)) : [...c.inventory.items, it] } }))
+    // a power added and left completely empty is dropped; one with only a description gets a name on the next import
+    const powers = it.powers?.filter((p) => p.name.trim() || p.description.trim())
+    const out: Item = { ...it, powers: powers?.length ? powers : undefined }
+    api.update((c) => ({ ...c, inventory: { ...c.inventory, items: exists ? c.inventory.items.map((x) => (x.id === out.id ? out : x)) : [...c.inventory.items, out] } }))
     onClose()
   }
   const isCard = !!it.activation
@@ -262,7 +269,97 @@ export function ItemEditor({ api, initial, onClose }: { api: SheetApi; initial: 
       )}
       <UsesEditor api={api} value={it.charges} onChange={(charges) => setIt({ ...it, charges })} label={t('item.hasCharges')} allowRegain />
       <TextArea label={t('common.description')} rows={5} value={it.description ?? ''} onChange={(description) => setIt({ ...it, description })} />
+      <PowersEditor api={api} item={it} onChange={(powers) => setIt({ ...it, powers: powers.length ? powers : undefined })} />
+      <TagInput value={it.tags} onChange={(tags) => setIt({ ...it, tags })} auto={textTags(it.description)} known={ownTagsIn(api.c)} />
     </EditorFrame>
+  )
+}
+
+// ---------------- item powers ----------------
+
+export function blankPower(): ItemPower {
+  return { id: newId(), name: '', activation: 'action', description: '' }
+}
+
+/**
+ * The separate abilities of an item (Staff of Ages: Temporal Echo, Hourglass Ward...).
+ * Each is a card on the Play screen (passive ones sit with "Always on"); using one spends
+ * its cost from the item's charges. One power is open for editing at a time.
+ */
+function PowersEditor({ api, item, onChange }: { api: SheetApi; item: Item; onChange: (p: ItemPower[]) => void }) {
+  const powers = item.powers ?? []
+  const [open, setOpen] = useState<string | null>(null)
+  const setPower = (id: string, patch: Partial<ItemPower>) => onChange(powers.map((p) => (p.id === id ? { ...p, ...patch } : p)))
+  const move = (i: number, d: number) => {
+    const j = i + d
+    if (j < 0 || j >= powers.length) return
+    const next = [...powers]
+    ;[next[i], next[j]] = [next[j], next[i]]
+    onChange(next)
+  }
+  const costValue = (c: PowerCost | undefined) => (c === 'all' ? 'all' : String(c ?? 0))
+  const costOptions = [
+    { value: '0', label: t('power.costNone') },
+    ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => ({ value: String(n), label: t('power.costN', { n }) })),
+    { value: 'all', label: t('power.costAll') },
+  ]
+  return (
+    <fieldset className="powers-editor">
+      <legend>{t('power.title')}</legend>
+      <p className="hint">{t('power.hint')}</p>
+      {powers.length === 0 && <p className="muted">{t('power.none')}</p>}
+      <ul className="power-rows">
+        {powers.map((p, i) => (
+          <li key={p.id} className={open === p.id ? 'open' : ''}>
+            <div className="power-head">
+              <button type="button" className="link-btn" onClick={() => setOpen(open === p.id ? null : p.id)} aria-expanded={open === p.id}>
+                {open === p.id ? '▾' : '▸'} {p.name || t('power.unnamed')}
+              </button>
+              <span className={`gem gem-small gem-${p.activation}`}>{t(`act.${p.activation}`)}</span>
+              {p.cost ? <span className="tag">{p.cost === 'all' ? t('power.costAll') : t('power.costN', { n: p.cost })}</span> : null}
+              <span className="power-move">
+                <button type="button" className="mini-btn" onClick={() => move(i, -1)} disabled={i === 0} aria-label={t('power.up')}>
+                  ↑
+                </button>
+                <button type="button" className="mini-btn" onClick={() => move(i, 1)} disabled={i === powers.length - 1} aria-label={t('power.down')}>
+                  ↓
+                </button>
+                <button type="button" className="mini-btn danger" onClick={() => onChange(powers.filter((x) => x.id !== p.id))} aria-label={t('power.remove', { name: p.name })}>
+                  ✕
+                </button>
+              </span>
+            </div>
+            {open === p.id && (
+              <div className="power-body">
+                <TextField label={t('common.name')} value={p.name} onChange={(name) => setPower(p.id, { name })} />
+                <div className="grid-2">
+                  <Select<Activation> label={t('feature.activation')} value={p.activation} options={ACTIVATIONS.map((a) => ({ value: a, label: t(`act.${a}`) }))} onChange={(activation) => setPower(p.id, { activation })} />
+                  {item.charges ? (
+                    <Select label={t('power.cost')} value={costValue(p.cost)} options={costOptions} onChange={(v) => setPower(p.id, { cost: v === 'all' ? 'all' : Number(v) || undefined })} />
+                  ) : (
+                    <p className="hint">{t('power.noPool')}</p>
+                  )}
+                </div>
+                <UsesEditor api={api} value={p.uses} onChange={(uses) => setPower(p.id, { uses })} label={t('power.ownUses')} />
+                <TextArea label={t('common.description')} rows={4} value={p.description} onChange={(description) => setPower(p.id, { description })} />
+                <TagInput value={p.tags} onChange={(tags) => setPower(p.id, { tags })} auto={textTags(p.description)} known={ownTagsIn(api.c)} />
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+      <button
+        type="button"
+        className="btn btn-small"
+        onClick={() => {
+          const p = blankPower()
+          onChange([...powers, p])
+          setOpen(p.id)
+        }}
+      >
+        + {t('power.add')}
+      </button>
+    </fieldset>
   )
 }
 

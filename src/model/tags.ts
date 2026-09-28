@@ -9,7 +9,7 @@
 // highlighting looks for (highlight.ts). Where they miss or overreach, add your own tag.
 import { DAMAGE_TYPES, tokenize } from './highlight'
 import { normalizeTag } from './normalize'
-import type { Attack, Feature, Item, ItemPower, Spell } from './types'
+import type { Attack, Character, Feature, Item, ItemPower, Spell } from './types'
 
 /** Automatic tags in display order. */
 export const AUTO_TAGS = ['concentration', 'ritual', 'healing', 'damage', ...DAMAGE_TYPES, 'save', 'attack', 'control'] as const
@@ -88,6 +88,12 @@ export function tagCounts(lists: readonly (readonly string[] | undefined)[]): { 
   const m = new Map<string, number>()
   for (const l of lists) for (const t of new Set(l ?? [])) m.set(t, (m.get(t) ?? 0) + 1)
   return sortTags([...m.keys()]).map((tag) => ({ tag, n: m.get(tag)! }))
+}
+
+/** Every own tag used anywhere on the character: offered as suggestions in the tag editor. */
+export function ownTagsIn(c: Pick<Character, 'spells' | 'features' | 'inventory'>): string[] {
+  const all = [...c.spells.flatMap((s) => s.tags ?? []), ...c.features.flatMap((f) => f.tags ?? []), ...c.inventory.items.flatMap((i) => [...(i.tags ?? []), ...(i.powers ?? []).flatMap((p) => p.tags ?? [])])]
+  return sortTags([...new Set(all)])
 }
 
 /** A thing passes the tag filter when it has every selected tag (an empty selection lets everything through). */

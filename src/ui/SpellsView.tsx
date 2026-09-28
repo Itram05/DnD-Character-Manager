@@ -2,27 +2,32 @@ import { useMemo, useState } from 'react'
 import { srdClass } from '../data/srd'
 import { t } from '../i18n'
 import { casterType, castingStats, classColumnValue } from '../model/rules'
+import { matchesTags, spellTags, tagCounts } from '../model/tags'
 import type { Spell } from '../model/types'
 import { Check, fmtMod } from './common'
 import { SpellEditor, blankSpell, fromSrdSpell, useSrdSpells } from './editors'
 import type { SheetApi } from './Sheet'
+import { TagFilter, tagLabel } from './tags'
 
 export function SpellsView({ api }: { api: SheetApi }) {
   const { c, update, toast } = api
   const [edit, setEdit] = useState<Spell | null>(null)
   const [query, setQuery] = useState('')
   const [onlyMine, setOnlyMine] = useState(true)
+  const [tags, setTags] = useState<string[]>([])
   const srd = useSrdSpells()
   const casters = c.classes.filter((k) => casterType(k) !== 'none')
   const myClassNames = c.classes.map((k) => srdClass(k.id)?.name).filter(Boolean) as string[]
 
+  const tagChips = useMemo(() => tagCounts(c.spells.map(spellTags)), [c.spells])
   const byLevel = useMemo(() => {
     const m = new Map<number, Spell[]>()
     for (const s of [...c.spells].sort((a, b) => a.level - b.level || a.name.localeCompare(b.name))) {
+      if (!matchesTags(spellTags(s), tags)) continue
       m.set(s.level, [...(m.get(s.level) ?? []), s])
     }
     return [...m.entries()]
-  }, [c.spells])
+  }, [c.spells, tags])
 
   const results = useMemo(() => {
     if (!srd || query.trim().length < 2) return []
@@ -108,7 +113,8 @@ export function SpellsView({ api }: { api: SheetApi }) {
         )}
       </section>
 
-      {byLevel.length === 0 && <p className="muted panel">{t('spells.none')}</p>}
+      {c.spells.length > 0 && <TagFilter tags={tagChips} selected={tags} onChange={setTags} />}
+      {byLevel.length === 0 && <p className="muted panel">{tags.length ? t('tags.noMatch') : t('spells.none')}</p>}
       {byLevel.map(([lvl, list]) => (
         <section key={lvl} className="panel spell-level">
           <h3>{lvl === 0 ? t('spells.cantrips') : t('spells.levelN', { n: lvl })}</h3>
@@ -129,6 +135,11 @@ export function SpellsView({ api }: { api: SheetApi }) {
                   {s.alwaysPrepared && <span className="tag" title={t('spell.alwaysPrepared')}>★</span>}
                   {s.concentration && <span className="tag" title={t('spell.concentration')}>C</span>}
                   {s.ritual && <span className="tag" title={t('spell.ritual')}>R</span>}
+                  {s.tags?.map((tg) => (
+                    <span key={tg} className="tag tag-mini">
+                      {tagLabel(tg)}
+                    </span>
+                  ))}
                 </span>
                 <span className="muted spell-src">{s.source ?? ''}</span>
                 <span className="muted spell-time">{s.castingTime}</span>
