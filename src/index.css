@@ -2945,12 +2945,68 @@ details summary {
 .nav-target {
   scroll-margin-top: calc(var(--head-h, 0px) + 0.5rem);
 }
-/* computer: the content and a narrow column beside it that stays in place while scrolling */
+/* computer: the content and a narrow column beside it that stays in place while scrolling.
+   The side comes from SIDE_NAV_SIDE in SectionNav.tsx (data-nav-side); folded, the column is a thin strip. */
 .play-layout.has-nav {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 190px;
   gap: 0 0.9rem;
   align-items: start;
+}
+.play-layout.has-nav:has(> .section-nav.side.collapsed) {
+  grid-template-columns: minmax(0, 1fr) 44px;
+}
+.play-layout.has-nav[data-nav-side='left'] {
+  grid-template-columns: 190px minmax(0, 1fr);
+}
+.play-layout.has-nav[data-nav-side='left']:has(> .section-nav.side.collapsed) {
+  grid-template-columns: 44px minmax(0, 1fr);
+}
+.play-layout.has-nav[data-nav-side='left'] > .section-nav.side {
+  order: -1;
+}
+.section-nav.side.collapsed {
+  padding: 0.3rem;
+  overflow: visible;
+}
+/* the heading and the fold arrow on one line; on the left side the arrow goes first (toward the edge) */
+.section-nav-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.3rem;
+  margin-bottom: 0.35rem;
+}
+[data-nav-side='left'] .section-nav-top {
+  flex-direction: row-reverse;
+}
+.section-nav.side.collapsed .section-nav-top {
+  justify-content: center;
+  margin: 0;
+}
+.section-nav .section-nav-top h4 {
+  margin-bottom: 0;
+}
+.section-fold {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.section-fold:hover,
+.section-fold:focus-visible {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 .section-nav.side {
   position: sticky;

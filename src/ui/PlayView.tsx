@@ -33,7 +33,7 @@ import { FRAME_GLYPH, GameCard, POTION_GLYPH, SCROLL_GLYPH, type CardFace } from
 import type { SheetApi } from './Sheet'
 import { ActiveFilters, FilterButton } from './filter'
 import { TagList } from './tags'
-import { SectionNavMenu, SectionNavSide } from './SectionNav'
+import { SIDE_NAV_SIDE, SectionNavMenu, SectionNavSide } from './SectionNav'
 import { groupTitle, playHands, playSections, sectionId } from './playSections'
 
 function attackFaces(c: Character): CardFace[] {
@@ -168,7 +168,7 @@ export function PlayView({ api }: { api: SheetApi }) {
   }
 
   return (
-    <div className={`play-layout ${sideNav && sections.length > 1 ? 'has-nav' : ''}`}>
+    <div className={`play-layout ${sideNav && sections.length > 1 ? 'has-nav' : ''}`} data-nav-side={SIDE_NAV_SIDE}>
     <div className="play">
       {/* Cards/List and the funnel live in the sheet's sticky head, so they are at hand anywhere down the page */}
       <InHead at={api.head?.tools}>

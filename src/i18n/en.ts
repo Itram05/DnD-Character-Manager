@@ -12,6 +12,8 @@ export const en: Record<string, string> = {
   'nav.allCharacters': 'All characters',
   'nav.onThisScreen': 'On this screen',
   'nav.jump': 'Jump to a section',
+  'nav.hide': 'Hide the section list',
+  'nav.show': 'Show the section list',
   'tab.play': 'Play',
   'tab.stats': 'Stats',
   'tab.spells': 'Spells',

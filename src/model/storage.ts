@@ -7,6 +7,7 @@ const PREFIX = 'dnd-sheet'
 const INDEX_KEY = `${PREFIX}.index`
 const charKey = (id: string) => `${PREFIX}.char.${id}`
 const SETTINGS_KEY = `${PREFIX}.settings`
+const NAV_COLLAPSED_KEY = `${PREFIX}.sideNavCollapsed`
 
 export interface StorageStatus {
   ok: boolean
@@ -132,3 +133,10 @@ export function loadSettings(): Settings {
 }
 
 export const saveSettings = (s: Settings) => safeSet(SETTINGS_KEY, JSON.stringify(s))
+
+/** Whether the side column with the section list (Play, computer) is folded away. Any trouble -> unfolded. */
+export function loadSideNavCollapsed(): boolean {
+  return safeGet(NAV_COLLAPSED_KEY) === '1'
+}
+
+export const saveSideNavCollapsed = (collapsed: boolean) => safeSet(NAV_COLLAPSED_KEY, collapsed ? '1' : '0')

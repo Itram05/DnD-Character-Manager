@@ -2,14 +2,15 @@
 // and that every listed section exists on the page with the class that keeps it clear of the sticky head.
 // Server render only (phone width, no scrolling here); the scrolling itself is checked by hand.
 import { renderToString } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { matchesFilter, selectedKinds, selectedZones } from '../model/filter'
 import { importCharacterJson } from '../model/normalize'
 import { playCards, playPassivePowers, playPassives } from '../model/play'
 import type { CardFace } from './GameCard'
 import { PlayView } from './PlayView'
 import { playHands, playSections } from './playSections'
-import { SectionNavMenu } from './SectionNav'
+import { SIDE_NAV_SIDE, SectionNavMenu, SectionNavSide } from './SectionNav'
+import { loadSideNavCollapsed, saveSideNavCollapsed } from '../model/storage'
 import type { SheetApi } from './Sheet'
 
 import sampleText from '../../examples/sample-character.json?raw'
@@ -70,5 +71,53 @@ describe('quick navigation: on the page', () => {
     expect(list).toContain('Concentration')
     expect(list).toMatch(/Action \d+/)
     expect(list).toMatch(/Always on \d+$/)
+  })
+})
+
+describe('quick navigation: folding the side column', () => {
+  const sections = sectionsFor([])
+  it('unfolded: the heading, the list and an arrow toward the edge that hides it', () => {
+    const html = renderToString(<SectionNavSide sections={sections} initiallyCollapsed={false} />)
+    expect(html).toContain('section-list')
+    expect(html).toContain('aria-label="Hide the section list"')
+    expect(html).toContain('aria-expanded="true"')
+    expect(strip(html)).toContain(SIDE_NAV_SIDE === 'right' ? '»' : '«')
+  })
+  it('folded: only the arrow, turned back, that shows it again', () => {
+    const html = renderToString(<SectionNavSide sections={sections} initiallyCollapsed />)
+    expect(html).toContain('section-nav side collapsed')
+    expect(html).not.toContain('section-list')
+    expect(html).not.toContain('<h4')
+    expect(html).toContain('aria-label="Show the section list"')
+    expect(html).toContain('aria-expanded="false"')
+    expect(strip(html)).toBe(SIDE_NAV_SIDE === 'right' ? '«' : '»')
+  })
+})
+
+describe('quick navigation: the folded state is remembered', () => {
+  afterEach(() => vi.unstubAllGlobals())
+  const fakeStorage = () => {
+    const m = new Map<string, string>()
+    return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) }
+  }
+  it('saved and read back', () => {
+    vi.stubGlobal('window', { localStorage: fakeStorage() })
+    expect(loadSideNavCollapsed()).toBe(false)
+    saveSideNavCollapsed(true)
+    expect(loadSideNavCollapsed()).toBe(true)
+    saveSideNavCollapsed(false)
+    expect(loadSideNavCollapsed()).toBe(false)
+  })
+  it('storage that throws: unfolded, and saving does not crash', () => {
+    const boom = () => {
+      throw new Error('denied')
+    }
+    vi.stubGlobal('window', { localStorage: { getItem: boom, setItem: boom, removeItem: boom } })
+    expect(loadSideNavCollapsed()).toBe(false)
+    expect(saveSideNavCollapsed(true).ok).toBe(false)
+  })
+  it('no storage at all (server render): unfolded', () => {
+    expect(loadSideNavCollapsed()).toBe(false)
+    expect(renderToString(<SectionNavSide sections={sectionsFor([])} />)).not.toContain('collapsed')
   })
 })

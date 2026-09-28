@@ -6,6 +6,13 @@
 // never covers a section's title after the jump.
 import { useEffect, useRef, useState } from 'react'
 import { t } from '../i18n'
+import { loadSideNavCollapsed, saveSideNavCollapsed } from '../model/storage'
+
+/**
+ * Which side of the content the computer column stands on. Change this one value to move it;
+ * the CSS follows through `data-nav-side` on .play-layout (see index.css) and the arrows turn with it.
+ */
+export const SIDE_NAV_SIDE: 'right' | 'left' = 'right'
 
 export interface NavSection {
   /** DOM id of the section element. */
@@ -115,20 +122,41 @@ function SectionList({ sections, active, onPick }: { sections: NavSection[]; act
   )
 }
 
-/** The column beside the content (computer). */
-export function SectionNavSide({ sections }: { sections: NavSection[] }) {
+/**
+ * The column beside the content (computer). An arrow at its top folds it into a thin strip
+ * (only the arrow, turned back) so the cards get the room; the choice is remembered.
+ * `initiallyCollapsed` is for tests; otherwise it comes from storage.
+ */
+export function SectionNavSide({ sections, initiallyCollapsed }: { sections: NavSection[]; initiallyCollapsed?: boolean }) {
   const [active, pin] = useActiveSection(sections.map((s) => s.id))
+  const [collapsed, setCollapsed] = useState(() => initiallyCollapsed ?? loadSideNavCollapsed())
+  const toggle = () => {
+    const next = !collapsed
+    setCollapsed(next)
+    saveSideNavCollapsed(next)
+  }
+  // the arrow points where the column will go: toward the edge to hide it, back toward the content to show it
+  const towardEdge = SIDE_NAV_SIDE === 'right' ? '»' : '«'
+  const towardContent = SIDE_NAV_SIDE === 'right' ? '«' : '»'
+  const label = collapsed ? t('nav.show') : t('nav.hide')
   return (
-    <nav className="section-nav side" aria-label={t('nav.onThisScreen')}>
-      <h4>{t('nav.onThisScreen')}</h4>
-      <SectionList
-        sections={sections}
-        active={active}
-        onPick={(id) => {
-          pin(id)
-          scrollToSection(id)
-        }}
-      />
+    <nav className={`section-nav side ${collapsed ? 'collapsed' : ''}`} aria-label={t('nav.onThisScreen')}>
+      <div className="section-nav-top">
+        {!collapsed && <h4>{t('nav.onThisScreen')}</h4>}
+        <button className="section-fold" onClick={toggle} aria-expanded={!collapsed} aria-label={label} title={label}>
+          <span aria-hidden="true">{collapsed ? towardContent : towardEdge}</span>
+        </button>
+      </div>
+      {!collapsed && (
+        <SectionList
+          sections={sections}
+          active={active}
+          onPick={(id) => {
+            pin(id)
+            scrollToSection(id)
+          }}
+        />
+      )}
     </nav>
   )
 }
