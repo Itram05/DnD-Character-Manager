@@ -504,6 +504,8 @@ export const en: Record<string, string> = {
   'tags.title': 'Tags',
   'tags.filter': 'Show only cards with these tags',
   'tags.clear': 'Clear',
+  'tags.damageTypes': 'Damage types: tap to show or hide',
+  'tags.anyDamage': 'Any damage',
   'tags.add': 'Add a tag',
   'tags.remove': 'Remove tag {tag}',
   'tags.placeholder': 'Type a tag and press Enter',

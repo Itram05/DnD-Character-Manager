@@ -251,7 +251,9 @@ describe.skipIf(!existsSync(GRAV_FILE))("owner's character: item powers and tags
     // tag filter chips, with counts
     expect(html).toMatch(/Control \d+/)
     expect(html).toMatch(/Healing \d+/)
-    expect(html).toMatch(/Radiant \d+/)
+    // damage types folded under one Damage chip (closed by default)
+    expect(html).toMatch(/Damage \d+ ▸/)
+    expect(html).not.toMatch(/Radiant \d+/)
   })
   it('his spells carry automatic and own tags', () => {
     const tagsOf = (n: string) => spellTags(c.spells.find((s) => s.name === n)!)
@@ -269,6 +271,8 @@ describe.skipIf(!existsSync(GRAV_FILE))("owner's character: item powers and tags
     const sp = strip(renderToString(<SpellsView api={apiFor(c)} />))
     expect(sp).toMatch(/Concentration \d+/)
     expect(sp).toContain('mobility'.replace('m', 'M'))
+    expect(sp).toMatch(/Damage \d+ ▸/)
+    expect(sp).not.toMatch(/Psychic \d+/)
   })
   it('wave 1 still holds: scrolls, healing potions and attunement', () => {
     expect(playCards(c).filter((x) => x.kind === 'scroll')).toHaveLength(6)

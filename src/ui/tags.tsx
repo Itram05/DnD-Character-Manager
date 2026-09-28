@@ -14,14 +14,42 @@ export function tagLabel(tag: string): string {
 
 const tagClass = (tag: string) => ((DAMAGE_TYPES as readonly string[]).includes(tag) ? `tag-dmg ${damageClass(tag as DamageType)}` : isAutoTag(tag) ? 'tag-auto' : 'tag-own')
 
+const isDamageTag = (tag: string) => tag === 'damage' || (DAMAGE_TYPES as readonly string[]).includes(tag)
+
+export type TagFilterItem = { kind: 'chip'; tag: string; n: number } | { kind: 'damage'; n: number; open: boolean; types: number }
+
 /**
- * One row of toggle chips, scrolling sideways on a phone. A card must have every selected tag.
+ * What the filter row shows, in order. Damage and its types (up to 13 chips) fold under one
+ * "Damage" chip that opens on tap; open, it is followed by "Any damage" and the types. Folded,
+ * the selected ones stay in the row next to it, so an active filter is never hidden.
  * Tags with no matching card are hidden unless selected (so a selection can always be undone).
  */
-export function TagFilter(props: { tags: { tag: string; n: number }[]; selected: string[]; onChange: (s: string[]) => void }) {
-  const { tags, selected, onChange } = props
+export function tagFilterRow(tags: { tag: string; n: number }[], selected: string[], open: boolean): TagFilterItem[] {
   const shown = [...tags.filter((x) => x.n > 0 || selected.includes(x.tag)), ...selected.filter((s) => !tags.some((x) => x.tag === s)).map((tag) => ({ tag, n: 0 }))]
-  if (shown.length === 0) return null
+  const dmg = shown.filter((x) => isDamageTag(x.tag))
+  const types = dmg.filter((x) => x.tag !== 'damage').length
+  // only "damage" with no type: nothing to fold
+  if (types === 0) return shown.map((x) => ({ kind: 'chip', ...x }))
+  const out: TagFilterItem[] = []
+  for (const x of shown) {
+    if (!isDamageTag(x.tag)) out.push({ kind: 'chip', ...x })
+    else if (x === dmg[0]) {
+      out.push({ kind: 'damage', n: tags.find((y) => y.tag === 'damage')?.n ?? 0, open, types })
+      for (const d of dmg) if (open || selected.includes(d.tag)) out.push({ kind: 'chip', ...d })
+    }
+  }
+  return out
+}
+
+/**
+ * One row of toggle chips, scrolling sideways on a phone. A card must have every selected tag.
+ * The same row on Play and on the Spells tab; the Damage fold starts closed.
+ */
+export function TagFilter(props: { tags: { tag: string; n: number }[]; selected: string[]; onChange: (s: string[]) => void; initiallyOpen?: boolean }) {
+  const { tags, selected, onChange } = props
+  const [open, setOpen] = useState(props.initiallyOpen ?? false)
+  const row = tagFilterRow(tags, selected, open)
+  if (row.length === 0) return null
   const toggle = (tag: string) => onChange(selected.includes(tag) ? selected.filter((x) => x !== tag) : [...selected, tag])
   return (
     <div className="tag-filter" role="group" aria-label={t('tags.filter')}>
@@ -33,12 +61,22 @@ export function TagFilter(props: { tags: { tag: string; n: number }[]; selected:
           ✕ {t('tags.clear')}
         </button>
       )}
-      {shown.map(({ tag, n }) => (
-        <button key={tag} className={`tag-chip ${tagClass(tag)} ${selected.includes(tag) ? 'on' : ''}`} aria-pressed={selected.includes(tag)} onClick={() => toggle(tag)}>
-          {tagLabel(tag)}
-          <span className="count">{n}</span>
-        </button>
-      ))}
+      {row.map((x) =>
+        x.kind === 'damage' ? (
+          <button key="#damage" className={`tag-chip tag-group ${x.open ? 'open' : ''}`} aria-expanded={x.open} title={t('tags.damageTypes')} onClick={() => setOpen(!x.open)}>
+            {tagLabel('damage')}
+            <span className="count">{x.n}</span>
+            <span className="tag-caret" aria-hidden="true">
+              {x.open ? '▾' : '▸'}
+            </span>
+          </button>
+        ) : (
+          <button key={x.tag} className={`tag-chip ${tagClass(x.tag)} ${selected.includes(x.tag) ? 'on' : ''}`} aria-pressed={selected.includes(x.tag)} onClick={() => toggle(x.tag)}>
+            {x.tag === 'damage' && row.some((y) => y.kind === 'damage') ? t('tags.anyDamage') : tagLabel(x.tag)}
+            <span className="count">{x.n}</span>
+          </button>
+        ),
+      )}
     </div>
   )
 }

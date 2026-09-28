@@ -2668,6 +2668,17 @@ details summary {
   border-color: var(--dmg);
   background: color-mix(in srgb, var(--dmg) 18%, transparent);
 }
+.tag-chip.tag-group {
+  border-style: dashed;
+}
+.tag-chip.tag-group.open {
+  border-style: solid;
+  border-color: var(--accent);
+}
+.tag-caret {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
 .tag-chip.tag-clear {
   color: var(--muted);
   border-style: dashed;
