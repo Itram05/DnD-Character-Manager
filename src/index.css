@@ -706,9 +706,10 @@ tr.clickable:hover {
 /* ---------------- sheet shell ---------------- */
 
 .sheet {
+  --sheet-pad: 0.6rem;
   max-width: 1500px;
   margin: 0 auto;
-  padding: 0 0.6rem 5.5rem;
+  padding: 0 var(--sheet-pad) 5.5rem;
 }
 .topbar-id {
   display: flex;
@@ -733,10 +734,70 @@ tr.clickable:hover {
 .topbar {
   display: contents;
 }
-.vitals {
+/* the sticky head: vitals, tabs (computer), the screen's tools and active filters.
+   Opaque and without backdrop-filter on purpose: a filter/blur here would become the containing
+   block of the funnel's position:fixed panel and trap it inside the head. */
+.sheet-head {
   position: sticky;
   top: 0;
   z-index: 20;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  /* reach over the sheet's side padding, so cards never show beside the head */
+  margin: 0 calc(-1 * var(--sheet-pad)) 0.3rem;
+  padding: 0 var(--sheet-pad);
+}
+/* one row under the vitals: tabs (computer) | active filters | tools. Empty parts take no room,
+   so a screen without tools (Stats, Gear on a phone) adds nothing to the head's height. */
+.head-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.5rem;
+}
+.head-chips:empty,
+.head-tools:empty {
+  display: none;
+}
+.head-chips {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-bottom: 0.4rem;
+}
+.head-tools {
+  flex: 0 0 auto;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-bottom: 0.4rem;
+}
+/* both about 42px high: the segmented box adds its padding and border to the 34px buttons */
+.head-tools .segmented.small button {
+  min-height: 34px;
+  min-width: 40px;
+}
+.head-tools .filter-btn {
+  width: 44px;
+  height: 42px;
+}
+/* phone: Cards/List as two icons (the words stay for screen readers and in the tooltip) */
+@media (max-width: 559px) {
+  .head-tools .seg-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+/* while the funnel panel is open the head goes above the phone's bottom tab bar (z 30),
+   otherwise the bar would cover the panel's Clear all / Done */
+.sheet-head:has(.filter-panel) {
+  z-index: 45;
+}
+.vitals {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   grid-template-areas:
@@ -744,8 +805,6 @@ tr.clickable:hover {
     'pb insp cond short long';
   gap: 5px;
   padding: 0.45rem 0;
-  background: color-mix(in srgb, var(--bg) 92%, transparent);
-  backdrop-filter: blur(6px);
 }
 .vitals .hp-widget {
   grid-area: hp;
@@ -872,7 +931,8 @@ tr.clickable:hover {
 
 @media (min-width: 900px) {
   .sheet {
-    padding: 0 1.2rem 2rem;
+    --sheet-pad: 1.2rem;
+    padding: 0 var(--sheet-pad) 2rem;
   }
   .vitals {
     display: flex;
@@ -896,20 +956,38 @@ tr.clickable:hover {
   }
 }
 
+/* computer: the tabs are the left part of the head row, one line; if the window is too narrow
+   for all of them, the row scrolls sideways instead of wrapping into a second line */
 .tabs-top {
   display: flex;
-  flex-wrap: wrap;
+  flex: 1 1 0;
+  min-width: 0;
   gap: 0.25rem;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 0.9rem;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 .tabs-top .tab {
+  flex: 0 0 auto;
   border: none;
   background: none;
   padding: 0.55rem 0.8rem;
   font-weight: 600;
   color: var(--muted);
   border-bottom: 3px solid transparent;
+  white-space: nowrap;
+}
+.tabs-top .tab-rules {
+  margin-left: auto;
+}
+/* computer: the active filters go on their own line under the tabs */
+@media (min-width: 900px) {
+  .head-chips {
+    order: 3;
+    flex: 1 1 100%;
+  }
+  .head-tools {
+    padding: 0.2rem 0;
+  }
 }
 .tabs-top .tab.active {
   color: var(--text);
@@ -970,25 +1048,12 @@ tr.clickable:hover {
 
 /* ---------------- play screen ---------------- */
 
-.play-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.7rem;
-}
-.play-controls .segmented.small {
-  flex: 0 0 auto;
-  margin-left: auto;
-}
-/* phone: controls, slots, concentration, the hand, then passives last */
+/* phone: slots, concentration, the hand, then passives last (Cards/List and the funnel are in the sticky head) */
 .play {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: 'controls' 'mana' 'conc' 'hands' 'field' 'empty';
+  grid-template-areas: 'mana' 'conc' 'hands' 'field' 'empty';
   gap: 0 0.8rem;
-}
-.play-controls {
-  grid-area: controls;
 }
 .play > .mana {
   grid-area: mana;
@@ -1009,14 +1074,14 @@ tr.clickable:hover {
 @media (min-width: 900px) {
   .play {
     grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) 2fr;
-    grid-template-areas: 'controls controls controls' 'mana conc field' 'hands hands hands' 'empty empty empty';
+    grid-template-areas: 'mana conc field' 'hands hands hands' 'empty empty empty';
     align-items: start;
   }
   .play > .battlefield {
     margin-top: 0;
   }
   .play:not(:has(.mana)) {
-    grid-template-areas: 'controls controls controls' 'conc field field' 'hands hands hands' 'empty empty empty';
+    grid-template-areas: 'conc field field' 'hands hands hands' 'empty empty empty';
   }
 }
 @media (max-width: 899px) {
@@ -2721,9 +2786,6 @@ details summary {
 
 /* ---------------- wave 2: the funnel filter (Play, Spells) ---------------- */
 
-.play-controls {
-  align-items: center;
-}
 .filter-anchor {
   position: relative;
   flex: 0 0 auto;
@@ -2858,7 +2920,7 @@ details summary {
   padding: 0.5rem 0.8rem calc(0.5rem + env(safe-area-inset-bottom));
   border-top: 1px solid var(--line);
 }
-/* only the active filters, under the controls; wraps instead of hiding one */
+/* only the active filters, in the sticky head; wraps instead of hiding one */
 .active-filters {
   display: flex;
   flex-wrap: wrap;
@@ -2866,21 +2928,13 @@ details summary {
   flex: 1 1 100%;
 }
 .active-filters .tag-chip {
-  min-height: 30px;
+  min-height: 34px;
 }
 .tag-chip.tag-clear {
   color: var(--muted);
   border-style: dashed;
 }
-/* Spells tab: heading, funnel on the right, active row below */
-.spells-filter {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
+/* Spells tab: the "My spells" heading (its funnel is in the sticky head) */
+.spells-mine {
   margin: 0.25rem 0 0.75rem;
-}
-.spells-filter h3 {
-  margin: 0;
-  margin-right: auto;
 }

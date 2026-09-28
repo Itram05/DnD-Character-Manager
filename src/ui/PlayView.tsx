@@ -28,7 +28,7 @@ import { healingDice, isScroll, potionLabel, readScroll, scrollInfo } from '../m
 import { attackTags } from '../model/tags'
 import { filterOptions, matchesFilter, selectedKinds, selectedZones } from '../model/filter'
 import type { Character, Item } from '../model/types'
-import { Modal, Pips, RichText, fmtMod, useMediaQuery } from './common'
+import { InHead, Modal, Pips, RichText, fmtMod, useMediaQuery } from './common'
 import { FeatureEditor, ItemEditor, SpellEditor } from './editors'
 import { FRAME_GLYPH, GameCard, POTION_GLYPH, SCROLL_GLYPH, type CardFace } from './GameCard'
 import type { SheetApi } from './Sheet'
@@ -165,18 +165,21 @@ export function PlayView({ api }: { api: SheetApi }) {
 
   return (
     <div className="play">
-      <div className="play-controls">
-        <div className="segmented small" aria-label={t('play.viewMode')}>
-          <button className={mode === 'cards' ? 'active' : ''} onClick={() => setSettings({ ...settings, view: 'cards' })} aria-pressed={mode === 'cards'}>
-            ▦ {t('play.cards')}
+      {/* Cards/List and the funnel live in the sheet's sticky head, so they are at hand anywhere down the page */}
+      <InHead at={api.head?.tools}>
+        <div className="segmented small view-toggle" role="group" aria-label={t('play.viewMode')}>
+          <button className={mode === 'cards' ? 'active' : ''} onClick={() => setSettings({ ...settings, view: 'cards' })} aria-pressed={mode === 'cards'} title={t('play.cards')}>
+            <span aria-hidden="true">▦</span> <span className="seg-text">{t('play.cards')}</span>
           </button>
-          <button className={mode === 'list' ? 'active' : ''} onClick={() => setSettings({ ...settings, view: 'list' })} aria-pressed={mode === 'list'}>
-            ☰ {t('play.list')}
+          <button className={mode === 'list' ? 'active' : ''} onClick={() => setSettings({ ...settings, view: 'list' })} aria-pressed={mode === 'list'} title={t('play.list')}>
+            <span aria-hidden="true">☰</span> <span className="seg-text">{t('play.list')}</span>
           </button>
         </div>
         <FilterButton groups={filterGroups} selected={filter} onChange={setFilter} label={kindLabel} />
+      </InHead>
+      <InHead at={api.head?.chips}>
         <ActiveFilters selected={filter} onChange={setFilter} label={kindLabel} />
-      </div>
+      </InHead>
 
         {(mana.length > 0 || sp) && (
           <section className="mana panel">

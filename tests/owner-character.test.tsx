@@ -203,7 +203,7 @@ describe.skipIf(!existsSync(GRAV_FILE))("owner's character: item powers and tags
   const { setAttunement } = await import('../src/model/rules')
   const { playPassivePowers, spendPower } = await import('../src/model/play')
   const { CATEGORIES, spellTags } = await import('../src/model/tags')
-  const { filterOptions } = await import('../src/model/filter')
+  const { filterOptions, spellFilterable } = await import('../src/model/filter')
   const { FilterButton } = await import('../src/ui/filter')
   const { ItemEditor } = await import('../src/ui/editors')
   const { GameCard } = await import('../src/ui/GameCard')
@@ -315,11 +315,12 @@ describe.skipIf(!existsSync(GRAV_FILE))("owner's character: item powers and tags
     expect(raw).toContain('filter-btn')
     expect(raw).not.toContain('filter-badge')
     expect(raw).not.toContain('active-filters')
-    const tagged = c.spells.map((s) => ({ tags: spellTags(s) }))
+    const tagged = c.spells.map(spellFilterable)
     const panel = strip(renderToString(<FilterButton groups={filterOptions(tagged, [])} selected={[]} onChange={() => {}} initiallyOpen />))
     expect(panel).toMatch(/Properties Concentration \d+/)
     expect(panel).toMatch(/Other tags revive 1/)
-    // no hand or kind group for spells
+    // the Action group (by casting time) opens the panel; no Kind group for spells
+    expect(panel).toMatch(/^ ?Filters ✕ Action Action 21 Bonus 7 Reaction 2 Free \/ Other 1 Category/)
     expect(panel).not.toContain('Kind')
   })
   it('wave 1 still holds: scrolls, healing potions and attunement', () => {

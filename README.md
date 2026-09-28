@@ -30,8 +30,8 @@ npm run preview    # serve dist/ at http://localhost:4173
 Every active feature, prepared spell, attack and usable item is a **card** in a hand for its action type
 (Action / Bonus / Reaction / Free). Using the last charge **taps** the card (turned sideways, darkened);
 Short and Long Rest **untap** what they restore. Spell slots are **mana**; casting from a card asks which slot pays.
-Passive features lie on the **Always on** strip. Concentration sits in its own slot. Cards ↔ List toggle for dense sheets.
-A second filter shows one kind of card (Attacks / Features / Spells / Items); with "All kinds" each hand is split into those groups.
+Passive features lie on the **Always on** strip. Concentration sits in its own slot. Cards ↔ List toggle for dense sheets and the **funnel** filter sit in the sticky head under the HP bar, so they stay at hand while scrolling (on a computer next to the tabs; a phone keeps its tab bar at the bottom).
+The funnel filters by hand (Action / Bonus / Reaction / Free), kind (Attacks / Features / Spells / Items), category, damage type, properties and your own tags; the active filters show as chips with ✕ in the same head. The Spells tab has the same funnel, with the hand read from the casting time.
 Healing potions (Potion of Healing, Greater, Superior, Supreme; items without `charges`) are compact − / + counters in the Concentration panel, with the dice from the description or the standard ones; tap the name for what it does. Spell scrolls (items without `charges` with "scroll" in the name, e.g. "Scroll of Shatter", "Spell Scroll (Shatter)") are a group right under the spells in each hand: the spell text comes from your spell list, else from the SRD, else from the item's own description; "Use" spends one. Other potions (Climbing, Water Breathing...) are cards in the same group, which is then called "Scrolls & Potions". Other items with `activation` but no `charges` have − / + for their quantity on the card.
 Sorcery Points sit under the spell slots; **Convert** opens Flexible Casting (slot → points, points → slot).
 Created slots show as `+1` next to the level and vanish on a Long Rest.

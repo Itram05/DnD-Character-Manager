@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { t } from '../i18n'
 import { characterToJson, fileNameFor, saveCharacter, type Settings } from '../model/storage'
 import type { Character } from '../model/types'
-import { Toasts, useMediaQuery, type ToastMsg } from './common'
+import { Toasts, useMediaQuery, type HeadSlots, type ToastMsg } from './common'
 import { EditView } from './EditView'
 import { FeaturesView } from './FeaturesView'
 import { InventoryView } from './InventoryView'
@@ -25,6 +25,8 @@ export interface SheetApi {
   settings: Settings
   setSettings: (s: Settings) => void
   go: (tab: Tab) => void
+  /** Slots in the sticky head for the screen's own controls (absent in tests: they render in place). */
+  head?: HeadSlots
 }
 
 export function downloadJson(c: Character) {
@@ -88,26 +90,34 @@ export function Sheet(props: { initial: Character; tab: Tab; onTab: (t: Tab) => 
     setUndo(undo.slice(0, -1))
   }
 
-  const api: SheetApi = { c, update, toast, settings: props.settings, setSettings: props.setSettings, go: props.onTab }
+  // the head's slots: callback refs, so the screens re-render (before paint) once the slots exist
+  const [tools, setTools] = useState<HTMLElement | null>(null)
+  const [chips, setChips] = useState<HTMLElement | null>(null)
+  const api: SheetApi = { c, update, toast, settings: props.settings, setSettings: props.setSettings, go: props.onTab, head: { tools, chips } }
   const tab = props.tab
 
   return (
     <div className={`sheet tab-${tab}`}>
-      <TopBar api={api} onBack={props.onBack} onUndo={undo.length ? doUndo : undefined} />
-
-      {wide && (
-        <nav className="tabs-top" aria-label={t('nav.sections')}>
-          {TABS.map((x) => (
-            <button key={x} className={`tab ${tab === x ? 'active' : ''}`} onClick={() => props.onTab(x)}>
-              {t(`tab.${x}`)}
-            </button>
-          ))}
-          <span className="spacer" />
-          <button className="tab" onClick={props.onRules}>
-            {t('tab.rules')}
-          </button>
-        </nav>
-      )}
+      {/* the sticky head: vitals, then the tabs (computer; a phone has them at the bottom),
+          the screen's own tools (Cards/List, funnel) and the active filters */}
+      <TopBar api={api} onBack={props.onBack} onUndo={undo.length ? doUndo : undefined}>
+        <div className="head-row">
+          {wide && (
+            <nav className="tabs-top" aria-label={t('nav.sections')}>
+              {TABS.map((x) => (
+                <button key={x} className={`tab ${tab === x ? 'active' : ''}`} onClick={() => props.onTab(x)} aria-current={tab === x ? 'page' : undefined}>
+                  {t(`tab.${x}`)}
+                </button>
+              ))}
+              <button className="tab tab-rules" onClick={props.onRules}>
+                {t('tab.rules')}
+              </button>
+            </nav>
+          )}
+          <div className="head-chips" ref={setChips} />
+          <div className="head-tools" ref={setTools} />
+        </div>
+      </TopBar>
 
       <main className="sheet-main">
         {tab === 'play' && <PlayView api={api} />}

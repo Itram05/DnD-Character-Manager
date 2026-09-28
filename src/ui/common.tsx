@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { t } from '../i18n'
 import { damageClass, tokenize, type Token } from '../model/highlight'
 
@@ -317,3 +318,21 @@ export function useMediaQuery(q: string) {
 }
 
 export const fmtMod = (n: number) => (Number.isNaN(n) ? '?' : n >= 0 ? `+${n}` : `−${Math.abs(n)}`)
+
+// ---------------- the sheet's sticky head ----------------
+
+/** Places in the sheet's sticky head where a screen puts its own controls (Play, Spells). */
+export interface HeadSlots {
+  /** Right side: Cards/List, the funnel. */
+  tools: HTMLElement | null
+  /** The row of active filters. */
+  chips: HTMLElement | null
+}
+
+/**
+ * Renders `children` into a slot of the sticky head. Without the slot (server render in the tests,
+ * or the very first render before the head exists) they render in place, so nothing is lost.
+ */
+export function InHead({ at, children }: { at: HTMLElement | null | undefined; children: ReactNode }) {
+  return at ? createPortal(children, at) : <>{children}</>
+}

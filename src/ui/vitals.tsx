@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { SRD_CONDITIONS } from '../data/srd'
 import { t } from '../i18n'
 import { hitDiceAvailable, longRest, shortRest, spendHitDie } from '../model/rest'
@@ -23,7 +23,8 @@ export function classLine(c: Character) {
   return c.classes.map((k) => `${k.name} ${k.level}${k.subclass ? ` (${k.subclass})` : ''}`).join(' / ')
 }
 
-export function TopBar({ api, onBack, onUndo }: { api: SheetApi; onBack: () => void; onUndo?: () => void }) {
+/** Name row (scrolls away), then the sticky head: the vitals and `children` (the tabs and the screen's own controls). */
+export function TopBar({ api, onBack, onUndo, children }: { api: SheetApi; onBack: () => void; onUndo?: () => void; children?: ReactNode }) {
   const { c, update } = api
   const [modal, setModal] = useState<null | 'hp' | 'short' | 'long' | 'conditions' | 'ac'>(null)
   const hp = c.combat.hp
@@ -51,54 +52,57 @@ export function TopBar({ api, onBack, onUndo }: { api: SheetApi; onBack: () => v
         )}
       </div>
 
-      <div className="vitals">
-        <button className={`hp-widget ${hp.current === 0 ? 'down' : bloodied ? 'bloodied' : ''}`} onClick={() => setModal('hp')} aria-label={t('hp.open')}>
-          <span className="hp-label">{t('hp.hp')}</span>
-          <span className="hp-nums">
-            <b>{hp.current}</b>/{hp.max}
-            {hp.temp > 0 && <span className="temp-badge">+{hp.temp}</span>}
-          </span>
-          <span className="hp-bar">
-            <span className="hp-fill" style={{ width: `${pct}%` }} />
-          </span>
-        </button>
-        <button className="stat-chip ac" onClick={() => setModal('ac')} title={t('vitals.acTitle')}>
-          <span className="chip-label">{t('vitals.ac')}</span>
-          <b>{ac.total}</b>
-        </button>
-        <div className="stat-chip">
-          <span className="chip-label">{t('vitals.init')}</span>
-          <b>{fmtMod(initiative(c))}</b>
-        </div>
-        <div className="stat-chip">
-          <span className="chip-label">{t('vitals.speed')}</span>
-          <b>{effectiveSpeed(c)}</b>
-        </div>
-        <div className="stat-chip">
-          <span className="chip-label">{t('vitals.pb')}</span>
-          <b>{fmtMod(proficiencyBonus(totalLevel(c)))}</b>
-        </div>
-        <button
-          className={`stat-chip insp ${c.heroicInspiration ? 'on' : ''}`}
-          onClick={() => update((x) => ({ ...x, heroicInspiration: !x.heroicInspiration }))}
-          title={t('vitals.inspirationTitle')}
-          aria-pressed={c.heroicInspiration}
-        >
-          <span className="chip-label">{t('vitals.inspiration')}</span>
-          <b>{c.heroicInspiration ? '★' : '☆'}</b>
-        </button>
-        <button className={`stat-chip cond ${condCount ? 'on' : ''}`} onClick={() => setModal('conditions')}>
-          <span className="chip-label">{t('vitals.conditions')}</span>
-          <b>{condCount || '—'}</b>
-        </button>
-        <div className="rest-btns">
-          <button className="btn btn-rest" onClick={() => setModal('short')}>
-            {t('rest.short')}
+      <div className="sheet-head">
+        <div className="vitals">
+          <button className={`hp-widget ${hp.current === 0 ? 'down' : bloodied ? 'bloodied' : ''}`} onClick={() => setModal('hp')} aria-label={t('hp.open')}>
+            <span className="hp-label">{t('hp.hp')}</span>
+            <span className="hp-nums">
+              <b>{hp.current}</b>/{hp.max}
+              {hp.temp > 0 && <span className="temp-badge">+{hp.temp}</span>}
+            </span>
+            <span className="hp-bar">
+              <span className="hp-fill" style={{ width: `${pct}%` }} />
+            </span>
           </button>
-          <button className="btn btn-rest long" onClick={() => setModal('long')}>
-            {t('rest.long')}
+          <button className="stat-chip ac" onClick={() => setModal('ac')} title={t('vitals.acTitle')}>
+            <span className="chip-label">{t('vitals.ac')}</span>
+            <b>{ac.total}</b>
           </button>
+          <div className="stat-chip">
+            <span className="chip-label">{t('vitals.init')}</span>
+            <b>{fmtMod(initiative(c))}</b>
+          </div>
+          <div className="stat-chip">
+            <span className="chip-label">{t('vitals.speed')}</span>
+            <b>{effectiveSpeed(c)}</b>
+          </div>
+          <div className="stat-chip">
+            <span className="chip-label">{t('vitals.pb')}</span>
+            <b>{fmtMod(proficiencyBonus(totalLevel(c)))}</b>
+          </div>
+          <button
+            className={`stat-chip insp ${c.heroicInspiration ? 'on' : ''}`}
+            onClick={() => update((x) => ({ ...x, heroicInspiration: !x.heroicInspiration }))}
+            title={t('vitals.inspirationTitle')}
+            aria-pressed={c.heroicInspiration}
+          >
+            <span className="chip-label">{t('vitals.inspiration')}</span>
+            <b>{c.heroicInspiration ? '★' : '☆'}</b>
+          </button>
+          <button className={`stat-chip cond ${condCount ? 'on' : ''}`} onClick={() => setModal('conditions')}>
+            <span className="chip-label">{t('vitals.conditions')}</span>
+            <b>{condCount || '—'}</b>
+          </button>
+          <div className="rest-btns">
+            <button className="btn btn-rest" onClick={() => setModal('short')}>
+              {t('rest.short')}
+            </button>
+            <button className="btn btn-rest long" onClick={() => setModal('long')}>
+              {t('rest.long')}
+            </button>
+          </div>
         </div>
+        {children}
       </div>
 
       {(c.conditions.length > 0 || c.exhaustion > 0) && (

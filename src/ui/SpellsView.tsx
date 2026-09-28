@@ -2,10 +2,9 @@ import { useMemo, useState } from 'react'
 import { srdClass } from '../data/srd'
 import { t } from '../i18n'
 import { casterType, castingStats, classColumnValue } from '../model/rules'
-import { filterOptions, matchesFilter } from '../model/filter'
-import { spellTags } from '../model/tags'
+import { filterOptions, matchesFilter, spellFilterable } from '../model/filter'
 import type { Spell } from '../model/types'
-import { Check, fmtMod } from './common'
+import { Check, InHead, fmtMod } from './common'
 import { SpellEditor, blankSpell, fromSrdSpell, useSrdSpells } from './editors'
 import type { SheetApi } from './Sheet'
 import { ActiveFilters, FilterButton } from './filter'
@@ -21,7 +20,8 @@ export function SpellsView({ api }: { api: SheetApi }) {
   const casters = c.classes.filter((k) => casterType(k) !== 'none')
   const myClassNames = c.classes.map((k) => srdClass(k.id)?.name).filter(Boolean) as string[]
 
-  const tagged = useMemo(() => c.spells.map((s) => ({ s, tags: spellTags(s) })), [c.spells])
+  // what the filter looks at: casting time (the Action group) and tags
+  const tagged = useMemo(() => c.spells.map((s) => ({ s, ...spellFilterable(s) })), [c.spells])
   const filterGroups = useMemo(() => filterOptions(tagged, filter), [tagged, filter])
   const byLevel = useMemo(() => {
     const m = new Map<number, Spell[]>()
@@ -116,11 +116,16 @@ export function SpellsView({ api }: { api: SheetApi }) {
       </section>
 
       {c.spells.length > 0 && (
-        <div className="spells-filter">
-          <h3>{t('spells.mine')}</h3>
-          <FilterButton groups={filterGroups} selected={filter} onChange={setFilter} />
-          <ActiveFilters selected={filter} onChange={setFilter} />
-        </div>
+        <>
+          <h3 className="spells-mine">{t('spells.mine')}</h3>
+          {/* the funnel and the active filters live in the sheet's sticky head */}
+          <InHead at={api.head?.tools}>
+            <FilterButton groups={filterGroups} selected={filter} onChange={setFilter} />
+          </InHead>
+          <InHead at={api.head?.chips}>
+            <ActiveFilters selected={filter} onChange={setFilter} />
+          </InHead>
+        </>
       )}
       {byLevel.length === 0 && <p className="muted panel">{filter.length ? t('filter.noMatch') : t('spells.none')}</p>}
       {byLevel.map(([lvl, list]) => (

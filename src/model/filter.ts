@@ -1,4 +1,4 @@
-// The card filter behind the funnel button (Play screen, Spells tab). Pure logic, no React.
+// The card filter behind the funnel button (Play screen, Spells tab), shown in the sheet's sticky head. Pure logic, no React.
 //
 // A selection is a list of keys "group:value", e.g. ["zone:action", "cat:healing", "dmg:fire"].
 // Groups and how they combine:
@@ -9,8 +9,9 @@
 //   asks for Fire or Cold damage instead of any damage. They sit in the Category criterion, so
 //   "Healing + Fire" means "heals or deals Fire damage", like "Healing + Damage" does.
 import { DAMAGE_TYPES } from './highlight'
-import { PLAY_KINDS, ZONES, kindGroup, type CardKind, type Zone } from './play'
-import { CATEGORIES, PROPERTIES, tagGroup } from './tags'
+import { PLAY_KINDS, ZONES, kindGroup, spellZone, type CardKind, type Zone } from './play'
+import { CATEGORIES, PROPERTIES, spellTags, tagGroup } from './tags'
+import type { Spell } from './types'
 
 export type FilterGroup = 'zone' | 'kind' | 'cat' | 'dmg' | 'prop' | 'other'
 /** Display order of the groups (the panel and the active-filter row). */
@@ -144,3 +145,7 @@ export function selectedZones(selected: readonly string[]): Zone[] {
   return z.length ? ZONES.filter((x) => z.includes(x)) : ZONES
 }
 export const selectedKinds = (selected: readonly string[]) => bySelection(selected).kind
+
+/** A spell as the Spells tab filters it: the Action group by casting time (the same reading as the
+ *  Play hands: Action / Bonus / Reaction / Free & other), plus its tags. */
+export const spellFilterable = (s: Spell): Filterable => ({ zone: spellZone(s.castingTime), tags: spellTags(s) })
