@@ -38,6 +38,22 @@
   --mana: #3fbcc0;
   --pact: #a274e0;
 
+  /* rules-text highlighting: damage types, saves, healing, conditions */
+  --dmg-fire: #f08a4b;
+  --dmg-cold: #8fd3f4;
+  --dmg-lightning: #e9d44c;
+  --dmg-thunder: #8ea6f5;
+  --dmg-acid: #b8d44e;
+  --dmg-poison: #6cc46a;
+  --dmg-necrotic: #ab98bd;
+  --dmg-radiant: #f3c867;
+  --dmg-psychic: #ea8ccb;
+  --dmg-force: #c886ec;
+  --dmg-physical: #c2bcb0;
+  --hl-save: #5ccfbf;
+  --hl-heal: var(--good);
+  --hl-cond: #e39a8e;
+
   --card-w: 150px;
   --radius: 12px;
   --t: 180ms;
@@ -72,6 +88,19 @@
   --z-reaction: #2f6db3;
   --mana: #1d8d91;
   --pact: #7b4bbd;
+  --dmg-fire: #b24d12;
+  --dmg-cold: #1b6d99;
+  --dmg-lightning: #876f00;
+  --dmg-thunder: #2b44a3;
+  --dmg-acid: #5b7610;
+  --dmg-poison: #2b7a2a;
+  --dmg-necrotic: #5d4870;
+  --dmg-radiant: #95680a;
+  --dmg-psychic: #a0357f;
+  --dmg-force: #7a2ca3;
+  --dmg-physical: #5c574e;
+  --hl-save: #11756a;
+  --hl-cond: #a4402f;
   color-scheme: light;
 }
 
@@ -460,6 +489,50 @@ tr.clickable:hover {
 .rich table {
   font-size: 0.88rem;
   margin: 0.4rem 0;
+}
+
+/* automatic highlighting in rules text (src/model/highlight.ts) */
+.hl-dice,
+.hl-adv {
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.hl-dmg {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--dmg);
+  background: color-mix(in srgb, var(--dmg) 14%, transparent);
+  border-radius: 4px;
+  padding: 0 0.2em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.dmg-fire { --dmg: var(--dmg-fire); }
+.dmg-cold { --dmg: var(--dmg-cold); }
+.dmg-lightning { --dmg: var(--dmg-lightning); }
+.dmg-thunder { --dmg: var(--dmg-thunder); }
+.dmg-acid { --dmg: var(--dmg-acid); }
+.dmg-poison { --dmg: var(--dmg-poison); }
+.dmg-necrotic { --dmg: var(--dmg-necrotic); }
+.dmg-radiant { --dmg: var(--dmg-radiant); }
+.dmg-psychic { --dmg: var(--dmg-psychic); }
+.dmg-force { --dmg: var(--dmg-force); }
+.dmg-physical { --dmg: var(--dmg-physical); }
+.hl-save {
+  font-weight: 700;
+  color: var(--hl-save);
+}
+.hl-heal {
+  font-weight: 700;
+  color: var(--hl-heal);
+}
+.hl-heal .hl-dice {
+  color: inherit;
+}
+.hl-cond {
+  font-weight: 600;
+  color: var(--hl-cond);
 }
 
 /* ---------------- pips ---------------- */

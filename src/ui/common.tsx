@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { t } from '../i18n'
+import { damageClass, tokenize, type Token } from '../model/highlight'
 
 // ---------------- Modal ----------------
 
@@ -168,19 +169,49 @@ export function Check(props: { label: ReactNode; checked: boolean; onChange: (b:
 
 // ---------------- rich text (tiny markdown subset used by the SRD data) ----------------
 
+function renderToken(tok: Token, key: string): ReactNode {
+  switch (tok.kind) {
+    case 'text':
+      return tok.text
+    case 'dice':
+      return <strong key={key} className="hl-dice">{tok.text}</strong>
+    case 'damage':
+      return <strong key={key} className={`hl-dmg ${damageClass(tok.damageType)}`}>{tok.text}</strong>
+    case 'save':
+      return <strong key={key} className="hl-save">{tok.text}</strong>
+    case 'heal':
+      return <strong key={key} className="hl-heal">{tok.parts.map((p, i) => renderToken(p, `${key}-${i}`))}</strong>
+    case 'condition':
+      return <strong key={key} className="hl-cond">{tok.text}</strong>
+    case 'advantage':
+      return <strong key={key} className="hl-adv">{tok.text}</strong>
+  }
+}
+
+/** Plain text with dice, damage, saves, healing and conditions picked out. Builds React elements, no HTML strings. */
+function highlight(s: string, keyBase = 'h'): ReactNode[] {
+  return tokenize(s).map((tok, i) => renderToken(tok, `${keyBase}-${i}`))
+}
+
+/** Component form of the highlighting, for single-line texts such as the card face. */
+export function Highlighted({ text }: { text: string }) {
+  return <>{highlight(text)}</>
+}
+
 function inline(s: string, keyBase: string): ReactNode[] {
-  // **bold**, _italic_
+  // **bold**, _italic_; both the plain runs and the marked-up runs get the highlighting
   const out: ReactNode[] = []
   const re = /\*\*(.+?)\*\*|_(.+?)_/g
   let last = 0
   let m: RegExpExecArray | null
   let i = 0
   while ((m = re.exec(s))) {
-    if (m.index > last) out.push(s.slice(last, m.index))
-    out.push(m[1] !== undefined ? <strong key={`${keyBase}-${i++}`}>{m[1]}</strong> : <em key={`${keyBase}-${i++}`}>{m[2]}</em>)
+    if (m.index > last) out.push(...highlight(s.slice(last, m.index), `${keyBase}-t${i}`))
+    const k = `${keyBase}-${i++}`
+    out.push(m[1] !== undefined ? <strong key={k}>{highlight(m[1], k)}</strong> : <em key={k}>{highlight(m[2], k)}</em>)
     last = m.index + m[0].length
   }
-  if (last < s.length) out.push(s.slice(last))
+  if (last < s.length) out.push(...highlight(s.slice(last), `${keyBase}-t${i}`))
   return out
 }
 
@@ -213,7 +244,7 @@ export function RichText({ text, className }: { text: string; className?: string
                   {rows.slice(1).map((r, ri) => (
                     <tr key={ri}>
                       {r.map((cell, ci) => (
-                        <td key={ci}>{cell}</td>
+                        <td key={ci}>{highlight(cell, `${bi}-${ri}-${ci}`)}</td>
                       ))}
                     </tr>
                   ))}

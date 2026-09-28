@@ -2,7 +2,7 @@ import type React from 'react'
 import type { ReactNode } from 'react'
 import { t } from '../i18n'
 import type { Frame, PlayCard } from '../model/play'
-import { Pips } from './common'
+import { Highlighted, Pips } from './common'
 
 export const FRAME_GLYPH: Record<Frame | 'attack', string> = {
   class: '◆',
@@ -126,7 +126,7 @@ export function GameCard(props: { card: CardFace; mode: 'cards' | 'list'; onOpen
           {card.ritual && <span className="tag" title={t('spell.ritual')}>R</span>}
         </div>
         {card.stat && <div className="card-stat">{card.stat}</div>}
-        <div className="card-text">{card.text}</div>
+        <div className="card-text"><Highlighted text={card.text} /></div>
         <div className="card-foot" onClick={(e) => e.stopPropagation()}>
           {counter}
           {useBtn}
