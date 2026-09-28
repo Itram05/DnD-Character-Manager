@@ -190,7 +190,7 @@ To-hit and damage bonus are computed. Attacks appear as cards in the Action hand
 |---|---|
 | `name`, `quantity` (default 1), `weight`, `description` | |
 | `equipped` | |
-| `requiresAttunement`, `attuned` | At most 3 attuned items (extra ones are un-attuned on import). |
+| `requiresAttunement`, `attuned` | At most 3 attuned items (extra ones are un-attuned on import). An item that requires attunement but is not attuned is hidden from the Play screen (with any feature whose `source` is `{ "type": "item", "name": <item name> }`); attune it on the Gear tab. Attuning there also sets `equipped`. |
 | `armor` | `{ "base": 14, "dexCap": 2 }` — body armor. `dexCap`: `null` = full Dex (light), `2` (medium), `0` (heavy). |
 | `acBonus` | Added to AC while equipped (and attuned if required). Shield = 2. |
 | `saveBonus` | Added to all saving throws under the same condition (Ring/Cloak of Protection). |

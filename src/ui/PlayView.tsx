@@ -4,10 +4,10 @@ import {
   PLAY_KINDS,
   ZONES,
   castSpell,
-  isPassive,
   manaRows,
   paymentOptions,
   playCards,
+  playPassives,
   shortText,
   spendSlot,
   // plain function, not a React hook: the alias stops the linter from treating it as one
@@ -70,7 +70,7 @@ export function PlayView({ api }: { api: SheetApi }) {
   }, [c])
   const cards = kind === 'all' ? allCards : allCards.filter((x) => x.kind === kind)
   const sp = sorceryPoints(c)
-  const passives = c.features.filter(isPassive)
+  const passives = playPassives(c)
   const mana = manaRows(c)
   const conc = c.spellcasting.concentration
   const concSpell = c.spells.find((s) => s.name === conc)

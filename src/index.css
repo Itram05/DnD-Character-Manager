@@ -1927,6 +1927,26 @@ body.untap-step .card:not(.tapped) {
   color: var(--f-subclass);
   border-color: var(--f-subclass);
 }
+.attune-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.toggle.attune.at-limit {
+  opacity: 0.55;
+  border-style: dashed;
+}
+.toggle.attune.free-me {
+  outline: 2px solid var(--f-subclass);
+  outline-offset: 2px;
+}
+.attune-blocked {
+  border: 1px solid var(--f-subclass);
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+}
 .item-rows li {
   padding: 0.45rem 0;
   border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent);

@@ -138,6 +138,28 @@ export function armorClass(c: Character): AcBreakdown {
 export const attunedCount = (c: Character) => c.inventory.items.filter((i) => i.attuned).length
 export const MAX_ATTUNED = 3
 
+export type AttuneResult =
+  | { ok: true; character: Character }
+  /** Already at the limit: nothing changed; `attuned` names the items to un-attune from. */
+  | { ok: false; character: Character; attuned: string[] }
+
+/**
+ * Attunes or un-attunes an item. Attuning also equips it: a bonus (AC, saves) counts only
+ * when the item is both equipped and attuned, and "attuned but lying in the bag" is almost
+ * always a forgotten tap. Un-attuning leaves "equipped" as it is (you can still wear the item).
+ * A 4th attunement is refused, never silently: the caller gets the names of the attuned items.
+ */
+export function setAttunement(c: Character, itemId: string, on: boolean): AttuneResult {
+  const item = c.inventory.items.find((i) => i.id === itemId)
+  if (!item || !item.requiresAttunement || item.attuned === on) return { ok: true, character: c }
+  if (on && attunedCount(c) >= MAX_ATTUNED) {
+    return { ok: false, character: c, attuned: c.inventory.items.filter((i) => i.attuned).map((i) => i.name) }
+  }
+  const patch = on ? { attuned: true, equipped: true } : { attuned: false }
+  const items = c.inventory.items.map((i) => (i.id === itemId ? { ...i, ...patch } : i))
+  return { ok: true, character: { ...c, inventory: { ...c.inventory, items } } }
+}
+
 // ---------------- hit dice ----------------
 
 export function classHitDie(k: ClassEntry): number {

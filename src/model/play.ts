@@ -71,6 +71,27 @@ export function isPassive(f: Feature) {
   return f.activation === 'passive'
 }
 
+// ---------------- attunement filter ----------------
+// The Play screen shows only items you can use right now: items that need no attunement,
+// and attuned ones. An item that needs attunement but is not attuned lives only on the
+// Gear tab, where it can be attuned with one tap. "equipped" does not matter here:
+// potions and scrolls are not equipped, yet they belong on the Play screen.
+
+/** Does this item belong on the Play screen? */
+export const itemInPlay = (i: Pick<Item, 'requiresAttunement' | 'attuned'>) => !i.requiresAttunement || i.attuned
+
+const norm = (s: string) => s.trim().toLowerCase()
+
+/** A feature that comes from an item (source type "item", source name = item name) follows that item. */
+export function featureInPlay(c: Character, f: Feature): boolean {
+  if (f.source.type !== 'item' || !f.source.name.trim()) return true
+  const item = c.inventory.items.find((i) => norm(i.name) === norm(f.source.name))
+  return !item || itemInPlay(item)
+}
+
+/** Passive features shown on the Play screen ("battlefield"). */
+export const playPassives = (c: Character) => c.features.filter((f) => isPassive(f) && featureInPlay(c, f))
+
 export function featureCard(c: Character, f: Feature): PlayCard {
   const uses = usesView(c, f.uses)
   return {
@@ -136,9 +157,9 @@ export const castableSpells = (c: Character) => c.spells.filter((s) => s.level =
 export function playCards(c: Character): PlayCard[] {
   const cards: PlayCard[] = []
   // Sorcery Points live next to the spell slots, not in a hand.
-  for (const f of c.features) if (!isPassive(f) && !isSorceryPoints(f.uses)) cards.push(featureCard(c, f))
+  for (const f of c.features) if (!isPassive(f) && !isSorceryPoints(f.uses) && featureInPlay(c, f)) cards.push(featureCard(c, f))
   for (const s of castableSpells(c)) cards.push(spellCard(c, s))
-  for (const i of c.inventory.items) if (i.charges || i.activation) cards.push(itemCard(c, i))
+  for (const i of c.inventory.items) if ((i.charges || i.activation) && itemInPlay(i)) cards.push(itemCard(c, i))
   return cards
 }
 

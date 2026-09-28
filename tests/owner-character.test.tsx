@@ -8,6 +8,7 @@ import { manaRows, playCards, useCard } from '../src/model/play'
 import { longRest } from '../src/model/rest'
 import { pointsToSlot, slotToPoints, sorceryFeature, sorceryPoints } from '../src/model/sorcery'
 import type { Character } from '../src/model/types'
+import { InventoryView } from '../src/ui/InventoryView'
 import { FlexibleCasting, PlayView } from '../src/ui/PlayView'
 import type { SheetApi } from '../src/ui/Sheet'
 
@@ -72,5 +73,36 @@ describe.skipIf(!existsSync(OWNER_FILE))("owner's character file", () => {
     const flex = text(renderToString(<FlexibleCasting api={api('cards')} onClose={() => {}} />))
     expect(flex).toContain('7 points → level 5 slot')
     expect(flex).toContain('Level 6 slot → +6')
+  })
+})
+
+// The owner's current character file kept by Itram (3 attuned items: Staff of Ages, Silent Amulet, Pearl of Power).
+const GRAV_FILE = 'F:/Claude/Itram/geroi/grav-srashtite.json'
+describe.skipIf(!existsSync(GRAV_FILE))("owner's character: attunement on the Play screen", () => {
+  const text = existsSync(GRAV_FILE) ? readFileSync(GRAV_FILE, 'utf8') : '{}'
+  const { character: c, warnings } = importCharacterJson(text)
+
+  it('imports without warnings and loses nothing', () => {
+    expect(warnings).toEqual([])
+    // hand-written file: the import only adds defaults, every field written in it survives unchanged
+    expect(JSON.parse(JSON.stringify(c))).toMatchObject(JSON.parse(text))
+    // and an export of it imports back identically
+    const again = importCharacterJson(JSON.stringify(c))
+    expect(again.warnings).toEqual([])
+    expect(again.character).toEqual(c)
+  })
+  it('keeps its 3 attuned items and shows only usable items in Play', () => {
+    expect(c.inventory.items.filter((i) => i.attuned).map((i) => i.name)).toEqual(['Staff of Ages', 'Silent Amulet', 'Pearl of Power'])
+    const names = playCards(c).filter((x) => x.kind === 'item').map((x) => x.name)
+    expect(names).toEqual(expect.arrayContaining(['Staff of Ages', 'Pearl of Power', 'Helm of the Constellation', 'Potion of Healing']))
+    expect(names).not.toContain('Wand of Web')
+  })
+  it('Play hides Wand of Web; the Gear tab shows the counter and every attunable item', () => {
+    const api: SheetApi = { c, update: () => {}, toast: () => {}, settings: { theme: 'dark', view: 'list' }, setSettings: () => {}, go: () => {} }
+    const text = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
+    expect(text(renderToString(<PlayView api={api} />))).not.toContain('Wand of Web')
+    const gear = text(renderToString(<InventoryView api={api} />))
+    expect(gear).toContain('Attunement: 3/3')
+    for (const n of ['Staff of Ages', 'Silent Amulet', 'Pearl of Power', 'Amulet of the Half-Closed Eye', 'Wand of Web', 'Ring of Feather Falling']) expect(gear).toContain(n)
   })
 })
