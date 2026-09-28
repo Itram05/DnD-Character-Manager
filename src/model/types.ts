@@ -156,7 +156,7 @@ export interface Item {
   /** Same rule as acBonus, added to every saving throw (Ring/Cloak of Protection). */
   saveBonus?: number
   charges?: Uses
-  /** Set this to make the item a card on the play screen (e.g. "bonus" for a potion in 2024). */
+  /** Set this to make the item a card on the play screen. Potions and scrolls are recognized by name and do not need it (see consumables.ts). */
   activation?: Activation
   description?: string
 }

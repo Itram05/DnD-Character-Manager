@@ -2487,3 +2487,130 @@ details summary {
 .flex-rules {
   margin-top: 1rem;
 }
+
+/* ---------------- scrolls and potions ---------------- */
+
+/* scroll cards: "Action · 60 feet" under the type line */
+.card-meta {
+  font-size: 0.74rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.qty-none {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--danger);
+}
+.scroll-source {
+  margin: 0.2rem 0 0.4rem;
+}
+.scroll-note {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--line);
+  color: var(--muted);
+}
+/* six kinds now (All, Attacks, Features, Spells, Scrolls, Items) */
+@media (max-width: 899px) {
+  .play-controls .kind-filter {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+  }
+}
+
+/* potions: compact counters right under the HP bar, next to the spell slots */
+.play > .potions {
+  grid-area: potions;
+  padding: 0.45rem 0.6rem;
+}
+.play > .potions h3 {
+  margin: 0 0 0.3rem;
+}
+.play {
+  grid-template-areas: 'controls' 'potions' 'mana' 'conc' 'hands' 'field' 'empty';
+}
+@media (min-width: 900px) {
+  .play {
+    grid-template-areas: 'controls controls controls' 'potions potions potions' 'mana conc field' 'hands hands hands' 'empty empty empty';
+  }
+  .play:not(:has(.mana)) {
+    grid-template-areas: 'controls controls controls' 'potions potions potions' 'conc field field' 'hands hands hands' 'empty empty empty';
+  }
+  .play > .potions {
+    margin-bottom: 0.8rem;
+  }
+}
+.potion-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.potion {
+  --fc: var(--f-item);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border: 1px solid color-mix(in srgb, var(--fc) 55%, var(--line));
+  background: color-mix(in srgb, var(--fc) 10%, var(--panel));
+  border-radius: 10px;
+  flex: 1 1 150px;
+  max-width: 100%;
+}
+.potion .mini-btn {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+.potion-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  background: none;
+  border: 0;
+  padding: 0 0.2rem;
+  text-align: left;
+  line-height: 1.15;
+  cursor: pointer;
+  color: inherit;
+}
+.potion-name .pn {
+  font-size: 0.85rem;
+  font-weight: 600;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.potion-name .pd {
+  font-size: 0.74rem;
+  color: var(--hl-heal);
+  font-variant-numeric: tabular-nums;
+}
+.potion .pq {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 2.2em;
+  text-align: center;
+}
+.potion.empty {
+  opacity: 0.55;
+}
+.potion.empty .pq {
+  color: var(--danger);
+}
+@media (max-width: 899px) {
+  .play > .potions {
+    margin-bottom: 0.6rem;
+  }
+  .play > .potions h3 {
+    font-size: 0.78rem;
+  }
+}

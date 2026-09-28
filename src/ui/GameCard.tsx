@@ -15,6 +15,9 @@ export const FRAME_GLYPH: Record<Frame | 'attack', string> = {
   other: '•',
   attack: '⚔',
 }
+/** Scrolls keep the spell frame (colour) but get their own glyph, so they read as "not from your slots". */
+export const SCROLL_GLYPH = '✉'
+const glyphOf = (card: CardFace) => (card.kind === 'scroll' ? SCROLL_GLYPH : FRAME_GLYPH[card.frame])
 
 export interface CardFace extends Omit<PlayCard, 'frame' | 'kind'> {
   frame: Frame | 'attack'
@@ -24,7 +27,7 @@ export interface CardFace extends Omit<PlayCard, 'frame' | 'kind'> {
 }
 
 function CostGem({ card }: { card: CardFace }) {
-  if (card.kind === 'spell')
+  if (card.kind === 'spell' || (card.kind === 'scroll' && card.spellLevel !== undefined))
     return (
       <span className={`gem gem-spell ${card.cost === 'C' ? 'gem-cantrip' : ''}`} title={card.cost === 'C' ? t('card.cantrip') : t('card.spellLevel', { n: card.cost })}>
         {card.cost}
@@ -57,6 +60,18 @@ function QuantityStepper({ card, onUse, onUndo }: { card: CardFace; onUse?: () =
   )
 }
 
+/** Scrolls: "×2" next to a "Use" button; at 0 it says so and the card stays (tapped) until removed on the Gear tab. */
+function ScrollCount({ card }: { card: CardFace }) {
+  const n = card.quantity ?? 0
+  return n > 0 ? (
+    <span className="qty" aria-label={t('card.quantityOf', { name: card.name, n })}>
+      ×{n}
+    </span>
+  ) : (
+    <span className="qty qty-none">{t('scroll.noneLeft')}</span>
+  )
+}
+
 /** One card (or one list row). Clicking the body opens the zoomed view. */
 export function GameCard(props: { card: CardFace; mode: 'cards' | 'list'; onOpen: () => void; onUse?: () => void; onUndo?: () => void; useLabel?: string }) {
   const { card, mode } = props
@@ -70,12 +85,15 @@ export function GameCard(props: { card: CardFace; mode: 'cards' | 'list'; onOpen
   const counter =
     card.uses && card.uses.max > 0 ? (
       <Pips max={card.uses.max} left={card.uses.left} size="sm" onSpend={props.onUse} onRestore={props.onUndo} label={t('common.usesLeft', { left: card.uses.left, max: card.uses.max })} />
+    ) : card.kind === 'scroll' ? (
+      <ScrollCount card={card} />
     ) : card.quantity !== undefined ? (
       <QuantityStepper card={card} onUse={props.onUse} onUndo={props.onUndo} />
     ) : null
 
-  // consumables are used with the stepper's minus button; a separate "Use" would do the same thing
-  const useBtn = props.onUse && card.quantity === undefined && (
+  // consumables are used with the stepper's minus button; a separate "Use" would do the same thing.
+  // Scrolls have no stepper: "Use" reads one (and can start concentration), the count sits beside it.
+  const useBtn = props.onUse && (card.quantity === undefined || card.kind === 'scroll') && (
     <button
       className="card-use"
       onClick={(e) => {
@@ -95,13 +113,14 @@ export function GameCard(props: { card: CardFace; mode: 'cards' | 'list'; onOpen
         <CostGem card={card} />
         <span className="row-name">
           <span className="glyph" aria-hidden="true">
-            {FRAME_GLYPH[card.frame]}
+            {glyphOf(card)}
           </span>
           {card.name}
           {card.concentration && <span className="tag">C</span>}
           {card.ritual && <span className="tag">R</span>}
         </span>
         {card.stat && <span className="row-stat">{card.stat}</span>}
+        {card.meta && <span className="row-stat muted">{card.meta}</span>}
         <span className="row-counter" onClick={(e) => e.stopPropagation()}>
           {counter}
         </span>
@@ -119,13 +138,14 @@ export function GameCard(props: { card: CardFace; mode: 'cards' | 'list'; onOpen
         </div>
         <div className="card-type">
           <span className="glyph" aria-hidden="true">
-            {FRAME_GLYPH[card.frame]}
+            {glyphOf(card)}
           </span>
           <span className="type-text">{card.sourceLabel}</span>
           {card.concentration && <span className="tag" title={t('spell.concentration')}>C</span>}
           {card.ritual && <span className="tag" title={t('spell.ritual')}>R</span>}
         </div>
         {card.stat && <div className="card-stat">{card.stat}</div>}
+        {card.meta && <div className="card-meta">{card.meta}</div>}
         <div className="card-text"><Highlighted text={card.text} /></div>
         <div className="card-foot" onClick={(e) => e.stopPropagation()}>
           {counter}

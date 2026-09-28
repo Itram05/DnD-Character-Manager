@@ -195,7 +195,9 @@ To-hit and damage bonus are computed. Attacks appear as cards in the Action hand
 | `acBonus` | Added to AC while equipped (and attuned if required). Shield = 2. |
 | `saveBonus` | Added to all saving throws under the same condition (Ring/Cloak of Protection). |
 | `charges` | [uses](#uses). |
-| `activation` | Makes the item a card: `action`, `bonus` (potions in 2024), ... Without `charges`, the card is a consumable (potion, scroll): − and + on the card lower and raise `quantity`. |
+| `activation` | Makes the item a card: `action`, `bonus`, ... Without `charges`, the card is a consumable: − and + on the card lower and raise `quantity`. Potions and scrolls are recognized by name instead (below) and need no `activation`. |
+
+**Potions and scrolls** are ordinary items; the Play screen only reads their name (src/model/consumables.ts). An item **without `charges`** is a *scroll* if its name contains "scroll" (not "scroll case/tube"); the spell is taken from "Scroll of X", "Spell Scroll of X", "Spell Scroll (X)", "Scroll: X" or "X scroll", and its text from the character's spells, then the SRD, then the item's `description`. Otherwise it is a *potion* if its name contains "potion", "elixir" or "philter"; potions are counters at the top of the Play screen, not cards.
 
 ## roleplay
 

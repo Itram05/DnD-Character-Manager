@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { importCharacterJson } from '../src/model/normalize'
-import { manaRows, playCards, useCard } from '../src/model/play'
+import { manaRows, playCards, playPotions, useCard } from '../src/model/play'
 import { longRest } from '../src/model/rest'
 import { pointsToSlot, slotToPoints, sorceryFeature, sorceryPoints } from '../src/model/sorcery'
 import type { Character } from '../src/model/types'
@@ -51,12 +51,12 @@ describe.skipIf(!existsSync(OWNER_FILE))("owner's character file", () => {
     expect(x.spellcasting.bonusSlots).toBeUndefined()
     expect(x.spellcasting.slotsOverride).toEqual([4, 3, 3, 3, 2, 1])
   })
-  it('potions and scrolls get a quantity counter', () => {
-    const greater = playCards(c).find((x) => x.name === 'Potion of Greater Healing')!
+  it('potions are counters, scrolls are scroll cards with a quantity', () => {
+    const greater = playPotions(c).find((x) => x.name === 'Potion of Greater Healing')!
     expect(greater.quantity).toBe(8)
-    const after = useCard(c, greater, 1)
-    expect(playCards(after).find((x) => x.name === 'Potion of Greater Healing')!.quantity).toBe(7)
-    expect(playCards(c).filter((x) => x.kind === 'item' && x.quantity !== undefined).map((x) => x.name)).toContain('Scroll of Scorching Ray')
+    const after = useCard(c, { kind: 'item', id: greater.id }, 1)
+    expect(playPotions(after).find((x) => x.name === 'Potion of Greater Healing')!.quantity).toBe(7)
+    expect(playCards(c).filter((x) => x.kind === 'scroll').map((x) => x.name)).toContain('Scroll of Scorching Ray')
   })
   it('the Play screen renders with it (server render, no browser)', () => {
     const c2 = pointsToSlot(c, 5)!.character
@@ -65,8 +65,8 @@ describe.skipIf(!existsSync(OWNER_FILE))("owner's character file", () => {
     for (const view of ['cards', 'list'] as const) {
       const t = text(renderToString(<PlayView api={api(view)} />))
       expect(t).toContain('Sorcery Points')
-      expect(t).toContain('Potion of Greater Healing')
-      expect(t).toContain('− × 8 +')
+      expect(t).toContain('Greater Healing')
+      expect(t).toContain('× 8 +')
       expect(t).toContain('Attacks ( 5 )')
       expect(t).not.toContain('Font of Magic')
     }
@@ -94,7 +94,8 @@ describe.skipIf(!existsSync(GRAV_FILE))("owner's character: attunement on the Pl
   it('keeps its 3 attuned items and shows only usable items in Play', () => {
     expect(c.inventory.items.filter((i) => i.attuned).map((i) => i.name)).toEqual(['Staff of Ages', 'Silent Amulet', 'Pearl of Power'])
     const names = playCards(c).filter((x) => x.kind === 'item').map((x) => x.name)
-    expect(names).toEqual(expect.arrayContaining(['Staff of Ages', 'Pearl of Power', 'Helm of the Constellation', 'Potion of Healing']))
+    expect(names).toEqual(expect.arrayContaining(['Staff of Ages', 'Pearl of Power', 'Helm of the Constellation']))
+    expect(playPotions(c).map((x) => x.name)).toContain('Potion of Healing')
     expect(names).not.toContain('Wand of Web')
   })
   it('Play hides Wand of Web; the Gear tab shows the counter and every attunable item', () => {
@@ -104,5 +105,65 @@ describe.skipIf(!existsSync(GRAV_FILE))("owner's character: attunement on the Pl
     const gear = text(renderToString(<InventoryView api={api} />))
     expect(gear).toContain('Attunement: 3/3')
     for (const n of ['Staff of Ages', 'Silent Amulet', 'Pearl of Power', 'Amulet of the Half-Closed Eye', 'Wand of Web', 'Ring of Feather Falling']) expect(gear).toContain(n)
+  })
+})
+
+// Potions as counters at the top of Play, scrolls as their own section under the spells (Grav's real file).
+describe.skipIf(!existsSync(GRAV_FILE))("owner's character: potions and scrolls", async () => {
+  const { loadSrdSpells } = await import('../src/data/srd')
+  const { scrollInfo, isScroll } = await import('../src/model/consumables')
+  const { GameCard } = await import('../src/ui/GameCard')
+  const srd = await loadSrdSpells()
+  const text = existsSync(GRAV_FILE) ? readFileSync(GRAV_FILE, 'utf8') : '{}'
+  const { character: c } = importCharacterJson(text)
+  const strip = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
+
+  it('the three healing potions are counters, not cards', () => {
+    expect(playPotions(c).map((i) => [i.name, i.quantity])).toEqual([
+      ['Potion of Healing', 1],
+      ['Potion of Greater Healing', 8],
+      ['Potion of Superior Healing', 2],
+    ])
+    expect(playCards(c, srd).some((x) => x.name.startsWith('Potion'))).toBe(false)
+  })
+  it('all six scrolls are scroll cards and every one finds its spell text', () => {
+    const scrolls = c.inventory.items.filter(isScroll)
+    expect(scrolls.map((i) => i.name)).toEqual(['Scroll of Scorching Ray', 'Scroll of Shatter', 'Scroll of Command', 'Scroll of Dispel Evil and Good', 'Scroll of Aid', 'Scroll of Knock'])
+    const from = Object.fromEntries(scrolls.map((i) => [i.name, scrollInfo(c, i, srd).from]))
+    // Command and Aid are in Grav's own spell list; the rest come from the SRD
+    expect(from).toEqual({
+      'Scroll of Scorching Ray': 'srd',
+      'Scroll of Shatter': 'srd',
+      'Scroll of Command': 'character',
+      'Scroll of Dispel Evil and Good': 'srd',
+      'Scroll of Aid': 'character',
+      'Scroll of Knock': 'srd',
+    })
+    for (const i of scrolls) expect(scrollInfo(c, i, srd).description.length).toBeGreaterThan(20)
+    expect(playCards(c, srd).filter((x) => x.kind === 'scroll')).toHaveLength(6)
+  })
+  it('a scroll card renders with level, count, Use, and highlighted spell text', async () => {
+    const face = playCards(c, srd).find((x) => x.name === 'Scroll of Shatter')!
+    for (const mode of ['cards', 'list'] as const) {
+      const html = renderToString(<GameCard card={face} mode={mode} onOpen={() => {}} onUse={() => {}} useLabel="Use" />)
+      expect(strip(html)).toContain('× 1')
+      expect(strip(html)).toContain('Use')
+    }
+    // the zoomed scroll shows the full spell text through the same highlighting as spells
+    const { RichText } = await import('../src/ui/common')
+    const shatter = c.inventory.items.find((i) => i.name === 'Scroll of Shatter')!
+    const zoom = renderToString(<RichText text={scrollInfo(c, shatter, srd).description} />)
+    expect(zoom).toContain('dmg-thunder')
+    expect(zoom).toContain('class="hl-save"')
+  })
+  it('the Play screen shows the potion bar and a Scrolls group; the Gear tab still lists the potions', () => {
+    const api: SheetApi = { c, update: () => {}, toast: () => {}, settings: { theme: 'dark', view: 'list' }, setSettings: () => {}, go: () => {} }
+    const play = strip(renderToString(<PlayView api={api} />))
+    expect(play).toContain('Potions')
+    expect(play).toContain('Greater Healing 4d4+4 × 8 +')
+    expect(play).toContain('Scrolls ( 6 )')
+    expect(play).not.toContain('Potion of Greater Healing')
+    const gear = strip(renderToString(<InventoryView api={api} />))
+    expect(gear).toContain('Potion of Greater Healing')
   })
 })

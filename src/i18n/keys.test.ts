@@ -26,6 +26,8 @@ describe('i18n keys', () => {
       'create.method.': ['standard', 'pointBuy', 'manual'],
       'create.kind.': ['ancestry', 'lineage', 'legacy'],
       'create.err.': ['class', 'customClass', 'background', 'customBackground', 'species', 'customSpecies', 'speciesOption', 'standardArray', 'pointBuy', 'manualRange', 'bonus'],
+      'scroll.from.': ['character', 'srd', 'item'],
+      'kind.': ['all', 'attack', 'feature', 'spell', 'scroll', 'item'],
       'rules.': ['turn', 'actions', 'conditions', 'rest', 'concentration', 'dying', 'changes', 'about'],
     }
     const missing = Object.entries(families).flatMap(([p, ks]) => ks.map((k) => p + k).filter((k) => !(k in en)))

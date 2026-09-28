@@ -1,7 +1,7 @@
 // Wave 1: consumable counters on the Play screen, cards split by kind, Sorcery Points and Flexible Casting.
 import { describe, expect, it } from 'vitest'
 import { importCharacterJson, normalizeCharacter } from './normalize'
-import { castSpell, manaRows, paymentOptions, playCards, spendSlot, useCard } from './play'
+import { PLAY_KINDS, castSpell, manaRows, paymentOptions, playCards, spendSlot, useCard } from './play'
 import { longRest, shortRest } from './rest'
 import { spellSlots } from './rules'
 import {
@@ -28,7 +28,7 @@ const sorcerer = (extra: object = {}, uses: object = { max: 'sorcerer.sorcery-po
     spells: [{ id: 'fb', name: 'Fireball', level: 3, prepared: true, castingTime: 'Action' }],
     inventory: {
       items: [
-        { id: 'pot', name: 'Potion of Healing', quantity: 3, activation: 'action' },
+        { id: 'pot', name: "Alchemist's Fire", quantity: 3, activation: 'action' },
         { id: 'wand', name: 'Wand', quantity: 1, activation: 'action', charges: { max: 7, recharge: 'dawn' } },
         { id: 'rope', name: 'Rope', quantity: 1 },
       ],
@@ -38,7 +38,8 @@ const sorcerer = (extra: object = {}, uses: object = { max: 'sorcerer.sorcery-po
 
 const points = (c: Character) => sorceryPoints(c)!
 
-describe('consumables (potions, scrolls)', () => {
+// potions and scrolls have their own places since then (consumables.test.ts); the stepper stays for other consumables
+describe('consumables with a quantity (flasks, ammunition...)', () => {
   it('an item with activation and no charges is a card with a quantity', () => {
     const c = sorcerer()
     const pot = playCards(c).find((x) => x.id === 'pot')!
@@ -66,6 +67,7 @@ describe('cards by kind', () => {
   it('every card has one of the filterable kinds', () => {
     const kinds = new Set(playCards(sorcerer()).map((x) => x.kind))
     expect([...kinds].sort()).toEqual(['feature', 'item', 'spell'])
+    for (const k of kinds) expect(PLAY_KINDS).toContain(k)
   })
 })
 

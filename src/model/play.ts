@@ -4,6 +4,8 @@
 // Metaphor: every active feature, prepared spell and usable item is a card.
 // Spent = "tapped" (turned sideways). Rests "untap" the cards they restore.
 // Spell slots are "mana". Passive features lie on the "battlefield".
+import type { SrdSpell } from '../data/srd'
+import { isPotion, isScroll, scrollInfo } from './consumables'
 import { pactSlots, spellSlots, usesMax } from './rules'
 import { bonusSlotsAt, isSorceryPoints } from './sorcery'
 import type { Activation, Character, Feature, Item, SourceType, Spell, Uses } from './types'
@@ -11,10 +13,11 @@ import type { Activation, Character, Feature, Item, SourceType, Spell, Uses } fr
 export type Zone = 'action' | 'bonus' | 'reaction' | 'other'
 export const ZONES: Zone[] = ['action', 'bonus', 'reaction', 'other']
 
-export type CardKind = 'feature' | 'spell' | 'item'
+export type CardKind = 'feature' | 'spell' | 'scroll' | 'item'
 /** Kinds the Play screen can be filtered by. Attacks are built in the UI, not here. */
 export type PlayKind = 'attack' | CardKind
-export const PLAY_KINDS: PlayKind[] = ['attack', 'feature', 'spell', 'item']
+// scrolls come right after spells, so in every hand they sit directly under them
+export const PLAY_KINDS: PlayKind[] = ['attack', 'feature', 'spell', 'scroll', 'item']
 export type Frame = SourceType | 'spell'
 
 export interface PlayCard {
@@ -30,13 +33,15 @@ export interface PlayCard {
   spellLevel?: number
   text: string
   uses?: { left: number; max: number }
-  /** For consumable items without charges (potions, scrolls): how many are left. Shown with - / + on the card. */
+  /** For consumable items without charges: how many are left. Shown with - / + on the card (scrolls: count + "Use"). */
   quantity?: number
   tapped: boolean
   /** Spell with no way to pay for it right now. */
   unaffordable?: boolean
   concentration?: boolean
   ritual?: boolean
+  /** Short line under the type, e.g. "Action · 60 feet" on a scroll. */
+  meta?: string
 }
 
 export const activationZone = (a: Activation | undefined): Zone =>
@@ -89,6 +94,9 @@ export function featureInPlay(c: Character, f: Feature): boolean {
   return !item || itemInPlay(item)
 }
 
+/** Potions: counters at the top of the Play screen, not cards. Same attunement filter as every item. */
+export const playPotions = (c: Character) => c.inventory.items.filter((i) => isPotion(i) && itemInPlay(i))
+
 /** Passive features shown on the Play screen ("battlefield"). */
 export const playPassives = (c: Character) => c.features.filter((f) => isPassive(f) && featureInPlay(c, f))
 
@@ -127,6 +135,29 @@ export function itemCard(c: Character, i: Item): PlayCard {
   }
 }
 
+/** A spell scroll: looks like the spell it holds, counts like an item. */
+export function scrollCard(c: Character, i: Item, srd?: readonly SrdSpell[]): PlayCard {
+  const s = scrollInfo(c, i, srd)
+  return {
+    key: `scroll:${i.id}`,
+    kind: 'scroll',
+    id: i.id,
+    name: i.name,
+    frame: 'spell',
+    sourceLabel: ['Scroll', s.school].filter(Boolean).join(' · '),
+    // casting from a scroll takes the spell's casting time
+    zone: s.castingTime ? spellZone(s.castingTime) : activationZone(i.activation ?? 'action'),
+    cost: s.level === undefined ? COST[i.activation ?? 'action'] || 'A' : s.level === 0 ? 'C' : String(s.level),
+    spellLevel: s.level,
+    text: shortText(s.description),
+    quantity: i.quantity,
+    tapped: i.quantity <= 0,
+    concentration: s.concentration,
+    ritual: s.ritual,
+    meta: [s.castingTime, s.range].filter(Boolean).join(' · ') || undefined,
+  }
+}
+
 export function spellCard(c: Character, s: Spell): PlayCard {
   const free = usesView(c, s.freeCasts)
   const opts = paymentOptions(c, s)
@@ -154,12 +185,20 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 /** Spells that are on the table: cantrips, prepared, always prepared. */
 export const castableSpells = (c: Character) => c.spells.filter((s) => s.level === 0 || s.prepared || s.alwaysPrepared)
 
-export function playCards(c: Character): PlayCard[] {
+/**
+ * All cards of the Play screen. Potions are not cards (they are counters at the top, see playPotions);
+ * scrolls are cards of their own kind. `srd` (loaded lazily) fills in scroll spells the character lacks.
+ */
+export function playCards(c: Character, srd?: readonly SrdSpell[]): PlayCard[] {
   const cards: PlayCard[] = []
   // Sorcery Points live next to the spell slots, not in a hand.
   for (const f of c.features) if (!isPassive(f) && !isSorceryPoints(f.uses) && featureInPlay(c, f)) cards.push(featureCard(c, f))
   for (const s of castableSpells(c)) cards.push(spellCard(c, s))
-  for (const i of c.inventory.items) if ((i.charges || i.activation) && itemInPlay(i)) cards.push(itemCard(c, i))
+  for (const i of c.inventory.items) {
+    if (!itemInPlay(i) || isPotion(i)) continue
+    if (isScroll(i)) cards.push(scrollCard(c, i, srd))
+    else if (i.charges || i.activation) cards.push(itemCard(c, i))
+  }
   return cards
 }
 
