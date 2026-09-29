@@ -1296,12 +1296,19 @@ tr.clickable:hover {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(var(--card-w), 40vw), 1fr));
   gap: 0.6rem;
-  align-items: start; /* cards of different height line up by their top edge */
+  /* every card in a row is as tall as the tallest one (the slots stretch, the card fills its slot), so
+     their tops, their Cast/Use buttons and their charges line up; the text is not cut for it, the shorter
+     cards just get empty room above the foot */
 }
 .card-slot {
   display: grid;
-  place-items: start center;
+  place-items: stretch center;
   min-width: 0;
+}
+/* a tapped card is turned sideways: at its own height, in the middle of the slot, so a tall row does not
+   make it longer than the slot is wide once turned */
+.card-slot:has(> .card.tapped) {
+  place-items: center;
 }
 .card {
   width: 100%;
@@ -1393,6 +1400,7 @@ tr.clickable:hover {
   overflow: hidden;
 }
 .card-foot {
+  margin-top: auto; /* at the bottom of the card, whatever is above it */
   display: flex;
   align-items: center;
   justify-content: space-between;
