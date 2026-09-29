@@ -141,7 +141,7 @@ const KNOWN = {
   spellcasting: ['slotsUsed', 'pactSlotsUsed', 'concentration', 'slotsOverride', 'pactOverride', 'bonusSlots'],
   pactOverride: ['slots', 'level'],
   inventory: ['items', 'money'],
-  item: ['id', 'name', 'quantity', 'equipped', 'requiresAttunement', 'attuned', 'weight', 'armor', 'acBonus', 'saveBonus', 'charges', 'activation', 'description', 'powers', 'tags'],
+  item: ['id', 'name', 'quantity', 'equipped', 'requiresAttunement', 'attuned', 'weight', 'armor', 'acBonus', 'saveBonus', 'spellDcBonus', 'spellAttackBonus', 'charges', 'activation', 'description', 'powers', 'tags'],
   armor: ['base', 'dexCap'],
   power: ['id', 'name', 'activation', 'cost', 'uses', 'description', 'tags'],
   money: ['cp', 'sp', 'ep', 'gp', 'pp'],
@@ -163,6 +163,57 @@ const MIGRATIONS: Record<number, (raw: Obj, warnings: string[]) => Obj> = {
   // v2 -> v3 adds only new fields with defaults: partySize (5), xpLog ([]) and timers ([]). The XP
   // total already existed and keeps its value. Nothing else changes meaning: a plain copy.
   2: (raw) => ({ ...raw }),
+}
+
+// Until 2026-09-29 an item's bonus to spells was a passive power whose NAME was the bonus: "+1 spell
+// save DC" (Witch Focus), "+3 spell attack" (Staff of Ages), counted while the item was in Play
+// (no attunement needed, or attuned). Now it is the item's spellDcBonus / spellAttackBonus, counted
+// like acBonus (equipped too). These are the exact patterns the old app read, so a file converts to
+// the same numbers. This runs on every read, not as a version step: schema 3 files saved before the
+// change (in the browser) have such powers too. After one save the powers are gone and it does nothing.
+const OLD_DC_BONUS = /^\+\s*(\d+)\s+(?:to\s+)?(?:your\s+)?spell\s+save\s+dcs?\s*$/i
+const OLD_ATTACK_BONUS = /^\+\s*(\d+)\s+(?:to\s+)?(?:your\s+)?spell\s+attacks?(?:\s+rolls?)?\s*$/i
+
+/**
+ * Turns the old bonus powers of one (already normalized) item into its bonus fields: the value goes
+ * to the field, the power's text to the end of the item's description, the power is removed. A power
+ * with a cost or its own uses is not a plain bonus and stays. If the old app counted the bonus but the
+ * item is not equipped (Witch Focus), it is equipped now, so the DC and spell attack stay the same.
+ */
+export function liftSpellBonusPowers(item: Item, path: string, warnings: string[]) {
+  if (!item.powers?.length) return
+  const countedBefore = !item.requiresAttunement || item.attuned
+  // a field already set by the new app wins; old powers add up only into a field they create
+  const fresh = new Set((['spellDcBonus', 'spellAttackBonus'] as const).filter((f) => item[f] === undefined))
+  let lifted = 0
+  const keep: ItemPower[] = []
+  for (const pw of item.powers) {
+    const plain = pw.activation === 'passive' && !pw.cost && !pw.uses
+    const dc = plain ? OLD_DC_BONUS.exec(pw.name.trim()) : null
+    const atk = plain && !dc ? OLD_ATTACK_BONUS.exec(pw.name.trim()) : null
+    const m = dc ?? atk
+    if (!m) {
+      keep.push(pw)
+      continue
+    }
+    const field = dc ? 'spellDcBonus' : 'spellAttackBonus'
+    const moved = pw.description.trim() ? '; its text was added to the item description' : ''
+    if (fresh.has(field)) {
+      item[field] = (item[field] ?? 0) + Number(m[1])
+      warnings.push(`${path}: the power "${pw.name}" is now the item's ${field} (${item[field]})${moved}.`)
+    } else {
+      warnings.push(`${path}: the power "${pw.name}" was removed: the item already has ${field} ${item[field]}${moved}.`)
+    }
+    lifted++
+    if (moved) item.description = [item.description, pw.description].filter((s) => s?.trim()).join('\n\n')
+  }
+  if (!lifted) return
+  if (keep.length) item.powers = keep
+  else delete item.powers
+  if (countedBefore && !item.equipped) {
+    item.equipped = true
+    warnings.push(`${path}: "${item.name}" is now equipped: a spell DC or spell attack bonus counts only while the item is equipped (like AC), and it counted before.`)
+  }
 }
 
 export function migrate(raw: Obj, from: number, warnings: string[]): Obj {
@@ -497,6 +548,9 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
       })
       if (powers.length) item.powers = powers
     }
+    if (it.spellDcBonus !== undefined) item.spellDcBonus = r.num(it.spellDcBonus, `${p}.spellDcBonus`, 0) || undefined
+    if (it.spellAttackBonus !== undefined) item.spellAttackBonus = r.num(it.spellAttackBonus, `${p}.spellAttackBonus`, 0) || undefined
+    liftSpellBonusPowers(item, p, warnings)
     const tg = r.tags(it.tags, `${p}.tags`)
     if (tg) item.tags = tg
     keep(it, item, KNOWN.item, p)

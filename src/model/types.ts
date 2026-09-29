@@ -179,6 +179,10 @@ export interface Item {
   acBonus?: number
   /** Same rule as acBonus, added to every saving throw (Ring/Cloak of Protection). */
   saveBonus?: number
+  /** Same rule as acBonus, added to the spell save DC (Witch Focus +1). Shown as a chip under "Always on". */
+  spellDcBonus?: number
+  /** Same rule as acBonus, added to spell attack rolls (Staff of Ages +3). Shown as a chip under "Always on". */
+  spellAttackBonus?: number
   charges?: Uses
   /** Set this to make the item a card on the play screen. Potions and scrolls are recognized by name and do not need it (see consumables.ts). */
   activation?: Activation

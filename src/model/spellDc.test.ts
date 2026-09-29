@@ -1,5 +1,6 @@
-// Spell save DC in the head (2026-09-29): 8 + spellcasting ability + PB + item bonuses written as
-// passive powers ("+1 spell save DC"); one value per spellcasting ability; nothing for a non-caster.
+// Spell save DC in the head (2026-09-29): 8 + spellcasting ability + PB + item bonuses; one value per
+// spellcasting ability; nothing for a non-caster. The item bonuses are the fields spellDcBonus and
+// spellAttackBonus (the conversion of the old powers named "+1 spell save DC" is in spellBonus.test.ts).
 // Also the one-tap "Set to the level's minimum" for XP that lags behind the sheet's level.
 import { describe, expect, it } from 'vitest'
 import { normalizeCharacter } from './normalize'
@@ -8,17 +9,16 @@ import { raiseXpToLevel, undoLastXp, xpProgress } from './xp'
 
 const make = (raw: Record<string, unknown>) => normalizeCharacter(raw).character
 
-const witchFocus = { id: 'wf', name: 'Witch Focus', quantity: 1, powers: [{ id: 'p1', name: '+1 spell save DC', activation: 'passive', description: '+1 spell save DC.' }] }
+const witchFocus = { id: 'wf', name: 'Witch Focus', quantity: 1, equipped: true, spellDcBonus: 1 }
 const staff = {
   id: 'st',
   name: 'Staff of Ages',
   quantity: 1,
+  equipped: true,
   requiresAttunement: true,
   attuned: true,
-  powers: [
-    { id: 'p2', name: '+3 spell attack', activation: 'passive', description: '**+3 to spell attack rolls** while holding it (not to spell DC).' },
-    { id: 'p3', name: 'Temporal Echo', activation: 'reaction', description: '+1 spell save DC in the text of an active power does not count.' },
-  ],
+  spellAttackBonus: 3,
+  powers: [{ id: 'p3', name: 'Temporal Echo', activation: 'reaction', description: '+1 spell save DC in the text of a power does not count.' }],
 }
 // Paladin 5 / Sorcerer 9, CHA 20: PB +5, CHA +5
 const grav = (items: unknown[] = []) =>
@@ -44,31 +44,25 @@ describe('spell save DC', () => {
       [19, 13],
     ])
   })
-  it('an item that needs attunement and is not attuned adds nothing (same rule as "Always on")', () => {
-    const off = { ...witchFocus, requiresAttunement: true, attuned: false }
+  it('same rule as AC: an item that is not equipped adds nothing', () => {
+    const off = { ...witchFocus, equipped: false }
     expect(itemSpellBonuses(grav([off])).dc).toEqual([])
     expect(spellDcView(grav([off]))[0].saveDc).toBe(18)
   })
-  it('only the NAME of a passive power counts, not descriptions or active powers', () => {
+  it('same rule as AC: equipped but needs attunement and is not attuned adds nothing', () => {
+    const off = { ...staff, attuned: false }
+    expect(itemSpellBonuses(grav([off])).attack).toEqual([])
+    expect(spellDcView(grav([off]))[0].attack).toBe(10)
+  })
+  it('text never counts: a power or a description saying "+2 spell save DC" adds nothing', () => {
     const b = itemSpellBonuses(grav([staff]))
     expect(b.dc).toEqual([])
     expect(b.attack).toHaveLength(1)
-    const loose = { id: 'x', name: 'Rod', quantity: 1, powers: [{ id: 'q', name: 'Spell focus', activation: 'passive', description: '+2 spell save DC' }] }
+    const loose = { id: 'x', name: 'Rod', quantity: 1, equipped: true, description: '+2 spell save DC', powers: [{ id: 'q', name: 'Spell focus', activation: 'passive', description: '+2 spell save DC' }] }
     expect(itemSpellBonuses(grav([loose])).dc).toEqual([])
   })
-  it('accepts "+2 to spell attack rolls" and "+1 to your spell save DC"', () => {
-    const it2 = {
-      id: 'y',
-      name: 'Wand of the War Mage',
-      quantity: 1,
-      powers: [
-        { id: 'a', name: '+2 to spell attack rolls', activation: 'passive' },
-        { id: 'b', name: '+1 to your spell save DC', activation: 'passive' },
-      ],
-    }
-    const b = itemSpellBonuses(grav([it2]))
-    expect(b.attack.map((x) => x.value)).toEqual([2])
-    expect(b.dc.map((x) => x.value)).toEqual([1])
+  it('a negative value counts too (a cursed focus)', () => {
+    expect(spellDcView(grav([{ id: 'z', name: 'Cursed Rod', equipped: true, spellDcBonus: -2 }]))[0].saveDc).toBe(16)
   })
   it('Cleric (WIS) + Wizard (INT) show two values, highest first', () => {
     const c = make({ abilities: { str: 10, dex: 10, con: 10, int: 14, wis: 18, cha: 10 }, classes: [{ id: 'wizard', level: 3 }, { id: 'cleric', level: 2 }] })

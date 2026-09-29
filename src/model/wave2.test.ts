@@ -237,8 +237,10 @@ const staffHero = (attuned = true): Character =>
           equipped: true,
           charges: { max: 3, recharge: 'dawn', regain: '1d3' },
           tags: ['staff'],
+          // since 2026-09-29 the +3 is a field, not a power named "+3 spell attack" (spellBonus.test.ts)
+          spellAttackBonus: 3,
           powers: [
-            { id: 'spell-atk', name: '+3 spell attack', activation: 'passive', description: '+3 to spell attack rolls while holding it.' },
+            { id: 'ageless', name: 'Ageless', activation: 'passive', description: "While attuned you don't age." },
             { id: 'echo', name: 'Temporal Echo', activation: 'reaction', cost: 'all', description: 'Undo the damage.' },
             { id: 'ward', name: 'Hourglass Ward', activation: 'bonus action', cost: 1, description: 'Absorb Elements.' },
             { id: 'init', name: 'Echo of Ages', activation: 'special', cost: '1', description: 'Advantage on initiative.' },
@@ -259,7 +261,7 @@ describe('item powers', () => {
     expect(warnings).toEqual([])
     const s = staffHero().inventory.items[0]
     expect(s.powers!.map((p) => [p.name, p.activation, p.cost])).toEqual([
-      ['+3 spell attack', 'passive', undefined],
+      ['Ageless', 'passive', undefined],
       ['Temporal Echo', 'reaction', 'all'],
       ['Hourglass Ward', 'bonus', 1],
       ['Echo of Ages', 'special', 1],
@@ -281,8 +283,9 @@ describe('item powers', () => {
   })
   it('passive powers are listed apart, not as cards', () => {
     const c = staffHero()
-    expect(playPassivePowers(c).map((x) => x.power.name)).toEqual(['+3 spell attack'])
-    expect(playCards(c).some((x) => x.name === '+3 spell attack')).toBe(false)
+    // the bonus field's chip first, then the item's own passive powers
+    expect(playPassivePowers(c).map((x) => x.power.name)).toEqual(['+3 spell attack', 'Ageless'])
+    expect(playCards(c).some((x) => x.name === '+3 spell attack' || x.name === 'Ageless')).toBe(false)
   })
   it('using a power spends its cost from the shared pool; "all" takes everything left', () => {
     let c = staffHero()

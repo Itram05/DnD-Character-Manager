@@ -103,6 +103,8 @@ export function InventoryView({ api }: { api: SheetApi }) {
                   {i.quantity !== 1 && <span className="qty">×{i.quantity}</span>}
                   {i.armor && <span className="tag">{t('inv.armorTag', { n: i.armor.base })}</span>}
                   {i.acBonus ? <span className="tag">AC {i.acBonus > 0 ? '+' : ''}{i.acBonus}</span> : null}
+                  {i.spellDcBonus ? <span className="tag">DC {i.spellDcBonus > 0 ? '+' : ''}{i.spellDcBonus}</span> : null}
+                  {i.spellAttackBonus ? <span className="tag">{t('inv.spellAttackTag')} {i.spellAttackBonus > 0 ? '+' : ''}{i.spellAttackBonus}</span> : null}
                   {i.powers?.length ? <span className="tag">{t('power.count', { n: i.powers.length })}</span> : null}
                   {i.requiresAttunement && !i.attuned && <span className="tag muted">{t('attune.notInPlay')}</span>}
                 </div>

@@ -277,26 +277,20 @@ export interface CastingPart {
   value: number
 }
 
-// An item's bonus to spells is written as a passive power whose NAME is the bonus: "+1 spell save
-// DC" (Witch Focus), "+3 spell attack" (Staff of Ages). The same power is the chip in "Always on", so
-// the bonus counts exactly when that chip is shown (itemInPlay). Only the name is read, never the
-// description: "+3 to spell attack rolls (not to spell DC)" must not add to the DC.
-const DC_BONUS = /^\+\s*(\d+)\s+(?:to\s+)?(?:your\s+)?spell\s+save\s+dcs?\s*$/i
-const ATTACK_BONUS = /^\+\s*(\d+)\s+(?:to\s+)?(?:your\s+)?spell\s+attacks?(?:\s+rolls?)?\s*$/i
+// An item's bonus to spells is a field of the item: spellDcBonus (Witch Focus +1), spellAttackBonus
+// (Staff of Ages +3). It counts under the same rule as acBonus: equipped, and attuned if the item
+// requires attunement (itemActive). The "Always on" chip is made from the same field under the same
+// rule (play.ts, itemBonusPowers), so the chip is shown exactly when the bonus counts.
+// (Until 2026-09-29 the bonus was read from a passive power's name; normalize.ts converts such powers.)
 
-/** Item bonuses to the spell save DC and to spell attacks, from the items' passive powers. */
+/** Item bonuses to the spell save DC and to spell attacks, from the items' fields. */
 export function itemSpellBonuses(c: Character): { dc: CastingPart[]; attack: CastingPart[] } {
   const dc: CastingPart[] = []
   const attack: CastingPart[] = []
   for (const i of c.inventory.items) {
-    if (!itemInPlay(i)) continue
-    for (const p of i.powers ?? []) {
-      if (p.activation !== 'passive') continue
-      const d = DC_BONUS.exec(p.name.trim())
-      if (d) dc.push({ kind: 'item', label: i.name, value: Number(d[1]) })
-      const a = ATTACK_BONUS.exec(p.name.trim())
-      if (a) attack.push({ kind: 'item', label: i.name, value: Number(a[1]) })
-    }
+    if (!itemActive(i)) continue
+    if (i.spellDcBonus) dc.push({ kind: 'item', label: i.name, value: i.spellDcBonus })
+    if (i.spellAttackBonus) attack.push({ kind: 'item', label: i.name, value: i.spellAttackBonus })
   }
   return { dc, attack }
 }

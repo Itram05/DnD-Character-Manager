@@ -1,30 +1,50 @@
-// Checks the owner's real character file against the Play screen logic of wave 1.
+// Checks the owner's real character files against the Play screen logic (waves 1 and 2, spell bonuses of wave 3).
 // Lives outside src/ so the app type-check does not need Node types.
 import { existsSync, readFileSync } from 'node:fs'
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import { importCharacterJson } from '../src/model/normalize'
-import { manaRows, playCards, playHealingPotions, useCard } from '../src/model/play'
+import { manaRows, playCards, playHealingPotions, playPassivePowers as passiveChips, useCard } from '../src/model/play'
 import { longRest } from '../src/model/rest'
+import { spellDcView } from '../src/model/rules'
 import { pointsToSlot, slotToPoints, sorceryFeature, sorceryPoints } from '../src/model/sorcery'
 import { CURRENT_SCHEMA_VERSION, type Character } from '../src/model/types'
 import { InventoryView } from '../src/ui/InventoryView'
 import { FlexibleCasting, PlayView } from '../src/ui/PlayView'
 import type { SheetApi } from '../src/ui/Sheet'
+import { GRAV_DESKTOP, GRAV_ITRAM, expectGravImportWarnings, gravAfterImport, ownerFile } from './ownerFiles'
 
 const points = (c: Character) => sorceryPoints(c)!
 
-// The owner's real character (Paladin 4 / Sorcerer 9, 2014 rules with slotsOverride).
-// The file lives outside the repo and is read-only here; the test is skipped where it is missing (CI).
-const OWNER_FILE = 'C:/Users/User/Desktop/character.json'
-describe.skipIf(!existsSync(OWNER_FILE))("owner's character file", () => {
+// The owner's real character as he imports it (Paladin 5 / Sorcerer 9, 2014 rules with slotsOverride).
+// A fixed path, not a search by pattern: the desktop also holds an older v1 copy for the published
+// site, and a pattern could pick that one without anyone noticing. Missing here = a failed test (ownerFiles.ts).
+const OWNER_FILE = GRAV_DESKTOP
+describe.skipIf(!ownerFile(OWNER_FILE))("owner's character file", () => {
   const text = existsSync(OWNER_FILE) ? readFileSync(OWNER_FILE, 'utf8') : '{}'
   const { character: c, warnings } = importCharacterJson(text)
 
-  it('imports without warnings and loses nothing', () => {
-    expect(warnings).toEqual([])
-    // schema 3 adds partySize, xpLog and timers with their defaults when the file has none
-    expect(JSON.parse(JSON.stringify(c))).toEqual({ partySize: 5, xpLog: [], timers: [], ...JSON.parse(text), schemaVersion: CURRENT_SCHEMA_VERSION })
+  it('imports and loses nothing: every field of the file, except the one listed conversion of the spell bonuses', () => {
+    expectGravImportWarnings(warnings)
+    // every field written in the file is there with the same value (lists keep their length and order);
+    // the importer may only ADD what the hand-edited file lacks: ids, defaults, and schema 3's partySize/xpLog/timers
+    expect(JSON.parse(JSON.stringify(c))).toMatchObject({ partySize: 5, xpLog: [], timers: [], ...gravAfterImport(JSON.parse(text)) })
+    expect(c.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
+    // and an export of it imports back identically, with nothing left to convert
+    const again = importCharacterJson(JSON.stringify(c))
+    expect(again.warnings).toEqual([])
+    expect(again.character).toEqual(c)
+  })
+  it('keeps DC 19 and spell attack +13 after the conversion (Witch Focus +1 equipped, Staff of Ages +3)', () => {
+    const v = spellDcView(c)
+    expect(v.map((x) => [x.saveDc, x.attack])).toEqual([[19, 13]])
+    expect(v[0].dcParts.filter((p) => p.kind === 'item')).toEqual([{ kind: 'item', label: 'Witch Focus', value: 1 }])
+    expect(v[0].attackParts.filter((p) => p.kind === 'item')).toEqual([{ kind: 'item', label: 'Staff of Ages', value: 3 }])
+    expect(passiveChips(c).map((p) => [p.item.name, p.power.name])).toEqual([
+      ['Staff of Ages', '+3 spell attack'],
+      ['Witch Focus', '+1 spell save DC'],
+      ['Helm of the Constellation', 'Truesight 60 ft'],
+    ])
   })
   it('finds Sorcery Points in Font of Magic (max "sorcerer" = 9)', () => {
     expect(sorceryFeature(c)!.name).toBe('Font of Magic')
@@ -63,13 +83,31 @@ describe.skipIf(!existsSync(OWNER_FILE))("owner's character file", () => {
     const c2 = pointsToSlot(c, 5)!.character
     const api = (view: 'cards' | 'list'): SheetApi => ({ c: c2, update: () => {}, toast: () => {}, settings: { theme: 'dark', view }, setSettings: () => {}, go: () => {} })
     const text = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
+    // a computer (900px and up) shows the full panels; the server render alone is a phone
+    const onComputer = (render: () => string) => {
+      vi.stubGlobal('window', { matchMedia: () => ({ matches: true, addEventListener() {}, removeEventListener() {} }), localStorage: { getItem: () => null, setItem() {} } })
+      try {
+        return render()
+      } finally {
+        vi.unstubAllGlobals()
+      }
+    }
     for (const view of ['cards', 'list'] as const) {
-      const t = text(renderToString(<PlayView api={api(view)} />))
-      expect(t).toContain('Sorcery Points')
-      expect(t).toContain('Greater Healing')
-      expect(t).toContain('× 8 +')
-      expect(t).toContain('Attacks ( 5 )')
-      expect(t).not.toContain('Font of Magic')
+      const wide = text(onComputer(() => renderToString(<PlayView api={api(view)} />)))
+      expect(wide).toContain('Sorcery Points')
+      expect(wide).toContain('Greater Healing')
+      expect(wide).toContain('× 8 +')
+      const phone = text(renderToString(<PlayView api={api(view)} />))
+      // since wave 2 a phone folds slots, SP and potions into the short Resources block
+      expect(phone).toContain('Resources')
+      expect(phone).toContain('SP 2')
+      expect(phone).toContain('Greater × 8')
+      for (const t of [wide, phone]) {
+        expect(t).toContain('Attacks ( 5 )')
+        expect(t).not.toContain('Font of Magic')
+        expect(t).toContain('+1 spell save DC · Witch Focus')
+        expect(t).toContain('+3 spell attack · Staff of Ages')
+      }
     }
     const flex = text(renderToString(<FlexibleCasting api={api('cards')} onClose={() => {}} />))
     expect(flex).toContain('7 points → level 5 slot')
@@ -78,16 +116,17 @@ describe.skipIf(!existsSync(OWNER_FILE))("owner's character file", () => {
 })
 
 // The owner's current character file kept by Itram (3 attuned items: Staff of Ages, Silent Amulet, Pearl of Power).
-const GRAV_FILE = 'F:/Claude/Itram/geroi/grav-srashtite.json'
-describe.skipIf(!existsSync(GRAV_FILE))("owner's character: attunement on the Play screen", () => {
+const GRAV_FILE = GRAV_ITRAM
+const HAVE_GRAV_FILE = ownerFile(GRAV_FILE)
+describe.skipIf(!HAVE_GRAV_FILE)("owner's character: attunement on the Play screen", () => {
   const text = existsSync(GRAV_FILE) ? readFileSync(GRAV_FILE, 'utf8') : '{}'
   const { character: c, warnings } = importCharacterJson(text)
 
-  it('imports without warnings and loses nothing', () => {
-    expect(warnings).toEqual([])
+  it('imports and loses nothing but the listed conversion of the spell bonuses', () => {
+    expectGravImportWarnings(warnings)
     // hand-written file: the import only adds defaults, every field written in it survives unchanged
-    // (an older file comes out as the current version: that number is the only change the migrations make)
-    expect(JSON.parse(JSON.stringify(c))).toMatchObject({ ...JSON.parse(text), schemaVersion: CURRENT_SCHEMA_VERSION })
+    // except the spell bonus powers that became fields (gravAfterImport lists that change exactly)
+    expect(JSON.parse(JSON.stringify(c))).toMatchObject(gravAfterImport(JSON.parse(text)))
     // and an export of it imports back identically
     const again = importCharacterJson(JSON.stringify(c))
     expect(again.warnings).toEqual([])
@@ -114,7 +153,7 @@ describe.skipIf(!existsSync(GRAV_FILE))("owner's character: attunement on the Pl
 })
 
 // Healing potions as counters next to Concentration, scrolls (and other potions) as their own group under the spells (Grav's real file).
-describe.skipIf(!existsSync(GRAV_FILE))("owner's character: potions and scrolls", async () => {
+describe.skipIf(!HAVE_GRAV_FILE)("owner's character: potions and scrolls", async () => {
   const { loadSrdSpells } = await import('../src/data/srd')
   const { scrollInfo, isScroll, isPotion, healingDice } = await import('../src/model/consumables')
   const { GameCard } = await import('../src/ui/GameCard')
@@ -228,7 +267,7 @@ describe.skipIf(!existsSync(GRAV_FILE))("owner's character: potions and scrolls"
 })
 
 // Wave 2 on Grav's real file: item powers as cards, passive powers apart, tags on his spells.
-describe.skipIf(!existsSync(GRAV_FILE))("owner's character: item powers and tags", async () => {
+describe.skipIf(!HAVE_GRAV_FILE)("owner's character: item powers and tags", async () => {
   const { setAttunement } = await import('../src/model/rules')
   const { playPassivePowers, spendPower } = await import('../src/model/play')
   const { CATEGORIES, spellTags } = await import('../src/model/tags')

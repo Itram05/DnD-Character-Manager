@@ -1,16 +1,17 @@
 // The icon strip on the cards of the owner's character, Grav (Paladin / Sorcerer, level 14, 2014 rules).
-// The file lives outside the repo and is read-only here; the test is skipped where it is missing (CI).
+// The file lives outside the repo and is read-only here; missing = a failed test, skipped only in CI (ownerFiles.ts).
 import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import srdSpells from '../src/data/srd/spells.json'
 import type { SrdSpell } from '../src/data/srd'
 import { importCharacterJson } from '../src/model/normalize'
 import { playCards } from '../src/model/play'
+import { GRAV_DESKTOP, ownerFile } from './ownerFiles'
 
-const GRAV = 'C:/Users/User/Desktop/grav-srashtite-lv14.json'
+const GRAV = GRAV_DESKTOP
 const srd = (srdSpells as unknown as { data: SrdSpell[] }).data
 
-describe.skipIf(!existsSync(GRAV))('icon strip on Grav', () => {
+describe.skipIf(!ownerFile(GRAV))('icon strip on Grav', () => {
   const { character: c } = importCharacterJson(existsSync(GRAV) ? readFileSync(GRAV, 'utf8') : '{}')
   const cards = playCards(c, srd)
   const strip = (name: string) => cards.find((k) => k.name === name)?.strip

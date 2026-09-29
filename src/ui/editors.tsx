@@ -242,6 +242,8 @@ export function ItemEditor({ api, initial, onClose }: { api: SheetApi; initial: 
         <NumberField label={t('item.weight')} value={it.weight ?? 0} min={0} step={0.5} onChange={(weight) => setIt({ ...it, weight })} />
         <NumberField label={t('item.acBonus')} value={it.acBonus ?? 0} onChange={(acBonus) => setIt({ ...it, acBonus: acBonus || undefined })} />
         <NumberField label={t('item.saveBonus')} value={it.saveBonus ?? 0} onChange={(saveBonus) => setIt({ ...it, saveBonus: saveBonus || undefined })} />
+        <NumberField label={t('item.spellDcBonus')} value={it.spellDcBonus ?? 0} onChange={(spellDcBonus) => setIt({ ...it, spellDcBonus: spellDcBonus || undefined })} />
+        <NumberField label={t('item.spellAttackBonus')} value={it.spellAttackBonus ?? 0} onChange={(spellAttackBonus) => setIt({ ...it, spellAttackBonus: spellAttackBonus || undefined })} />
       </div>
       <div className="checks">
         <Check label={t('item.equipped')} checked={it.equipped} onChange={(equipped) => setIt({ ...it, equipped })} />

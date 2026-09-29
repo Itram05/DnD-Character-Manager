@@ -7,7 +7,7 @@
 import type { SrdSpell } from '../data/srd'
 import { HEALING_NAME, HEALING_TIERS, healingDescription, healingTier, isHealingPotion, isPotion, isScroll, scrollInfo, type HealingTier } from './consumables'
 import { newId } from './normalize'
-import { itemInPlay, pactSlots, spellSlots, totalLevel, usesMax } from './rules'
+import { itemActive, itemInPlay, pactSlots, spellSlots, totalLevel, usesMax } from './rules'
 import { bonusSlotsAt, isSorceryPoints } from './sorcery'
 import { cardStrip, type CardStrip } from './strip'
 import { featureTags, itemTags, mergeTags, powerTags, spellAutoTags, spellTags } from './tags'
@@ -262,9 +262,27 @@ export function findPower(c: Character, powerId: string): { item: Item; power: I
   return undefined
 }
 
-/** Passive powers of the items usable in Play (attunement filter), for the "Always on" row. */
+const signed = (n: number) => `${n < 0 ? '−' : '+'}${Math.abs(n)}`
+
+/**
+ * The item's bonus fields as "Always on" chips: "+1 spell save DC", "+3 spell attack". Made only while
+ * the bonus counts (equipped, and attuned if required: the same rule as itemSpellBonuses in rules.ts),
+ * so the chip and the number in the head never disagree. Not stored in the item: the field is the truth.
+ */
+export function itemBonusPowers(i: Item): ItemPower[] {
+  if (!itemActive(i)) return []
+  const rule = i.requiresAttunement ? 'while the item is equipped and attuned' : 'while the item is equipped'
+  const out: ItemPower[] = []
+  if (i.spellDcBonus)
+    out.push({ id: `${i.id}:spellDcBonus`, name: `${signed(i.spellDcBonus)} spell save DC`, activation: 'passive', description: `${signed(i.spellDcBonus)} to your spell save DC ${rule}. Already counted in the DC in the head.` })
+  if (i.spellAttackBonus)
+    out.push({ id: `${i.id}:spellAttackBonus`, name: `${signed(i.spellAttackBonus)} spell attack`, activation: 'passive', description: `${signed(i.spellAttackBonus)} to your spell attack rolls ${rule}. Already counted in the spell attack in the head.` })
+  return out
+}
+
+/** Passive powers of the items usable in Play (attunement filter), for the "Always on" row; the item's bonus chips come first. */
 export function playPassivePowers(c: Character): { item: Item; power: ItemPower }[] {
-  return c.inventory.items.filter(itemInPlay).flatMap((item) => passivePowers(item).map((power) => ({ item, power })))
+  return c.inventory.items.filter(itemInPlay).flatMap((item) => [...itemBonusPowers(item), ...passivePowers(item)].map((power) => ({ item, power })))
 }
 
 /**

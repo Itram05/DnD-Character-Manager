@@ -201,6 +201,8 @@ To-hit and damage bonus are computed. Attacks appear as cards in the Action hand
 | `armor` | `{ "base": 14, "dexCap": 2 }` — body armor. `dexCap`: `null` = full Dex (light), `2` (medium), `0` (heavy). |
 | `acBonus` | Added to AC while equipped (and attuned if required). Shield = 2. |
 | `saveBonus` | Added to all saving throws under the same condition (Ring/Cloak of Protection). |
+| `spellDcBonus` | Added to the spell save DC under the same condition (a focus with +1 to the DC). Shown as a chip "+1 spell save DC" under "Always on" exactly while it counts. |
+| `spellAttackBonus` | Added to spell attack rolls under the same condition (Staff of Ages +3). Chip "+3 spell attack". |
 | `charges` | [uses](#uses). |
 | `activation` | Makes the item a card: `action`, `bonus`, ... Without `charges`, the card is a consumable: − and + on the card lower and raise `quantity`. Potions and scrolls are recognized by name instead (below) and need no `activation`. |
 | `powers` | Optional list of [item powers](#item-powers): the item's separate abilities, each its own card. |
@@ -215,11 +217,15 @@ activation (Action, Bonus Action, Reaction, Free / Other); each **passive** powe
 passive features. An item with at least one active power shows no card of its own: its powers are the item on the Play screen.
 Powers follow the item's attunement: an item that needs attunement and is not attuned hides all its powers.
 
+A bonus to the spell DC or spell attack is **not** a power: use the item fields `spellDcBonus` / `spellAttackBonus`.
+(Older files had a passive power named like "+1 spell save DC" or "+3 spell attack"; the importer turns such a
+power into the field, moves its text to the item's `description`, and equips the item if the bonus counted before.
+The import dialog lists every such change.)
+
 ```json
-{ "name": "Staff of Ages", "requiresAttunement": true, "attuned": true,
+{ "name": "Staff of Ages", "equipped": true, "requiresAttunement": true, "attuned": true, "spellAttackBonus": 3,
   "charges": { "max": 3, "used": 0, "recharge": "dawn", "regain": "1d3" },
   "powers": [
-    { "name": "+3 spell attack", "activation": "passive", "description": "+3 to spell attack rolls while holding it." },
     { "name": "Temporal Echo", "activation": "reaction", "cost": "all", "description": "..." },
     { "name": "Hourglass Ward", "activation": "bonus", "cost": 1, "description": "Absorb Elements on you or an ally within 30 ft." }
   ] }
@@ -314,6 +320,6 @@ Blank lines separate paragraphs.
 |---|---|---|
 | 1 | First format. | |
 | 2 | New optional fields: `tags` (spells, features, items, item powers) and `powers` (items). Unknown fields are kept instead of dropped. | None needed: every version 1 field means the same in version 2, so a version 1 file imports unchanged and is exported as version 2. Item descriptions are **not** split into powers automatically (that would be guessing at rules text); add powers on the Gear tab or in the file. |
-| 3 | New fields: `partySize`, `xpLog` (experience log) and `timers` (day timers). | None needed: a version 2 file gets `partySize` 5 and empty `xpLog` and `timers`; `xp` keeps its value. |
+| 3 | New fields: `partySize`, `xpLog` (experience log) and `timers` (day timers). Items: `spellDcBonus`, `spellAttackBonus`. | A version 2 file gets `partySize` 5 and empty `xpLog` and `timers`; `xp` keeps its value. A passive item power named like "+1 spell save DC" / "+3 spell attack" becomes the item's `spellDcBonus` / `spellAttackBonus` (its text goes to the item's `description`); if the item counted before but is not equipped, it is equipped, so the DC and spell attack stay the same. This conversion runs on every import, so version 3 files saved before these fields existed are converted too. |
 
 **Careful with older copies of the app:** an app refuses files of a newer version ("Update the app"): a version 2 app refuses version 3 files. Export from the app you will import into.

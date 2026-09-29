@@ -163,7 +163,7 @@ export const en: Record<string, string> = {
   'vitals.dcBase': 'Base',
   'vitals.pbLong': 'Proficiency bonus',
   'vitals.spellAttack': 'Spell attack',
-  'vitals.dcHint': 'Item bonuses come from passive powers named like "+1 spell save DC" or "+3 spell attack" on items that are in play (the same ones shown under "Always on").',
+  'vitals.dcHint': 'Item bonuses come from the items\' "Spell save DC bonus" and "Spell attack bonus" fields (Gear tab), while the item is equipped, and attuned if it needs attunement (the same bonuses shown under "Always on").',
 
   // HP
   'hp.hp': 'HP',
@@ -598,6 +598,7 @@ export const en: Record<string, string> = {
   'inv.empty': 'No items yet.',
   'inv.weight': 'Total weight: {n} lb.',
   'inv.armorTag': 'Armor {n}',
+  'inv.spellAttackTag': 'Spell atk',
   'inv.less': 'One less',
   'inv.more': 'One more',
   'item.add': 'Add item',
@@ -606,6 +607,8 @@ export const en: Record<string, string> = {
   'item.weight': 'Weight (lb.)',
   'item.acBonus': 'AC bonus',
   'item.saveBonus': 'Saving throw bonus',
+  'item.spellDcBonus': 'Spell save DC bonus',
+  'item.spellAttackBonus': 'Spell attack bonus',
   'item.equipped': 'Equipped',
   'item.attuned': 'Attuned',
   'item.requiresAttunement': 'Requires attunement',

@@ -1,6 +1,6 @@
 // Wave 3 against the owner's real hero: the v2 file on the desktop (Grav, Paladin 5 / Sorcerer 9) must
 // import as schema 3 without losing a field, and XP and the day timers must work on it.
-// Lives outside src/ so the app type-check does not need Node types; skipped where the file is missing (CI).
+// Lives outside src/ so the app type-check does not need Node types. A missing file fails here and is skipped in CI (ownerFiles.ts).
 import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { importCharacterJson } from '../src/model/normalize'
@@ -8,18 +8,20 @@ import { longRest } from '../src/model/rest'
 import { addTimer } from '../src/model/timers'
 import { spellDcView } from '../src/model/rules'
 import { addSessionXp, correctXp, raiseXpToLevel, undoLastXp, xpProgress } from '../src/model/xp'
+import { GRAV_DESKTOP, expectGravImportWarnings, gravAfterImport, ownerFile } from './ownerFiles'
 
-const GRAV_V2 = 'C:/Users/User/Desktop/grav-srashtite-lv14.json'
-describe.skipIf(!existsSync(GRAV_V2))('Grav v2 from the desktop, read by schema 3', () => {
+const GRAV_V2 = GRAV_DESKTOP
+const HAVE_GRAV_V2 = ownerFile(GRAV_V2)
+describe.skipIf(!HAVE_GRAV_V2)('Grav v2 from the desktop, read by schema 3', () => {
   const text = existsSync(GRAV_V2) ? readFileSync(GRAV_V2, 'utf8') : '{}'
   const raw = JSON.parse(text)
   const { character: c, warnings } = importCharacterJson(text)
 
-  it('is a v2 file and comes out as v3 with every field unchanged', () => {
+  it('is a v2 file and comes out as v3 with every field unchanged but the listed spell bonus conversion', () => {
     expect(raw.schemaVersion).toBe(2)
-    expect(warnings).toEqual([])
+    expectGravImportWarnings(warnings)
     // hand-edited file: the import adds ids and defaults it lacks; every field written in it survives
-    expect(JSON.parse(JSON.stringify(c))).toMatchObject({ ...raw, schemaVersion: 3 })
+    expect(JSON.parse(JSON.stringify(c))).toMatchObject(gravAfterImport(raw))
     expect(c.xp).toBe(91550)
     expect([c.partySize, c.xpLog, c.timers]).toEqual([5, [], []])
     const again = importCharacterJson(JSON.stringify(c))
@@ -46,7 +48,7 @@ describe.skipIf(!existsSync(GRAV_V2))('Grav v2 from the desktop, read by schema 
   })
 })
 
-describe.skipIf(!existsSync(GRAV_V2))('Grav v2: spell save DC in the head and the XP one-tap fix', () => {
+describe.skipIf(!HAVE_GRAV_V2)('Grav v2: spell save DC in the head and the XP one-tap fix', () => {
   const { character: c } = importCharacterJson(existsSync(GRAV_V2) ? readFileSync(GRAV_V2, 'utf8') : '{}')
   it('DC 19 = 8 + CHA 5 + PB 5 + Witch Focus 1; spell attack +13 = CHA 5 + PB 5 + Staff of Ages 3', () => {
     const v = spellDcView(c)
