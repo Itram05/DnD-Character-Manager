@@ -1,6 +1,6 @@
 // Wave 3 on screen (server render, no browser): the XP panel on the Level Up tab with the split shown
-// before adding, the "new level" signal in the name row, the day timers on Play with the ended ones
-// first, and the Days entry in the quick navigation.
+// before adding, the "new level" signal in the name row, the day timers (top of Story) with the ended
+// ones first, and no Days entry in Play's quick navigation any more.
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { normalizeCharacter } from '../model/normalize'
@@ -16,7 +16,7 @@ const strip = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' 
 const settings = { theme: 'dark', view: 'cards' } as const
 const grav = (xp: number) => normalizeCharacter({ name: 'Grav', xp, classes: [{ id: 'paladin', level: 5 }, { id: 'sorcerer', level: 9 }] }).character
 const api = (c: Character): SheetApi => ({ c, update: () => {}, toast: () => {}, settings, setSettings: () => {}, go: () => {} })
-const sheet = (c: Character, tab: 'play' | 'level') =>
+const sheet = (c: Character, tab: 'play' | 'level' | 'story') =>
   renderToString(<Sheet initial={c} tab={tab} onTab={() => {}} onBack={() => {}} settings={settings} setSettings={() => {}} onRules={() => {}} />)
 
 describe('XP panel', () => {
@@ -31,10 +31,20 @@ describe('XP panel', () => {
   it('says how many levels are ready', () => {
     expect(strip(renderToString(<XpPanel api={api(grav(195000))} />))).toContain('2 new levels ready')
   })
-  it('warns when the XP is below the level and offers the correction', () => {
+  it('XP behind the level: says so, offers the level minimum, progress still 14 → 15 (never "level 11/13")', () => {
     const s = strip(renderToString(<XpPanel api={api(grav(91550))} />))
-    expect(s).toContain('91,550 XP is less than level 14 needs (140,000)')
+    expect(s).toContain('XP is behind your level 14 (needs 140,000).')
+    expect(s).toContain('Set to 140,000')
     expect(s).toContain('Correct total')
+    expect(s).toContain('Level 14 · 140,000')
+    expect(s).toContain('Level 15 · 165,000')
+    expect(s).toContain('73,450 XP to level 15.')
+    expect(s).not.toMatch(/Level 1[1-3]/)
+  })
+  it('once the XP reaches the level, the warning and the button are gone', () => {
+    const s = strip(renderToString(<XpPanel api={api(grav(140000))} />))
+    expect(s).not.toContain('behind your level')
+    expect(s).not.toContain('Set to')
   })
   it('offers Undo of the newest entry with its amount', () => {
     expect(strip(renderToString(<XpPanel api={api(correctXp(grav(91550), 140000))} />))).toContain('Undo +48,450')
@@ -57,13 +67,13 @@ describe('"new level" signal in the name row', () => {
   })
 })
 
-describe('day timers on Play', () => {
+describe('day timers on the Story tab', () => {
   let c = grav(140000)
   c = addTimer(c, { name: 'Wedding', days: 12 })
   c = addTimer(c, { name: 'Rent', days: 0 })
   c = addTimer(c, { name: 'Book', days: 2, note: 'chapter 4' })
   it('fewest days first, the ended one marked, with Restart and Delete', () => {
-    const html = renderToString(<TimersPanel api={api(c)} id="play-days" />)
+    const html = renderToString(<TimersPanel api={api(c)} id="story-days" />)
     const s = strip(html)
     expect(s.indexOf('Rent')).toBeLessThan(s.indexOf('Book'))
     expect(s.indexOf('Book')).toBeLessThan(s.indexOf('Wedding'))
@@ -73,13 +83,18 @@ describe('day timers on Play', () => {
     expect(s).toContain('Days pass:')
   })
   it('an empty list explains itself', () => {
-    expect(strip(renderToString(<TimersPanel api={api(grav(0))} id="play-days" />))).toContain('A Long Rest takes 1 day off each')
+    expect(strip(renderToString(<TimersPanel api={api(grav(0))} id="story-days" />))).toContain('A Long Rest takes 1 day off each')
   })
-  it('the Play screen has the panel after the hands and a Days entry in the quick navigation', () => {
-    const html = sheet(c, 'play')
-    expect(html).toContain('id="play-days"')
-    const nav = playSections({ mana: false, passives: 0, hands: [], passivesFirst: true, days: 3 })
-    expect(nav[nav.length - 1]).toEqual({ id: 'play-days', label: 'Days', n: 3 })
-    expect(playSections({ mana: false, passives: 0, hands: [], passivesFirst: true }).some((x) => x.id === 'play-days')).toBe(false)
+  it('sit at the very top of Story, and are gone from Play and its quick navigation', () => {
+    const story = sheet(c, 'story')
+    expect(story).toContain('id="story-days"')
+    expect(story.indexOf('story-days')).toBeLessThan(story.indexOf('story-read'))
+    expect(story.indexOf('story-days')).toBeLessThan(story.indexOf('sessions'))
+    expect(strip(story)).toContain('Days pass:')
+    const play = sheet(c, 'play')
+    expect(play).not.toContain('days')
+    expect(play).not.toContain('class="panel timers')
+    const nav = playSections({ mana: true, passives: 2, hands: [], passivesFirst: true })
+    expect(nav.some((x) => /days/.test(x.id) || x.label === 'Days')).toBe(false)
   })
 })

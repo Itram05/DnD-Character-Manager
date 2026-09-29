@@ -22,7 +22,7 @@ describe('the sticky head', () => {
   it('holds the vitals and the row for the tabs, tools and active filters', () => {
     const html = sheet('stats')
     const head = html.slice(html.indexOf('class="sheet-head"'), html.indexOf('class="sheet-main"'))
-    expect(head).toContain('class="vitals"')
+    expect(head).toMatch(/class="vitals( has-dc)?"/)
     expect(head).toContain('class="head-row"')
     expect(head).toContain('class="head-chips"')
     expect(head).toContain('class="head-tools"')

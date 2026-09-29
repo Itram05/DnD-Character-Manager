@@ -6,7 +6,8 @@ import { describe, expect, it } from 'vitest'
 import { importCharacterJson } from '../src/model/normalize'
 import { longRest } from '../src/model/rest'
 import { addTimer } from '../src/model/timers'
-import { addSessionXp, correctXp, xpProgress } from '../src/model/xp'
+import { spellDcView } from '../src/model/rules'
+import { addSessionXp, correctXp, raiseXpToLevel, undoLastXp, xpProgress } from '../src/model/xp'
 
 const GRAV_V2 = 'C:/Users/User/Desktop/grav-srashtite-lv14.json'
 describe.skipIf(!existsSync(GRAV_V2))('Grav v2 from the desktop, read by schema 3', () => {
@@ -42,5 +43,20 @@ describe.skipIf(!existsSync(GRAV_V2))('Grav v2 from the desktop, read by schema 
     const r = longRest(x)
     expect(r.character.timers[0].days).toBe(1)
     expect(r.character.combat.hp.current).toBe(r.character.combat.hp.max)
+  })
+})
+
+describe.skipIf(!existsSync(GRAV_V2))('Grav v2: spell save DC in the head and the XP one-tap fix', () => {
+  const { character: c } = importCharacterJson(existsSync(GRAV_V2) ? readFileSync(GRAV_V2, 'utf8') : '{}')
+  it('DC 19 = 8 + CHA 5 + PB 5 + Witch Focus 1; spell attack +13 = CHA 5 + PB 5 + Staff of Ages 3', () => {
+    const v = spellDcView(c)
+    expect(v).toHaveLength(1)
+    expect(v[0]).toMatchObject({ ability: 'cha', saveDc: 19, attack: 13 })
+    expect(v[0].dcParts.filter((p) => p.kind === 'item')).toEqual([{ kind: 'item', label: 'Witch Focus', value: 1 }])
+  })
+  it('"Set to 140,000" brings 91 550 up to level 14 and can be undone', () => {
+    const up = raiseXpToLevel(c)
+    expect(up.xp).toBe(140000)
+    expect(undoLastXp(up).xp).toBe(91550)
   })
 })

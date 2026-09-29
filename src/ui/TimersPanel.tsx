@@ -1,4 +1,4 @@
-// Day timers on the Play screen, under the hands: countdowns in days, fewest days first. A Long Rest
+// Day timers at the top of the Story tab (between sessions, not in a fight): countdowns in days, fewest days first. A Long Rest
 // takes 1 day off (rest.ts); "Days pass" takes several off (travel). A timer at 0 is marked as ended
 // and stays until deleted or restarted.
 import { useState } from 'react'

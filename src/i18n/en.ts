@@ -156,6 +156,14 @@ export const en: Record<string, string> = {
   'vitals.inspiration': 'Insp.',
   'vitals.inspirationTitle': 'Heroic Inspiration: spend it to reroll any one die right after rolling it.',
   'vitals.conditions': 'Cond.',
+  'vitals.dc': 'Spell DC',
+  'vitals.dcShort': 'DC',
+  'vitals.dcTitle': 'Spell save DC',
+  'vitals.dcLine': 'Spell save DC {dc} · spell attack {atk} ({ability})',
+  'vitals.dcBase': 'Base',
+  'vitals.pbLong': 'Proficiency bonus',
+  'vitals.spellAttack': 'Spell attack',
+  'vitals.dcHint': 'Item bonuses come from passive powers named like "+1 spell save DC" or "+3 spell attack" on items that are in play (the same ones shown under "Always on").',
 
   // HP
   'hp.hp': 'HP',
@@ -757,7 +765,11 @@ export const en: Record<string, string> = {
   'xp.readyHint': 'Pick the class below. The level is not raised by itself.',
   'xp.readyBadgeTitle': 'Your XP reaches the next level: open Level Up',
   'xp.max': 'Level 20: there is no next level.',
-  'xp.below': '{xp} XP is less than level {level} needs ({need}). If your real XP was never written down, set it with "Correct total".',
+  'xp.below': 'XP is behind your level {level} (needs {need}).',
+  'xp.belowHint': 'The sheet says level {level}, the XP was not kept up. One tap sets the level\'s minimum; "Correct total" takes an exact number.',
+  'xp.raise': 'Set to {n}',
+  'xp.raised': 'XP set to {n}',
+  'xp.raisedHint': 'Undo takes it back.',
   'xp.session': 'XP from the session (whole group)',
   'xp.players': 'Players',
   'xp.add': 'Add',
@@ -779,7 +791,7 @@ export const en: Record<string, string> = {
   'edit.xpMoved': 'Experience points are on the Level Up tab: add session XP, see the progress, correct the total.',
   'edit.xpOpen': 'Open Level Up',
 
-  // day timers (Play screen)
+  // day timers (top of the Story tab)
   'days.title': 'Days',
   'days.add': 'Timer',
   'days.empty': 'Countdowns in days: a wedding, rent due, a book being read. A Long Rest takes 1 day off each.',

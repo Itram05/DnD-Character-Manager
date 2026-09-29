@@ -13,7 +13,9 @@ import {
   hitDicePool,
   initiative,
   proficiencyBonus,
+  spellDcView,
   totalLevel,
+  type CastingPart,
 } from '../model/rules'
 import type { Character } from '../model/types'
 import { Check, Modal, Pips, RichText, fmtMod } from './common'
@@ -27,7 +29,7 @@ export function classLine(c: Character) {
 /** Name row (scrolls away), then the sticky head: the vitals and `children` (the tabs and the screen's own controls). */
 export function TopBar({ api, onBack, onUndo, children }: { api: SheetApi; onBack: () => void; onUndo?: () => void; children?: ReactNode }) {
   const { c, update } = api
-  const [modal, setModal] = useState<null | 'hp' | 'short' | 'long' | 'conditions' | 'ac'>(null)
+  const [modal, setModal] = useState<null | 'hp' | 'short' | 'long' | 'conditions' | 'ac' | 'dc'>(null)
   const hp = c.combat.hp
   const pct = Math.max(0, Math.min(100, (hp.current / Math.max(1, hp.max)) * 100))
   const ac = armorClass(c)
@@ -35,6 +37,7 @@ export function TopBar({ api, onBack, onUndo, children }: { api: SheetApi; onBac
   const bloodied = hp.current > 0 && hp.current <= hp.max / 2
   const ready = levelReadyText(c)
   const readyShort = levelReadyShort(c)
+  const dcs = spellDcView(c)
 
   return (
     <header className="topbar">
@@ -62,7 +65,7 @@ export function TopBar({ api, onBack, onUndo, children }: { api: SheetApi; onBac
       </div>
 
       <div className="sheet-head">
-        <div className="vitals">
+        <div className={dcs.length ? 'vitals has-dc' : 'vitals'}>
           <button className={`hp-widget ${hp.current === 0 ? 'down' : bloodied ? 'bloodied' : ''}`} onClick={() => setModal('hp')} aria-label={t('hp.open')}>
             <span className="hp-label">{t('hp.hp')}</span>
             <span className="hp-nums">
@@ -89,6 +92,19 @@ export function TopBar({ api, onBack, onUndo, children }: { api: SheetApi; onBac
             <span className="chip-label">{t('vitals.pb')}</span>
             <b>{fmtMod(proficiencyBonus(totalLevel(c)))}</b>
           </div>
+          {dcs.length > 0 && (
+            <button
+              className={`stat-chip dc ${dcs.length > 1 ? 'multi' : ''}`}
+              onClick={() => setModal('dc')}
+              title={dcs.map((d) => t('vitals.dcLine', { dc: d.saveDc, atk: fmtMod(d.attack), ability: t(`ability.${d.ability}`) })).join('\n')}
+            >
+              <span className="chip-label">
+                <span className="dc-long">{t('vitals.dc')}</span>
+                <span className="dc-short">{t('vitals.dcShort')}</span>
+              </span>
+              <b>{dcs.map((d) => d.saveDc).join('/')}</b>
+            </button>
+          )}
           <button
             className={`stat-chip insp ${c.heroicInspiration ? 'on' : ''}`}
             onClick={() => update((x) => ({ ...x, heroicInspiration: !x.heroicInspiration }))}
@@ -132,6 +148,48 @@ export function TopBar({ api, onBack, onUndo, children }: { api: SheetApi; onBac
       {modal === 'hp' && <HpModal api={api} onClose={() => setModal(null)} />}
       {(modal === 'short' || modal === 'long') && <RestModal api={api} kind={modal} onClose={() => setModal(null)} />}
       {modal === 'conditions' && <ConditionsModal api={api} onClose={() => setModal(null)} />}
+      {modal === 'dc' && (
+        <Modal title={t('vitals.dcTitle')} onClose={() => setModal(null)}>
+          {dcs.map((d) => (
+            <div key={d.ability} className="dc-block">
+              {dcs.length > 1 && (
+                <h4>
+                  {t(`ability.long.${d.ability}`)} · {d.classes.join(', ')}
+                </h4>
+              )}
+              <table className="breakdown">
+                <tbody>
+                  {d.dcParts.map((p, i) => (
+                    <tr key={i}>
+                      <td>{partLabel(p)}</td>
+                      <td>{p.kind === 'base' ? p.value : fmtMod(p.value)}</td>
+                    </tr>
+                  ))}
+                  <tr className="total">
+                    <td>{t('vitals.dcTitle')}</td>
+                    <td>{d.saveDc}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <table className="breakdown">
+                <tbody>
+                  {d.attackParts.map((p, i) => (
+                    <tr key={i}>
+                      <td>{partLabel(p)}</td>
+                      <td>{fmtMod(p.value)}</td>
+                    </tr>
+                  ))}
+                  <tr className="total">
+                    <td>{t('vitals.spellAttack')}</td>
+                    <td>{fmtMod(d.attack)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          ))}
+          <p className="hint">{t('vitals.dcHint')}</p>
+        </Modal>
+      )}
       {modal === 'ac' && (
         <Modal title={t('vitals.acTitle')} onClose={() => setModal(null)}>
           <table className="breakdown">
@@ -158,6 +216,14 @@ export function TopBar({ api, onBack, onUndo, children }: { api: SheetApi; onBac
       )}
     </header>
   )
+}
+
+/** A line of the spell DC / attack breakdown: "Base", "CHA", "Prof", or the item's name. */
+function partLabel(p: CastingPart): string {
+  if (p.kind === 'base') return t('vitals.dcBase')
+  if (p.kind === 'ability') return t(`ability.long.${p.label}`)
+  if (p.kind === 'pb') return t('vitals.pbLong')
+  return p.label
 }
 
 // ---------------- HP ----------------

@@ -46,7 +46,11 @@ export interface XpProgress {
   missing: number
   /** How many levels the XP is ahead of the sheet: 0 = none ready, 2 = two level ups waiting. */
   levelsReady: number
-  /** The XP is less than the current level needs (a hero whose XP was never written down). */
+  /**
+   * The XP is less than the current level needs (a hero whose XP was never written down). The
+   * progress still runs from the CURRENT level to the next (fraction 0, `missing` counted from the
+   * XP as it is): the sheet's level is the truth, the XP only lags behind it.
+   */
   belowLevel: boolean
 }
 
@@ -81,6 +85,16 @@ export function correctXp(c: Character, value: number, date = today()): Characte
   if (to === c.xp) return c
   const entry: XpEntry = { id: newId(), date, kind: 'correction', amount: to - c.xp }
   return { ...c, xp: to, xpLog: [...c.xpLog, entry] }
+}
+
+/**
+ * One tap for a hero whose XP was never kept up: sets the total to the minimum of the CURRENT level
+ * (level 14 → 140,000). A normal correction in the log, so Undo takes it back. Nothing happens when
+ * the XP already reaches the level.
+ */
+export function raiseXpToLevel(c: Character, date = today()): Character {
+  const need = xpForLevel(Math.min(20, totalLevel(c)))
+  return c.xp >= need ? c : correctXp(c, need, date)
 }
 
 /** Takes back the newest entry of the log: its amount comes off the total again. */

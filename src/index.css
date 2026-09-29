@@ -869,6 +869,32 @@ tr.clickable:hover {
 .stat-chip.ac {
   border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
 }
+/* spell save DC: only for casters. On a phone the grid gets a sixth column for it:
+   HP spans three, PROF and DC sit together on the second row. "Spell DC" is "DC" there. */
+.vitals.has-dc {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-areas:
+    'hp hp hp ac init speed'
+    'pb dc insp cond short long';
+}
+.stat-chip.dc {
+  border-color: color-mix(in srgb, var(--mana) 45%, var(--line));
+}
+.stat-chip.dc .dc-long {
+  display: none;
+}
+.stat-chip.dc.multi b {
+  font-size: 0.95rem;
+}
+.dc-block + .dc-block {
+  margin-top: 0.8rem;
+}
+.dc-block h4 {
+  margin: 0 0 0.3rem;
+}
+.dc-block .breakdown + .breakdown {
+  margin-top: 0.5rem;
+}
 .stat-chip.insp.on {
   border-color: var(--accent);
   color: var(--accent);
@@ -969,6 +995,16 @@ tr.clickable:hover {
   }
   .stat-chip {
     width: 74px;
+  }
+  .stat-chip.dc .dc-long {
+    display: inline;
+  }
+  .stat-chip.dc .dc-short {
+    display: none;
+  }
+  .stat-chip.dc.multi {
+    width: auto;
+    min-width: 74px;
   }
   .rest-btns {
     display: flex;
@@ -1077,7 +1113,7 @@ tr.clickable:hover {
 .play {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: 'mana' 'conc' 'hands' 'field' 'days' 'empty';
+  grid-template-areas: 'mana' 'conc' 'hands' 'field' 'empty';
   gap: 0 0.8rem;
 }
 .play > .mana {
@@ -1099,21 +1135,17 @@ tr.clickable:hover {
 .play > .empty-state {
   grid-area: empty;
 }
-.play > .timers {
-  grid-area: days;
-  margin-top: 0.85rem;
-}
 @media (min-width: 900px) {
   .play {
     grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) 2fr;
-    grid-template-areas: 'mana conc field' 'hands hands hands' 'days days days' 'empty empty empty';
+    grid-template-areas: 'mana conc field' 'hands hands hands' 'empty empty empty';
     align-items: start;
   }
   .play > .battlefield {
     margin-top: 0;
   }
   .play:not(:has(.mana)) {
-    grid-template-areas: 'conc field field' 'hands hands hands' 'days days days' 'empty empty empty';
+    grid-template-areas: 'conc field field' 'hands hands hands' 'empty empty empty';
   }
 }
 @media (max-width: 899px) {
@@ -3626,6 +3658,27 @@ details summary {
 .xp-ready b {
   color: var(--good);
 }
+/* the XP lags behind the sheet's level: say so, and offer the level's minimum in one tap */
+.xp-behind {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.7rem;
+  margin: 0.5rem 0 0.2rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--warn) 60%, var(--line));
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+}
+.xp-behind p {
+  margin: 0;
+}
+.xp-behind b {
+  color: var(--warn);
+}
+.xp-behind .hint {
+  flex-basis: 100%;
+}
 .xp-missing {
   margin: 0.35rem 0 0;
   font-size: 0.9rem;
@@ -3700,7 +3753,7 @@ details summary {
   font-variant-numeric: tabular-nums;
 }
 
-/* ---------------- wave 3: day timers (Play screen) ---------------- */
+/* ---------------- wave 3: day timers (top of the Story tab) ---------------- */
 
 .timers-head {
   display: flex;

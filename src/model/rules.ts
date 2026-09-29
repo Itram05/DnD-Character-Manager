@@ -258,6 +258,9 @@ export function pactSlots(c: Character): { slots: number; level: number } {
   }
 }
 
+/** Does this item count right now (Play screen, "Always on", item bonuses to spells)? Needs no attunement, or is attuned. */
+export const itemInPlay = (i: { requiresAttunement: boolean; attuned: boolean }) => !i.requiresAttunement || i.attuned
+
 export interface CastingStats {
   classId: string
   className: string
@@ -266,18 +269,85 @@ export interface CastingStats {
   attack: number
 }
 
-/** Spell save DC = 8 + ability modifier + PB; spell attack = ability modifier + PB. */
+/** One addend of the spell save DC or spell attack, for the breakdown ("Witch Focus +1"). */
+export interface CastingPart {
+  /** "base" = the 8 of the DC; "ability" = the label is the ability id; "pb"; "item" = the label is the item's name. */
+  kind: 'base' | 'ability' | 'pb' | 'item'
+  label: string
+  value: number
+}
+
+// An item's bonus to spells is written as a passive power whose NAME is the bonus: "+1 spell save
+// DC" (Witch Focus), "+3 spell attack" (Staff of Ages). The same power is the chip in "Always on", so
+// the bonus counts exactly when that chip is shown (itemInPlay). Only the name is read, never the
+// description: "+3 to spell attack rolls (not to spell DC)" must not add to the DC.
+const DC_BONUS = /^\+\s*(\d+)\s+(?:to\s+)?(?:your\s+)?spell\s+save\s+dcs?\s*$/i
+const ATTACK_BONUS = /^\+\s*(\d+)\s+(?:to\s+)?(?:your\s+)?spell\s+attacks?(?:\s+rolls?)?\s*$/i
+
+/** Item bonuses to the spell save DC and to spell attacks, from the items' passive powers. */
+export function itemSpellBonuses(c: Character): { dc: CastingPart[]; attack: CastingPart[] } {
+  const dc: CastingPart[] = []
+  const attack: CastingPart[] = []
+  for (const i of c.inventory.items) {
+    if (!itemInPlay(i)) continue
+    for (const p of i.powers ?? []) {
+      if (p.activation !== 'passive') continue
+      const d = DC_BONUS.exec(p.name.trim())
+      if (d) dc.push({ kind: 'item', label: i.name, value: Number(d[1]) })
+      const a = ATTACK_BONUS.exec(p.name.trim())
+      if (a) attack.push({ kind: 'item', label: i.name, value: Number(a[1]) })
+    }
+  }
+  return { dc, attack }
+}
+
+/** Spell save DC = 8 + ability modifier + PB + item bonuses; spell attack = ability modifier + PB + item bonuses. */
 export function castingStats(c: Character): CastingStats[] {
   const pb = proficiencyBonus(totalLevel(c))
+  const bonus = itemSpellBonuses(c)
+  const dcItems = bonus.dc.reduce((s, x) => s + x.value, 0)
+  const attackItems = bonus.attack.reduce((s, x) => s + x.value, 0)
   const out: CastingStats[] = []
   for (const k of c.classes) {
     if (casterType(k) === 'none') continue
     const ability = spellcastingAbility(k)
     if (!ability) continue
     const m = abilityMod(c.abilities[ability])
-    out.push({ classId: k.id, className: k.name, ability, saveDc: 8 + m + pb, attack: m + pb })
+    out.push({ classId: k.id, className: k.name, ability, saveDc: 8 + m + pb + dcItems, attack: m + pb + attackItems })
   }
   return out
+}
+
+/** One value of the spell save DC for the head: classes that share an ability share a DC. */
+export interface SpellDcView {
+  ability: Ability
+  classes: string[]
+  saveDc: number
+  attack: number
+  dcParts: CastingPart[]
+  attackParts: CastingPart[]
+}
+
+/**
+ * The spell save DC for the head, one entry per spellcasting ability (Paladin + Sorcerer are both
+ * Charisma = one value; Cleric + Wizard = two). Highest DC first. Empty = no spellcasting class,
+ * and the head shows no DC chip.
+ */
+export function spellDcView(c: Character): SpellDcView[] {
+  const pb = proficiencyBonus(totalLevel(c))
+  const bonus = itemSpellBonuses(c)
+  const out: SpellDcView[] = []
+  for (const s of castingStats(c)) {
+    const have = out.find((x) => x.ability === s.ability)
+    if (have) {
+      if (!have.classes.includes(s.className)) have.classes.push(s.className)
+      continue
+    }
+    const m = abilityMod(c.abilities[s.ability])
+    const base: CastingPart[] = [{ kind: 'ability', label: s.ability, value: m }, { kind: 'pb', label: 'PB', value: pb }]
+    out.push({ ability: s.ability, classes: [s.className], saveDc: s.saveDc, attack: s.attack, dcParts: [{ kind: 'base', label: '8', value: 8 }, ...base, ...bonus.dc], attackParts: [...base, ...bonus.attack] })
+  }
+  return out.sort((a, b) => b.saveDc - a.saveDc)
 }
 
 // ---------------- attacks ----------------

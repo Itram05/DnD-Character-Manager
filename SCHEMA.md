@@ -298,7 +298,7 @@ Countdowns in days: `{ "name": "King's wedding", "days": 12, "start": 12, "note"
 | `start` | What Restart goes back to. Defaults to `days`. |
 | `note` | Optional text. |
 
-A Long Rest takes 1 day off every timer above 0. "Days pass" on the Play screen takes several off at once.
+A Long Rest takes 1 day off every timer above 0. "Days pass" on the Story tab takes several off at once.
 
 ## roleplay
 

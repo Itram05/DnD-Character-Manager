@@ -36,7 +36,6 @@ import { TagList } from './tags'
 import { SIDE_NAV_SIDE, SectionNavMenu, SectionNavSide } from './SectionNav'
 import { ResourcesBlock } from './ResourcesBlock'
 import { groupTitle, playHands, playSections, sectionId } from './playSections'
-import { TimersPanel } from './TimersPanel'
 
 function attackFaces(c: Character): CardFace[] {
   return c.attacks.map((a) => {
@@ -147,7 +146,7 @@ export function PlayView({ api }: { api: SheetApi }) {
 
   const zonesToShow: Zone[] = selectedZones(filter)
   const hands = playHands(zonesToShow, cards, kinds.length !== 1)
-  const sections = playSections({ mana: mana.length > 0 || !!sp, passives: passives.length, hands, passivesFirst: wide, resources: !wide, days: c.timers.length })
+  const sections = playSections({ mana: mana.length > 0 || !!sp, passives: passives.length, hands, passivesFirst: wide, resources: !wide })
 
   const renderCard = (card: CardFace) => {
     if (card.kind === 'scroll')
@@ -354,9 +353,6 @@ export function PlayView({ api }: { api: SheetApi }) {
           </section>
         ))}
       </div>
-
-      {/* countdowns in days: not for the fight, so after the hands; the quick navigation jumps here */}
-      <TimersPanel api={api} id={sectionId('days')} />
 
       {allCards.length === 0 && passives.length === 0 && !sp && potions.length === 0 && (
         <div className="empty-state panel">

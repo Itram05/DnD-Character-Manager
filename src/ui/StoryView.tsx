@@ -4,6 +4,7 @@ import { newId } from '../model/normalize'
 import type { Roleplay, SessionNote } from '../model/types'
 import { Confirm, TextArea, TextField } from './common'
 import type { SheetApi } from './Sheet'
+import { TimersPanel } from './TimersPanel'
 
 const FIELDS: (keyof Roleplay)[] = ['appearance', 'personality', 'ideals', 'bonds', 'flaws', 'voice', 'mannerisms', 'goals', 'backstory', 'allies', 'notes']
 
@@ -17,6 +18,9 @@ export function StoryView({ api }: { api: SheetApi }) {
 
   return (
     <div className="story">
+      {/* day timers first: checked between sessions, never needed in a fight (so not on Play) */}
+      <TimersPanel api={api} id="story-days" />
+
       <div className="toolbar">
         <button className="btn" onClick={() => setEditing((e) => !e)} aria-pressed={editing}>
           {editing ? t('story.done') : t('common.edit')}

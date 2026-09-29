@@ -3,7 +3,7 @@
 // tab (after a session, never in the way during a fight). The level itself is raised with Level Up.
 import { useState } from 'react'
 import { t } from '../i18n'
-import { addSessionXp, correctXp, setPartySize, splitXp, undoLastXp, xpProgress } from '../model/xp'
+import { addSessionXp, correctXp, raiseXpToLevel, setPartySize, splitXp, undoLastXp, xpProgress } from '../model/xp'
 import { fmtXp } from './progressText'
 import type { SheetApi } from './Sheet'
 
@@ -30,6 +30,10 @@ export function XpPanel({ api }: { api: SheetApi }) {
     })
     setGroup('')
   }
+  const raise = () => {
+    update((x) => raiseXpToLevel(x))
+    toast({ title: t('xp.raised', { n: fmtXp(p.from) }), lines: [t('xp.raisedHint')] })
+  }
   const undo = () => {
     if (!last) return
     update((x) => undoLastXp(x))
@@ -45,7 +49,19 @@ export function XpPanel({ api }: { api: SheetApi }) {
         </span>
       </div>
 
-      {p.next !== null && !p.belowLevel && (
+      {p.belowLevel && (
+        <div className="xp-behind">
+          <p>
+            <b>{t('xp.below', { level: p.level, need: fmtXp(p.from) })}</b>
+          </p>
+          <button className="btn btn-primary btn-small" onClick={raise}>
+            {t('xp.raise', { n: fmtXp(p.from) })}
+          </button>
+          <p className="hint">{t('xp.belowHint', { level: p.level })}</p>
+        </div>
+      )}
+
+      {p.next !== null && (
         <div className={`xp-progress ${p.levelsReady ? 'ready' : ''}`}>
           <div className="xp-bar" role="progressbar" aria-valuemin={p.from} aria-valuemax={p.next} aria-valuenow={Math.min(p.xp, p.next)} aria-label={t('xp.toNext', { n: p.level + 1 })}>
             <span className="xp-fill" style={{ width: `${Math.round(p.fraction * 100)}%` }} />
@@ -68,7 +84,6 @@ export function XpPanel({ api }: { api: SheetApi }) {
         </div>
       )}
       {p.next === null && <p className="muted">{t('xp.max')}</p>}
-      {p.belowLevel && <p className="warn">{t('xp.below', { xp: fmtXp(p.xp), level: p.level, need: fmtXp(p.from) })}</p>}
 
       <div className="xp-add">
         <label className="field">

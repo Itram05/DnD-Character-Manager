@@ -7,7 +7,7 @@
 import type { SrdSpell } from '../data/srd'
 import { HEALING_NAME, HEALING_TIERS, healingDescription, healingTier, isHealingPotion, isPotion, isScroll, scrollInfo, type HealingTier } from './consumables'
 import { newId } from './normalize'
-import { pactSlots, spellSlots, totalLevel, usesMax } from './rules'
+import { itemInPlay, pactSlots, spellSlots, totalLevel, usesMax } from './rules'
 import { bonusSlotsAt, isSorceryPoints } from './sorcery'
 import { cardStrip, type CardStrip } from './strip'
 import { featureTags, itemTags, mergeTags, powerTags, spellAutoTags, spellTags } from './tags'
@@ -96,9 +96,8 @@ export function isPassive(f: Feature) {
 // and attuned ones. An item that needs attunement but is not attuned lives only on the
 // Gear tab, where it can be attuned with one tap. "equipped" does not matter here:
 // potions and scrolls are not equipped, yet they belong on the Play screen.
-
-/** Does this item belong on the Play screen? */
-export const itemInPlay = (i: Pick<Item, 'requiresAttunement' | 'attuned'>) => !i.requiresAttunement || i.attuned
+// (Defined in rules.ts, which needs it for the spell save DC; rules.ts cannot import this file.)
+export { itemInPlay }
 
 const norm = (s: string) => s.trim().toLowerCase()
 
