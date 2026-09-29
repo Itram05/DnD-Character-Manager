@@ -34,9 +34,10 @@ export function playHands(zones: Zone[], cards: CardFace[], grouped: boolean): H
 /**
  * The list for the quick navigation, in the order the screen shows it. A hand left empty by the
  * filter is not listed (its "No cards here." is not worth a jump). `passivesFirst`: on a computer
- * "Always on" sits in the top row; on a phone it comes after the hands.
+ * "Always on" sits in the top row; on a phone it comes after the hands. `resources`: the phone's one
+ * Resources block (ResourcesBlock.tsx) stands for slots and concentration, so it is one entry.
  */
-export function playSections(p: { mana: boolean; passives: number; hands: HandView[]; passivesFirst: boolean }): NavSection[] {
+export function playSections(p: { mana: boolean; passives: number; hands: HandView[]; passivesFirst: boolean; resources?: boolean }): NavSection[] {
   const field: NavSection[] = p.passives > 0 ? [{ id: sectionId('field'), label: t('play.battlefield'), n: p.passives }] : []
   const hands = p.hands
     .filter((h) => h.cards.length > 0)
@@ -44,9 +45,11 @@ export function playSections(p: { mana: boolean; passives: number; hands: HandVi
       { id: sectionId(h.zone), label: t(`zone.${h.zone}`), n: h.cards.length },
       ...(h.groups ?? []).map((g) => ({ id: sectionId(h.zone, g.kind), label: groupTitle(g.kind, g.cards), n: g.cards.length, sub: true })),
     ])
+  const top: NavSection[] = p.resources
+    ? [{ id: sectionId('res'), label: t('res.title') }]
+    : [...(p.mana ? [{ id: sectionId('mana'), label: t('play.mana') }] : []), { id: sectionId('conc'), label: t('play.inPlay') }]
   return [
-    ...(p.mana ? [{ id: sectionId('mana'), label: t('play.mana') }] : []),
-    { id: sectionId('conc'), label: t('play.inPlay') },
+    ...top,
     ...(p.passivesFirst ? field : []),
     ...hands,
     ...(p.passivesFirst ? [] : field),

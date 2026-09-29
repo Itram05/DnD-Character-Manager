@@ -22,10 +22,11 @@ const api: SheetApi = { c, update: () => {}, toast: () => {}, settings: { theme:
 const cards = playCards(c) as CardFace[]
 const passives = playPassives(c).length + playPassivePowers(c).length
 
+// passivesFirst = a computer; a phone (not passivesFirst) has the one Resources block instead of slots + concentration
 const sectionsFor = (filter: string[], passivesFirst = true) => {
   const shown = cards.filter((x) => matchesFilter(x, filter))
   const hands = playHands(selectedZones(filter), shown, selectedKinds(filter).length !== 1)
-  return playSections({ mana: true, passives, hands, passivesFirst })
+  return playSections({ mana: true, passives, hands, passivesFirst, resources: !passivesFirst })
 }
 
 describe('quick navigation: the list', () => {
@@ -44,6 +45,11 @@ describe('quick navigation: the list', () => {
   it('phone order: "Always on" comes after the hands, like on the screen', () => {
     const s = sectionsFor([], false)
     expect(s[s.length - 1].id).toBe('play-field')
+  })
+  it('phone: slots and concentration are one "Resources" entry, first', () => {
+    const s = sectionsFor([], false)
+    expect(s[0]).toEqual({ id: 'play-res', label: 'Resources' })
+    expect(s.some((x) => x.id === 'play-mana' || x.id === 'play-conc')).toBe(false)
   })
   it('follows the filter: an emptied hand is not listed, a single kind is not split', () => {
     const onlySpells = sectionsFor(['kind:spell'])
@@ -68,8 +74,7 @@ describe('quick navigation: on the page', () => {
   })
   it('the open list shows the sections with their counts', () => {
     const list = strip(renderToString(<SectionNavMenu sections={sectionsFor(['zone:action'], false)} initiallyOpen />))
-    expect(list).toContain('Spell slots')
-    expect(list).toContain('Concentration')
+    expect(list).toContain('Resources')
     expect(list).toMatch(/Action \d+/)
     expect(list).toMatch(/Always on \d+$/)
   })

@@ -140,3 +140,12 @@ export function loadSideNavCollapsed(): boolean {
 }
 
 export const saveSideNavCollapsed = (collapsed: boolean) => safeSet(NAV_COLLAPSED_KEY, collapsed ? '1' : '0')
+
+const RESOURCES_OPEN_KEY = `${PREFIX}.phoneResourcesOpen`
+
+/** Whether the phone's "Resources" block (slots, Sorcery Points, concentration, potions) is unfolded. Default: folded. */
+export function loadResourcesOpen(): boolean {
+  return safeGet(RESOURCES_OPEN_KEY) === '1'
+}
+
+export const saveResourcesOpen = (open: boolean) => safeSet(RESOURCES_OPEN_KEY, open ? '1' : '0')

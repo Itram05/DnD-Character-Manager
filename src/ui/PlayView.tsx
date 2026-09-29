@@ -34,6 +34,7 @@ import type { SheetApi } from './Sheet'
 import { ActiveFilters, FilterButton } from './filter'
 import { TagList } from './tags'
 import { SIDE_NAV_SIDE, SectionNavMenu, SectionNavSide } from './SectionNav'
+import { ResourcesBlock } from './ResourcesBlock'
 import { groupTitle, playHands, playSections, sectionId } from './playSections'
 
 function attackFaces(c: Character): CardFace[] {
@@ -145,7 +146,7 @@ export function PlayView({ api }: { api: SheetApi }) {
 
   const zonesToShow: Zone[] = selectedZones(filter)
   const hands = playHands(zonesToShow, cards, kinds.length !== 1)
-  const sections = playSections({ mana: mana.length > 0 || !!sp, passives: passives.length, hands, passivesFirst: wide })
+  const sections = playSections({ mana: mana.length > 0 || !!sp, passives: passives.length, hands, passivesFirst: wide, resources: !wide })
 
   const renderCard = (card: CardFace) => {
     if (card.kind === 'scroll')
@@ -167,28 +168,11 @@ export function PlayView({ api }: { api: SheetApi }) {
     )
   }
 
-  return (
-    <div className={`play-layout ${sideNav && sections.length > 1 ? 'has-nav' : ''}`} data-nav-side={SIDE_NAV_SIDE}>
-    <div className="play">
-      {/* Cards/List and the funnel live in the sheet's sticky head, so they are at hand anywhere down the page */}
-      <InHead at={api.head?.tools}>
-        {!sideNav && sections.length > 1 && <SectionNavMenu sections={sections} />}
-        <div className="segmented small view-toggle" role="group" aria-label={t('play.viewMode')}>
-          <button className={mode === 'cards' ? 'active' : ''} onClick={() => setSettings({ ...settings, view: 'cards' })} aria-pressed={mode === 'cards'} title={t('play.cards')}>
-            <span aria-hidden="true">▦</span> <span className="seg-text">{t('play.cards')}</span>
-          </button>
-          <button className={mode === 'list' ? 'active' : ''} onClick={() => setSettings({ ...settings, view: 'list' })} aria-pressed={mode === 'list'} title={t('play.list')}>
-            <span aria-hidden="true">☰</span> <span className="seg-text">{t('play.list')}</span>
-          </button>
-        </div>
-        <FilterButton groups={filterGroups} selected={filter} onChange={setFilter} label={kindLabel} />
-      </InHead>
-      <InHead at={api.head?.chips}>
-        <ActiveFilters selected={filter} onChange={setFilter} label={kindLabel} />
-      </InHead>
-
+  /** Slots and Sorcery Points, then Concentration with the healing potions. `nested`: inside the phone's Resources block. */
+  const resourcePanels = (nested: boolean) => (
+    <>
         {(mana.length > 0 || sp) && (
-          <section id={sectionId('mana')} className="mana panel nav-target">
+          <section id={nested ? undefined : sectionId('mana')} className={`mana ${nested ? 'res-part' : 'panel nav-target'}`}>
             <h3>{t('play.mana')}</h3>
             {mana.map((r) => (
               <div key={`${r.kind}-${r.level}`} className={`mana-row mana-${r.kind}`}>
@@ -229,7 +213,7 @@ export function PlayView({ api }: { api: SheetApi }) {
           </section>
         )}
 
-        <section id={sectionId('conc')} className={`in-play panel nav-target ${conc ? 'active' : ''}`}>
+        <section id={nested ? undefined : sectionId('conc')} className={`in-play ${nested ? 'res-part' : 'panel nav-target'} ${conc ? 'active' : ''}`}>
           <h3>{t('play.inPlay')}</h3>
           {conc ? (
             <div className="conc-card">
@@ -287,6 +271,45 @@ export function PlayView({ api }: { api: SheetApi }) {
             </div>
           </div>
         </section>
+
+    </>
+  )
+
+  return (
+    <div className={`play-layout ${sideNav && sections.length > 1 ? 'has-nav' : ''}`} data-nav-side={SIDE_NAV_SIDE}>
+    <div className="play">
+      {/* Cards/List and the funnel live in the sheet's sticky head, so they are at hand anywhere down the page */}
+      <InHead at={api.head?.tools}>
+        {!sideNav && sections.length > 1 && <SectionNavMenu sections={sections} />}
+        <div className="segmented small view-toggle" role="group" aria-label={t('play.viewMode')}>
+          <button className={mode === 'cards' ? 'active' : ''} onClick={() => setSettings({ ...settings, view: 'cards' })} aria-pressed={mode === 'cards'} title={t('play.cards')}>
+            <span aria-hidden="true">▦</span> <span className="seg-text">{t('play.cards')}</span>
+          </button>
+          <button className={mode === 'list' ? 'active' : ''} onClick={() => setSettings({ ...settings, view: 'list' })} aria-pressed={mode === 'list'} title={t('play.list')}>
+            <span aria-hidden="true">☰</span> <span className="seg-text">{t('play.list')}</span>
+          </button>
+        </div>
+        <FilterButton groups={filterGroups} selected={filter} onChange={setFilter} label={kindLabel} />
+      </InHead>
+      <InHead at={api.head?.chips}>
+        <ActiveFilters selected={filter} onChange={setFilter} label={kindLabel} />
+      </InHead>
+
+        {wide ? (
+          resourcePanels(false)
+        ) : (
+          <ResourcesBlock
+            id={sectionId('res')}
+            mana={mana}
+            sp={sp ? { left: sp.left, max: sp.max } : undefined}
+            conc={conc}
+            onEndConcentration={() => update((x) => ({ ...x, spellcasting: { ...x.spellcasting, concentration: '' } }))}
+            potions={healingRows}
+            onDrink={drink}
+          >
+            {resourcePanels(true)}
+          </ResourcesBlock>
+        )}
 
         {passives.length > 0 && (
           <section id={sectionId('field')} className="battlefield panel nav-target">

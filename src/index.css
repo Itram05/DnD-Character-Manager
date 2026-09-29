@@ -1086,6 +1086,9 @@ tr.clickable:hover {
 .play > .in-play {
   grid-area: conc;
 }
+.play > .res {
+  grid-area: mana;
+}
 .play > .battlefield {
   grid-area: field;
   margin-top: 0.85rem;
@@ -3338,4 +3341,158 @@ details summary {
 /* while the list is open the head goes above the phone's bottom tab bar, like with the funnel */
 .sheet-head:has(.section-nav.menu) {
   z-index: 45;
+}
+
+/* ---------------- phone: the Resources block (ResourcesBlock.tsx) ---------------- */
+
+.play > .res {
+  padding: 0.35rem 0.6rem 0.5rem;
+}
+.res.conc-on {
+  border-color: var(--f-spell);
+}
+.res-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.res-title {
+  flex: 1;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.res-arrow {
+  color: var(--muted);
+}
+.res-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.res-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+}
+/* a slot level: the slots left, big, with the level small above it */
+.res-chip {
+  --chip: var(--mana);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 38px;
+  padding: 0 0.3rem;
+  border: 1px solid color-mix(in srgb, var(--chip) 60%, var(--line));
+  background: color-mix(in srgb, var(--chip) 14%, var(--panel));
+  border-radius: 8px;
+  line-height: 1.05;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.res-chip b {
+  font-size: 1rem;
+  color: var(--chip);
+}
+.res-chip .res-lv {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.res-chip.res-pact {
+  --chip: var(--pact);
+}
+.res-chip.res-sp {
+  --chip: var(--f-class);
+  margin-left: 0.25rem;
+}
+.res-chip.none {
+  opacity: 0.5;
+}
+.res-chip.none b {
+  color: var(--danger);
+}
+.res-rest {
+  font-size: 0.82rem;
+}
+.res-conc {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 32px;
+  padding: 0 0.1rem;
+  color: var(--muted);
+  min-width: 0;
+  max-width: 100%;
+}
+.res-conc.on {
+  color: var(--text);
+  font-weight: 600;
+  padding: 0 0 0 0.45rem;
+  border: 1px solid var(--f-spell);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--f-spell) 12%, var(--panel));
+}
+.res-conc .glyph {
+  color: var(--f-spell);
+}
+.res-conc-name {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.res-conc .mini-btn,
+.res-potion .mini-btn {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  font-weight: 700;
+}
+.res-potion {
+  --fc: var(--f-item);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0 0.45rem 0 0;
+  border: 1px solid color-mix(in srgb, var(--fc) 55%, var(--line));
+  background: color-mix(in srgb, var(--fc) 10%, var(--panel));
+  border-radius: 8px;
+}
+.res-potion b {
+  font-variant-numeric: tabular-nums;
+  color: var(--hl-heal);
+}
+.res-nopot {
+  color: var(--muted);
+}
+/* unfolded: the usual panels, without their own frames (the block is the frame) */
+.res-full {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.2rem;
+}
+.res-part {
+  padding: 0.5rem 0 0;
+  border-top: 1px dashed var(--line);
+}
+.res-part h3 {
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
+}
+.in-play.res-part.active {
+  border-color: var(--line);
+  box-shadow: none;
 }

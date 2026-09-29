@@ -2,7 +2,7 @@
 // Lives outside src/ so the app type-check does not need Node types.
 import { existsSync, readFileSync } from 'node:fs'
 import { renderToString } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { importCharacterJson } from '../src/model/normalize'
 import { manaRows, playCards, playHealingPotions, useCard } from '../src/model/play'
 import { longRest } from '../src/model/rest'
@@ -166,9 +166,30 @@ describe.skipIf(!existsSync(GRAV_FILE))("owner's character: potions and scrolls"
   const apiFor = (ch: Character): SheetApi => ({ c: ch, update: () => {}, toast: () => {}, settings: { theme: 'dark', view: 'list' }, setSettings: () => {}, go: () => {} })
   // the Concentration panel: from its opening tag to the next section
   const concPanel = (html: string) => strip(html.slice(html.indexOf('in-play panel'), html.indexOf('<section', html.indexOf('in-play panel'))))
+  // the panels as a computer shows them (900px and up); a phone folds them into the Resources block
+  const onComputer = (render: () => string) => {
+    vi.stubGlobal('window', { matchMedia: () => ({ matches: true, addEventListener() {}, removeEventListener() {} }), localStorage: { getItem: () => null, setItem() {} } })
+    try {
+      return render()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  }
+  it('a phone folds slots, concentration and potions into a short Resources summary: slots left, SP, drinkable potions', () => {
+    const html = renderToString(<PlayView api={apiFor(c)} />)
+    const res = strip(html.slice(html.indexOf('class="res '), html.indexOf('<section', html.indexOf('class="res ') + 10)))
+    expect(res).toContain('Resources')
+    expect(res).toContain('SP')
+    expect(res).toContain('No concentration')
+    expect(res).toContain('Healing × 1')
+    expect(res).toContain('Greater × 8')
+    expect(res).not.toContain('Supreme') // none left: nothing to drink
+    expect(html).not.toContain('in-play panel')
+    expect(html).toContain('aria-label="Level 1: ')
+  })
   it('the healing potions sit in the Concentration panel; the scroll group is still "Scrolls"; the Gear tab still lists the potions', () => {
     const api = apiFor(c)
-    const html = renderToString(<PlayView api={api} />)
+    const html = onComputer(() => renderToString(<PlayView api={api} />))
     const play = strip(html)
     const conc = concPanel(html)
     expect(conc).toContain('Concentration')
@@ -185,7 +206,7 @@ describe.skipIf(!existsSync(GRAV_FILE))("owner's character: potions and scrolls"
     expect(gear).toContain('Potion of Greater Healing')
   })
   it('Grav has no Supreme potion: the panel still shows Supreme Healing ×0, and nothing is added to his items', () => {
-    const conc = concPanel(renderToString(<PlayView api={apiFor(c)} />))
+    const conc = concPanel(onComputer(() => renderToString(<PlayView api={apiFor(c)} />)))
     expect(conc).toContain('Supreme Healing 10d4+20 × 0 +')
     expect(c.inventory.items.some((i) => /supreme/i.test(i.name))).toBe(false)
   })
