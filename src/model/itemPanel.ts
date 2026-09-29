@@ -2,11 +2,11 @@
 // with everything that item does. A second view of cards that are already in the hands (by action type),
 // not a replacement: the same card, spent here, is spent there too (spendPower / useCard).
 //
-// Which items get a tile: the ones in Play by the attunement filter (itemInPlay: needs no attunement, or
-// attuned; "equipped" does not matter, as for every item card), that do something at the table: powers,
-// charges, an activation, a linked attack or a feature that comes from it. Scrolls and potions are left out:
+// Which items get a tile: the ones in Play (itemInPlay: equipped, and attuned if it needs attunement),
+// that do something at the table: powers, charges, an activation, a linked attack or a feature that comes
+// from it. Scrolls and potions are left out:
 // they have their own group (and the healing potions their counters), and six scroll tiles would bury the rest.
-import { isPotion, isScroll } from './consumables'
+import { isCarriedConsumable, isPotion, isScroll } from './consumables'
 import { activePowers, featureCard, isPassive, itemBonusPowers, itemCard, itemInPlay, passivePowers, powerCard, type PlayCard } from './play'
 import { usesMax } from './rules'
 import { isSorceryPoints } from './sorcery'
@@ -33,12 +33,28 @@ function charges(c: Character, i: Item) {
   return { max, left: Math.max(0, max - Math.min(i.charges.used, max)) }
 }
 
+/** Does the item do something at the table (would get a tile when in play)? */
+export const itemDoesSomething = (c: Character, i: Item) =>
+  (i.powers?.length ?? 0) > 0 || !!i.charges || !!i.activation || itemAttacks(c, i).length > 0 || itemFeatures(c, i).length > 0
+
 /** The tiles, in inventory order. */
 export function itemTiles(c: Character): ItemTile[] {
   return c.inventory.items
     .filter((i) => itemInPlay(i) && !isScroll(i) && !isPotion(i))
-    .filter((i) => (i.powers?.length ?? 0) > 0 || !!i.charges || !!i.activation || itemAttacks(c, i).length > 0 || itemFeatures(c, i).length > 0)
+    .filter((i) => itemDoesSomething(c, i))
     .map((item) => ({ item, charges: charges(c, item) }))
+}
+
+/**
+ * Why an item is not on the Play screen, for a tag on the Gear tab, so nothing vanishes from Play silently.
+ * "attune": needs attunement, not attuned (shown for every such item, as before). "equip": not equipped, and
+ * it has something for the table (a mundane item in the bag gets no tag). "both": the two at once.
+ * Consumables are never "equip" (they need no "equipped", see itemInPlay).
+ */
+export function playHiddenReason(c: Character, i: Item): 'attune' | 'equip' | 'both' | null {
+  const attune = i.requiresAttunement && !i.attuned
+  const equip = !i.equipped && !isCarriedConsumable(i) && itemDoesSomething(c, i)
+  return attune && equip ? 'both' : attune ? 'attune' : equip ? 'equip' : null
 }
 
 /** A passive thing of the item for the chip row of its panel: a passive power, a bonus field, a passive feature. */

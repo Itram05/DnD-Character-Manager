@@ -123,8 +123,8 @@ describe('"Always on" chips from the fields', () => {
     expect(chips([{ ...items[0], equipped: false }])).toEqual([])
     // not attuned: the item is out of Play altogether (its own passive powers too)
     expect(chips([{ ...items[1], attuned: false }])).toEqual([])
-    // attuned but not equipped: its own powers stay, the bonus chip goes (like AC)
-    expect(chips([{ ...items[1], equipped: false }])).toEqual([['Staff of Ages', 'Ageless']])
+    // attuned but not equipped: out of Play too, the bonus chip and its own powers (since 2026-09-29)
+    expect(chips([{ ...items[1], equipped: false }])).toEqual([])
   })
   it('a negative bonus reads "−2 spell save DC"', () => {
     expect(chips([{ name: 'Cursed Rod', equipped: true, spellDcBonus: -2 }])).toEqual([['Cursed Rod', '−2 spell save DC']])

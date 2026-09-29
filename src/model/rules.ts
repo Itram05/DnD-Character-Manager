@@ -1,6 +1,7 @@
 // Derived values: everything on the sheet that is calculated rather than typed in.
 // Rules source: SRD 5.2.1 (2024 rules). Section names are given next to each rule.
 import { srdClass } from '../data/srd'
+import { isCarriedConsumable } from './consumables'
 import { evaluate } from './expr'
 import {
   ABILITIES,
@@ -11,6 +12,7 @@ import {
   type Character,
   type ClassEntry,
   type Formula,
+  type Item,
   type SkillId,
 } from './types'
 
@@ -258,8 +260,15 @@ export function pactSlots(c: Character): { slots: number; level: number } {
   }
 }
 
-/** Does this item count right now (Play screen, "Always on", item bonuses to spells)? Needs no attunement, or is attuned. */
-export const itemInPlay = (i: { requiresAttunement: boolean; attuned: boolean }) => !i.requiresAttunement || i.attuned
+/**
+ * Is this item on the Play screen (its tile, cards, linked attacks, "Always on" chips, features from it)?
+ * The same rule as its bonuses (itemActive): equipped, and attuned if it requires attunement.
+ * Exception: consumables (scrolls, potions, items spent by quantity, see isCarriedConsumable). You carry
+ * them, you do not equip them, so they need only the attunement (if any).
+ * Since 2026-09-29; before that "equipped" did not matter on the Play screen.
+ */
+export const itemInPlay = (i: Pick<Item, 'name' | 'charges' | 'activation' | 'powers' | 'equipped' | 'requiresAttunement' | 'attuned'>) =>
+  isCarriedConsumable(i) ? !i.requiresAttunement || i.attuned : itemActive(i)
 
 export interface CastingStats {
   classId: string

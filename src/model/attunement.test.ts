@@ -19,7 +19,7 @@ const hero = (): Character =>
       items: [
         { id: 'pot', name: 'Potion', quantity: 2, activation: 'action' },
         { id: 'helm', name: 'Helm', quantity: 1, equipped: true, activation: 'action', charges: { max: 1, recharge: 'long' } },
-        { id: 'staff', name: 'Staff', quantity: 1, requiresAttunement: true, attuned: true, activation: 'reaction', charges: { max: 3, recharge: 'dawn' } },
+        { id: 'staff', name: 'Staff', quantity: 1, equipped: true, requiresAttunement: true, attuned: true, activation: 'reaction', charges: { max: 3, recharge: 'dawn' } },
         { id: 'wand', name: 'Wand of Web', quantity: 1, requiresAttunement: true, activation: 'action', charges: { max: 7, recharge: 'dawn' } },
         { id: 'ring', name: 'Ring of Protection', quantity: 1, requiresAttunement: true, acBonus: 1 },
         { id: 'am', name: 'Amulet', quantity: 1, requiresAttunement: true, attuned: true },
@@ -31,22 +31,33 @@ const hero = (): Character =>
 // healing potions are counters, not cards, but they are on the Play screen too
 const ids = (c: Character) => [...playCards(c), ...playHealingPotions(c)].map((x) => x.id)
 
-describe('Play screen: attunement filter', () => {
-  it('itemInPlay: no attunement needed, or attuned', () => {
-    expect(itemInPlay({ requiresAttunement: false, attuned: false })).toBe(true)
-    expect(itemInPlay({ requiresAttunement: true, attuned: true })).toBe(true)
-    expect(itemInPlay({ requiresAttunement: true, attuned: false })).toBe(false)
+describe('Play screen: equipped and attunement filter', () => {
+  it('itemInPlay: equipped, and attuned if it needs attunement; consumables need no "equipped"', () => {
+    const helm = { name: 'Helm', charges: { max: 1, used: 0, recharge: 'long' as const } }
+    expect(itemInPlay({ ...helm, equipped: true, requiresAttunement: false, attuned: false })).toBe(true)
+    expect(itemInPlay({ ...helm, equipped: true, requiresAttunement: true, attuned: true })).toBe(true)
+    expect(itemInPlay({ ...helm, equipped: true, requiresAttunement: true, attuned: false })).toBe(false)
+    expect(itemInPlay({ ...helm, equipped: false, requiresAttunement: false, attuned: false })).toBe(false)
+    expect(itemInPlay({ ...helm, equipped: false, requiresAttunement: true, attuned: true })).toBe(false)
+    // carried, not equipped: scrolls, potions, items spent by quantity
+    for (const name of ['Scroll of Shatter', 'Potion of Climbing'])
+      expect(itemInPlay({ name, equipped: false, requiresAttunement: false, attuned: false })).toBe(true)
+    expect(itemInPlay({ name: "Alchemist's Fire", activation: 'action', equipped: false, requiresAttunement: false, attuned: false })).toBe(true)
+    // ...but an item with charges is not a consumable, even with an activation
+    expect(itemInPlay({ ...helm, activation: 'action', equipped: false, requiresAttunement: false, attuned: false })).toBe(false)
   })
   it('an item that needs attunement but is not attuned has no card; the rest do', () => {
     const c = hero()
     expect(ids(c)).toEqual(expect.arrayContaining(['pot', 'helm', 'staff', 'pearl']))
     expect(ids(c)).not.toContain('wand')
   })
-  it('"equipped" does not decide: an unequipped potion is in Play, an equipped unattuned item is not', () => {
+  it('an unequipped potion is in Play; an equipped unattuned item is not; an attuned item taken off is not', () => {
     let c = hero()
     c = { ...c, inventory: { ...c.inventory, items: c.inventory.items.map((i) => (i.id === 'wand' ? { ...i, equipped: true } : i)) } }
     expect(ids(c)).toContain('pot')
     expect(ids(c)).not.toContain('wand')
+    c = { ...c, inventory: { ...c.inventory, items: c.inventory.items.map((i) => (i.id === 'staff' ? { ...i, equipped: false } : i)) } }
+    expect(ids(c)).not.toContain('staff')
   })
   it('features that come from an unattuned item are hidden too (name match ignores case)', () => {
     const c = hero()

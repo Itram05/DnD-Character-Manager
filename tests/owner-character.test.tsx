@@ -102,7 +102,8 @@ describe.skipIf(!ownerFile(OWNER_FILE))("owner's character file", () => {
       expect(phone).toContain('SP 2')
       expect(phone).toContain('Greater × 8')
       for (const t of [wide, phone]) {
-        expect(t).toContain('Attacks ( 5 )')
+        // Staff of Ages and Fire Bolt; the attacks of the unequipped Crown, Chain hook and Trident are hidden with them (2026-09-29)
+        expect(t).toContain('Attacks ( 2 )')
         expect(t).not.toContain('Font of Magic')
         expect(t).not.toContain('Witch Focus')
         expect(t).toContain('+3 spell attack · Staff of Ages')

@@ -249,6 +249,7 @@ const staffHero = (attuned = true): Character =>
         {
           id: 'amulet',
           name: 'Amulet',
+          equipped: true,
           powers: [{ id: 'see', name: 'See the unseen', activation: 'reaction', uses: { max: 1, recharge: 'long' }, description: 'See an invisible creature.' }],
         },
       ],
@@ -322,12 +323,12 @@ describe('item powers', () => {
     expect(playCards(c).some((x) => x.itemId === 'staff')).toBe(false)
     expect(playPassivePowers(c)).toEqual([])
     expect(playPassives(c).map((f) => f.name)).not.toContain('Staff trick')
-    // the amulet needs no attunement and stays
+    // the amulet needs no attunement (it is equipped) and stays
     expect(playCards(c).some((x) => x.id === 'see')).toBe(true)
   })
   it('an item whose powers are all passive keeps its normal card', () => {
     const c = normalizeCharacter({
-      inventory: { items: [{ id: 'w', name: 'Wand', activation: 'action', charges: { max: 7, recharge: 'dawn' }, powers: [{ name: 'Glow', activation: 'passive' }] }] },
+      inventory: { items: [{ id: 'w', name: 'Wand', equipped: true, activation: 'action', charges: { max: 7, recharge: 'dawn' }, powers: [{ name: 'Glow', activation: 'passive' }] }] },
     }).character
     expect(playCards(c).map((x) => [x.kind, x.name])).toEqual([['item', 'Wand']])
     expect(playPassivePowers(c).map((x) => x.power.name)).toEqual(['Glow'])

@@ -1,9 +1,9 @@
 // Stage 4 of the inventory redesign (2026-09-29): attacks linked to their item (Attack.itemId), and the
 // Items section of Play: one tile per item in play, a panel with the item's cards.
 import { describe, expect, it } from 'vitest'
-import { itemPanel, itemTiles } from './itemPanel'
+import { itemPanel, itemTiles, playHiddenReason } from './itemPanel'
 import { importCharacterJson, itemForAttackName, normalizeCharacter } from './normalize'
-import { playCards, spendPower } from './play'
+import { attackInPlay, playCards, playPassivePowers, spendPower } from './play'
 import type { Item } from './types'
 
 const item = (name: string, extra: Partial<Item> = {}): Item => ({ id: name, name, quantity: 1, equipped: false, requiresAttunement: false, attuned: false, ...extra })
@@ -65,11 +65,11 @@ describe('Attack.itemId on read', () => {
 
 describe('the Items section of Play', () => {
   const wand = { id: 'wand', name: 'Wand of Web', requiresAttunement: true, attuned: false, charges: { max: 7, used: 0, recharge: 'none' }, activation: 'action' }
-  const pearl = { id: 'pearl', name: 'Pearl of Power', requiresAttunement: true, attuned: true, charges: { max: 1, used: 0, recharge: 'dawn' }, activation: 'action' }
+  const pearl = { id: 'pearl', name: 'Pearl of Power', equipped: true, requiresAttunement: true, attuned: true, charges: { max: 1, used: 0, recharge: 'dawn' }, activation: 'action' }
   const rope = { id: 'rope', name: 'Rope' }
   const scroll = { id: 'sc', name: 'Scroll of Shatter', activation: 'action' }
   const potion = { id: 'po', name: 'Potion of Climbing', activation: 'action' }
-  const hook = { id: 'hook', name: 'Chain hook' }
+  const hook = { id: 'hook', name: 'Chain hook', equipped: true }
   const c = hero(
     [staff, wand, pearl, rope, scroll, potion, hook],
     [{ name: 'Staff of Ages (+3)', damage: '1d6' }, { name: 'Chain hook', damage: '1d6' }],
@@ -95,6 +95,21 @@ describe('the Items section of Play', () => {
     expect(p.cards.map((x) => [x.kind, x.name])).toEqual([['item', 'Pearl of Power']])
     const handKeys = playCards(c).map((x) => x.key)
     for (const it of c.inventory.items) for (const card of itemTiles(c).some((x) => x.item.id === it.id) ? itemPanel(c, it).cards : []) expect(handKeys).toContain(card.key)
+  })
+  it('not equipped: no tile, no cards, no linked attack, no chips; the Gear tab says why', () => {
+    const off = (id: string) => ({ ...c, inventory: { ...c.inventory, items: c.inventory.items.map((i) => (i.id === id ? { ...i, equipped: false } : i)) } })
+    const noHook = off('hook')
+    expect(itemTiles(noHook).map((x) => x.item.name)).toEqual(['Staff of Ages', 'Pearl of Power'])
+    expect(noHook.attacks.filter((a) => attackInPlay(noHook, a)).map((a) => a.name)).toEqual(['Staff of Ages (+3)'])
+    expect(playHiddenReason(noHook, noHook.inventory.items.find((i) => i.id === 'hook')!)).toBe('equip')
+    const noStaff = off('st')
+    expect(itemTiles(noStaff).map((x) => x.item.name)).toEqual(['Pearl of Power', 'Chain hook'])
+    expect(playCards(noStaff).some((x) => x.itemId === 'st')).toBe(false)
+    expect(playPassivePowers(noStaff)).toEqual([])
+    expect(noStaff.attacks.filter((a) => attackInPlay(noStaff, a)).map((a) => a.name)).toEqual(['Chain hook'])
+    // the wand: not equipped and not attuned; the rope does nothing at the table; scrolls and potions need no "equipped"
+    const reason = (id: string) => playHiddenReason(c, c.inventory.items.find((i) => i.id === id)!)
+    expect([reason('wand'), reason('rope'), reason('sc'), reason('po'), reason('st')]).toEqual(['both', null, null, null, null])
   })
   it('spending from the panel is spending the item: the tile shows the charge gone', () => {
     const ward = itemPanel(c, c.inventory.items.find((i) => i.id === 'st')!).cards.find((x) => x.name === 'Hourglass Ward')!

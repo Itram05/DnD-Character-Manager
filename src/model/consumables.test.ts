@@ -32,7 +32,7 @@ const hero = (): Character =>
         { id: 'p3', name: 'greater healing potion', quantity: 2 },
         { id: 'p-climb', name: 'Potion of Climbing', quantity: 1, description: 'You gain a Climb Speed equal to your Speed for 1 hour.' },
         { id: 'fire', name: "Alchemist's Fire", quantity: 2, activation: 'action', description: '1d4 Fire damage at the start of each of its turns.' },
-        { id: 'p-charged', name: 'Potion Flask of Endless Brew', quantity: 1, activation: 'action', charges: { max: 3, recharge: 'dawn' } },
+        { id: 'p-charged', name: 'Potion Flask of Endless Brew', quantity: 1, equipped: true, activation: 'action', charges: { max: 3, recharge: 'dawn' } },
         { id: 'rope', name: 'Rope', quantity: 1 },
       ],
     },

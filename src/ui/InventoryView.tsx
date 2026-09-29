@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { t } from '../i18n'
+import { playHiddenReason } from '../model/itemPanel'
 import { MAX_ATTUNED, attunedCount, setAttunement, usesMax } from '../model/rules'
 import type { Item, Money } from '../model/types'
 import { NumberField, Pips } from './common'
@@ -94,6 +95,7 @@ export function InventoryView({ api }: { api: SheetApi }) {
         <ul className="item-rows">
           {c.inventory.items.map((i) => {
             const max = i.charges ? usesMax(c, i.charges.max) : 0
+            const hidden = playHiddenReason(c, i)
             return (
               <li key={i.id} className={i.equipped ? 'equipped' : ''}>
                 <div className="item-main">
@@ -106,7 +108,7 @@ export function InventoryView({ api }: { api: SheetApi }) {
                   {i.spellDcBonus ? <span className="tag">DC {i.spellDcBonus > 0 ? '+' : ''}{i.spellDcBonus}</span> : null}
                   {i.spellAttackBonus ? <span className="tag">{t('inv.spellAttackTag')} {i.spellAttackBonus > 0 ? '+' : ''}{i.spellAttackBonus}</span> : null}
                   {i.powers?.length ? <span className="tag">{t('power.count', { n: i.powers.length })}</span> : null}
-                  {i.requiresAttunement && !i.attuned && <span className="tag muted">{t('attune.notInPlay')}</span>}
+                  {hidden && <span className={`tag muted not-in-play ${hidden}`}>{t(`notInPlay.${hidden}`)}</span>}
                 </div>
                 <div className="item-controls">
                   <button className={`toggle ${i.equipped ? 'on' : ''}`} onClick={() => setItem(i.id, { equipped: !i.equipped })} aria-pressed={i.equipped}>

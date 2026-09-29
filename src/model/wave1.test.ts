@@ -29,7 +29,7 @@ const sorcerer = (extra: object = {}, uses: object = { max: 'sorcerer.sorcery-po
     inventory: {
       items: [
         { id: 'pot', name: "Alchemist's Fire", quantity: 3, activation: 'action' },
-        { id: 'wand', name: 'Wand', quantity: 1, activation: 'action', charges: { max: 7, recharge: 'dawn' } },
+        { id: 'wand', name: 'Wand', quantity: 1, equipped: true, activation: 'action', charges: { max: 7, recharge: 'dawn' } },
         { id: 'rope', name: 'Rope', quantity: 1 },
       ],
     },

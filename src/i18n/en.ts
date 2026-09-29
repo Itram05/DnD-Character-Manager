@@ -533,10 +533,12 @@ export const en: Record<string, string> = {
   'inv.items': 'Items',
   'inv.attuned': 'Attunement: {n}/{max}',
   'attune.title': 'Attunement',
-  'attune.hint': 'Tap an item to attune or un-attune it. Only attuned items (and items that need no attunement) appear on the Play screen.',
+  'attune.hint': 'Tap an item to attune or un-attune it. Only equipped items appear on the Play screen, and only when attuned if they need attunement (scrolls, potions and other items used up by quantity need no "Equipped").',
   'attune.blocked': 'Could not attune {name}: you already have {max} attuned items. Tap one of the highlighted items to un-attune it first, then tap {name} again.',
   'attune.freeOne': 'Attuned now: {names}',
-  'attune.notInPlay': 'Not attuned: hidden in Play',
+  'notInPlay.attune': 'Not attuned: hidden in Play',
+  'notInPlay.equip': 'Not equipped: hidden in Play',
+  'notInPlay.both': 'Not equipped or attuned: hidden in Play',
 
   // item powers (wave 2)
   'power.title': 'Powers of this item',

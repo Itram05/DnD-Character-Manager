@@ -8,7 +8,8 @@ import { longRest } from '../src/model/rest'
 import { addTimer } from '../src/model/timers'
 import { setAttunement, spellDcView } from '../src/model/rules'
 import { addSessionXp, correctXp, raiseXpToLevel, undoLastXp, xpProgress } from '../src/model/xp'
-import { itemPanel, itemTiles } from '../src/model/itemPanel'
+import { itemPanel, itemTiles, playHiddenReason } from '../src/model/itemPanel'
+import { attackInPlay, playCards } from '../src/model/play'
 import { GRAV_DESKTOP, expectGravImportWarnings, gravAfterImport, ownerFile } from './ownerFiles'
 
 const GRAV_V2 = GRAV_DESKTOP
@@ -77,16 +78,22 @@ describe.skipIf(!HAVE_GRAV_V2)('Grav v2: spell save DC in the head and the XP on
 // Stage 4 of the inventory redesign on his file: the Items section of Play
 describe.skipIf(!HAVE_GRAV_V2)('Grav v2: items in Play', () => {
   const { character: c } = importCharacterJson(existsSync(GRAV_V2) ? readFileSync(GRAV_V2, 'utf8') : '{}')
-  it('seven tiles; Witch Focus (not attuned), Wand of Web and the Amulet (not attuned), Silent Amulet (does nothing), scrolls and potions get none', () => {
+  it('three tiles: only equipped items (and attuned, if needed); Silent Amulet does nothing, scrolls and potions get none', () => {
     expect(itemTiles(c).map((x) => [x.item.name, x.charges?.max ?? 0])).toEqual([
       ['Staff of Ages', 3],
       ['Pearl of Power', 1],
-      ['"Not for a Crown" (+2 longsword)', 1],
-      ['Everfrost Trident', 2],
-      ['Chain hook', 0],
-      ["Nicklaus' Spectacles", 3],
       ['Helm of the Constellation', 1],
     ])
+  })
+  it('since 2026-09-29 his four unequipped items leave Play, and the Gear tab says why', () => {
+    const gone = ['"Not for a Crown" (+2 longsword)', 'Everfrost Trident', 'Chain hook', "Nicklaus' Spectacles"]
+    const hidden = c.inventory.items.filter((i) => playHiddenReason(c, i) === 'equip').map((i) => i.name)
+    expect(hidden).toEqual(gone)
+    const names = playCards(c).map((x) => x.name)
+    for (const n of ['"Not for a Crown" (+2 longsword)', 'Everfrost Trident', "Nicklaus' Spectacles"]) expect(names).not.toContain(n)
+    expect(c.attacks.filter((a) => attackInPlay(c, a)).map((a) => a.name)).toEqual(['Staff of Ages (+3)', 'Fire Bolt'])
+    // scrolls and potions stay
+    expect(playCards(c).filter((x) => x.kind === 'scroll')).toHaveLength(6)
   })
   it('Staff of Ages gives 4 cards: Temporal Echo, Hourglass Ward, Echo of Ages and its attack; +3 spell attack as a chip', () => {
     const staff = c.inventory.items.find((i) => i.name === 'Staff of Ages')!

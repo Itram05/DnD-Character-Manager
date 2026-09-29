@@ -12,6 +12,7 @@ import {
   playCards,
   playPassivePowers,
   playPassives,
+  attackInPlay,
   playHealingPotions,
   shortText,
   spendSlot,
@@ -39,8 +40,9 @@ import { ItemPanel, ItemsSection } from './ItemsSection'
 import { itemPanel, itemTiles } from '../model/itemPanel'
 import { groupTitle, playHands, playSections, sectionId } from './playSections'
 
+// an attack made with an item that is not in play (not equipped, or not attuned) is hidden with the item
 function attackFaces(c: Character): CardFace[] {
-  return c.attacks.map((a) => {
+  return c.attacks.filter((a) => attackInPlay(c, a)).map((a) => {
     const s = attackStats(c, a)
     const dmg = a.damage ? `${a.damage}${s.dmgMod ? (s.dmgMod > 0 ? `+${s.dmgMod}` : s.dmgMod) : ''}` : ''
     return {

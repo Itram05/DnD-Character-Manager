@@ -164,6 +164,7 @@ When the field is **missing**, the app links the attack on import to the item wh
 with (`"Staff of Ages (+3)"` → the item `"Staff of Ages"`; whole words, the longest item name wins) and says so in
 the import report; if no item matches, it writes `null`, so the guess is made only once. A link to an item that is
 no longer in the inventory becomes `null`. Change the link in the attack's editor (Stats tab).
+An attack linked to an item that is not on the Play screen (not equipped, or not attuned) is hidden from Play with it.
 
 ## spellcasting
 
@@ -203,8 +204,8 @@ no longer in the inventory becomes `null`. Change the link in the attack's edito
 | Field | Notes |
 |---|---|
 | `name`, `quantity` (default 1), `weight`, `description` | |
-| `equipped` | |
-| `requiresAttunement`, `attuned` | At most 3 attuned items (extra ones are un-attuned on import). An item that requires attunement but is not attuned is hidden from the Play screen (with any feature whose `source` is `{ "type": "item", "name": <item name> }`); attune it on the Gear tab. Attuning there also sets `equipped`. |
+| `equipped` | Only equipped items are on the Play screen (their cards, tile, linked attacks, "Always on" chips and features from them), and only when attuned if they require attunement: the same rule as `acBonus` below. Exception: consumables are carried, not equipped, and need no `equipped`: potions, scrolls, and items without `charges` that have an `activation` and no active powers (spent by `quantity`). An unequipped item that has something for the table is tagged "Not equipped: hidden in Play" on the Gear tab. (Until 2026-09-29 only attunement mattered for the Play screen.) |
+| `requiresAttunement`, `attuned` | At most 3 attuned items (extra ones are un-attuned on import). An item that requires attunement but is not attuned is hidden from the Play screen (with any feature whose `source` is `{ "type": "item", "name": <item name> }`, and any attack whose `itemId` is the item); attune it on the Gear tab. Attuning there also sets `equipped`. |
 | `armor` | `{ "base": 14, "dexCap": 2 }` — body armor. `dexCap`: `null` = full Dex (light), `2` (medium), `0` (heavy). |
 | `acBonus` | Added to AC while equipped (and attuned if required). Shield = 2. |
 | `saveBonus` | Added to all saving throws under the same condition (Ring/Cloak of Protection). |
@@ -222,7 +223,7 @@ no longer in the inventory becomes `null`. Change the link in the attack's edito
 A magic item with several abilities lists them in `powers`. Each **active** power is its own card, in the hand of its
 activation (Action, Bonus Action, Reaction, Free / Other); each **passive** power is a chip under "Always on", next to the
 passive features. An item with at least one active power shows no card of its own: its powers are the item on the Play screen.
-Powers follow the item's attunement: an item that needs attunement and is not attuned hides all its powers.
+Powers follow the item: an item that is not equipped, or needs attunement and is not attuned, hides all its powers.
 
 A bonus to the spell DC or spell attack is **not** a power: use the item fields `spellDcBonus` / `spellAttackBonus`.
 (Older files had a passive power named like "+1 spell save DC" or "+3 spell attack"; the importer turns such a

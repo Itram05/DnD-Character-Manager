@@ -27,6 +27,14 @@ const NOT_SCROLL = /\bscroll\s*(case|tube|holder)s?\b/i
 export const isScroll = (i: Named) => !i.charges && SCROLL_WORD.test(i.name) && !NOT_SCROLL.test(i.name)
 export const isPotion = (i: Named) => !i.charges && !isScroll(i) && POTION_WORD.test(i.name)
 
+/**
+ * Carried and used up, not equipped: scrolls, potions, and any item the Play screen spends by quantity
+ * (no charges, an activation, no active powers: Alchemist's Fire, a flask of oil, caltrops).
+ * These are on the Play screen without "equipped" (itemInPlay in rules.ts).
+ */
+export const isCarriedConsumable = (i: Pick<Item, 'name' | 'charges' | 'activation' | 'powers'>) =>
+  isScroll(i) || isPotion(i) || (!i.charges && !!i.activation && !(i.powers ?? []).some((p) => p.activation !== 'passive'))
+
 const NAME_PATTERNS: RegExp[] = [
   /^(?:spell\s+)?scroll\s*\((.+)\)$/i, // Spell Scroll (Fireball)
   /^(?:spell\s+)?scroll\s*(?:of\b|:|-|–|—)\s*(.+)$/i, // Scroll of Fireball, Spell Scroll: Fireball

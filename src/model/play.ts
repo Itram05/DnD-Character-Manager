@@ -11,7 +11,7 @@ import { itemActive, itemInPlay, pactSlots, spellSlots, totalLevel, usesMax } fr
 import { bonusSlotsAt, isSorceryPoints } from './sorcery'
 import { cardStrip, type CardStrip } from './strip'
 import { featureTags, itemTags, mergeTags, powerTags, spellAutoTags, spellTags } from './tags'
-import type { Activation, Character, Feature, Item, ItemPower, PowerCost, SourceType, Spell, Uses } from './types'
+import type { Activation, Attack, Character, Feature, Item, ItemPower, PowerCost, SourceType, Spell, Uses } from './types'
 
 export type Zone = 'action' | 'bonus' | 'reaction' | 'other'
 export const ZONES: Zone[] = ['action', 'bonus', 'reaction', 'other']
@@ -91,13 +91,21 @@ export function isPassive(f: Feature) {
   return f.activation === 'passive'
 }
 
-// ---------------- attunement filter ----------------
-// The Play screen shows only items you can use right now: items that need no attunement,
-// and attuned ones. An item that needs attunement but is not attuned lives only on the
-// Gear tab, where it can be attuned with one tap. "equipped" does not matter here:
-// potions and scrolls are not equipped, yet they belong on the Play screen.
-// (Defined in rules.ts, which needs it for the spell save DC; rules.ts cannot import this file.)
+// ---------------- equipped / attunement filter ----------------
+// The Play screen shows only items you can use right now: equipped, and attuned if they need
+// attunement (the same rule as the item's bonuses to AC, saves and spells). Any other item lives
+// only on the Gear tab, where it is equipped or attuned with one tap. Exception: consumables
+// (potions, scrolls, items spent by quantity) are carried, not equipped; they are on the Play
+// screen without "equipped" (isCarriedConsumable).
+// (Defined in rules.ts, next to itemActive; rules.ts cannot import this file.)
 export { itemInPlay }
+
+/** An attack made with an item (Attack.itemId) follows that item; one with no item, or a deleted one, is always shown. */
+export function attackInPlay(c: Character, a: Attack): boolean {
+  if (!a.itemId) return true
+  const item = c.inventory.items.find((i) => i.id === a.itemId)
+  return !item || itemInPlay(item)
+}
 
 const norm = (s: string) => s.trim().toLowerCase()
 
@@ -108,7 +116,7 @@ export function featureInPlay(c: Character, f: Feature): boolean {
   return !item || itemInPlay(item)
 }
 
-/** The four healing potions: counters next to Concentration, not cards. Same attunement filter as every item. */
+/** The four healing potions: counters next to Concentration, not cards. Same filter as every item (itemInPlay; a potion needs no "equipped"). */
 export const playHealingPotions = (c: Character) => c.inventory.items.filter((i) => isHealingPotion(i) && itemInPlay(i))
 
 /** One counter in the Concentration panel. `item` is missing when the character has no potion of that kind. */
@@ -280,7 +288,7 @@ export function itemBonusPowers(i: Item): ItemPower[] {
   return out
 }
 
-/** Passive powers of the items usable in Play (attunement filter), for the "Always on" row; the item's bonus chips come first. */
+/** Passive powers of the items usable in Play (itemInPlay), for the "Always on" row; the item's bonus chips come first. */
 export function playPassivePowers(c: Character): { item: Item; power: ItemPower }[] {
   return c.inventory.items.filter(itemInPlay).flatMap((item) => [...itemBonusPowers(item), ...passivePowers(item)].map((power) => ({ item, power })))
 }
