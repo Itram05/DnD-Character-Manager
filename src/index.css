@@ -3276,9 +3276,14 @@ details summary {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
-/* phone and narrow windows: a small "§" button in the head that opens the same list under it */
-.section-anchor {
+/* phone and narrow windows: a small "§" button in the head that opens the same list under it.
+   The list hangs from the right edge of the whole tools row, not from the button: on a phone the
+   button sits mid-row and a 260px list right-aligned to it ran off the left edge of the screen. */
+.head-tools {
   position: relative;
+}
+.section-anchor {
+  position: static;
   flex: 0 0 auto;
 }
 .section-btn {
