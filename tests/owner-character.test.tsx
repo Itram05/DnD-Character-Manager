@@ -175,7 +175,7 @@ describe.skipIf(!existsSync(GRAV_FILE))("owner's character: potions and scrolls"
       vi.unstubAllGlobals()
     }
   }
-  it('a phone folds slots, concentration and potions into a short Resources summary: slots left, SP, drinkable potions', () => {
+  it('a phone folds slots, concentration and potions into a short Resources summary: slots left, SP, the four potions in fixed places', () => {
     const html = renderToString(<PlayView api={apiFor(c)} />)
     const res = strip(html.slice(html.indexOf('class="res '), html.indexOf('<section', html.indexOf('class="res ') + 10)))
     expect(res).toContain('Resources')
@@ -183,7 +183,9 @@ describe.skipIf(!existsSync(GRAV_FILE))("owner's character: potions and scrolls"
     expect(res).toContain('No concentration')
     expect(res).toContain('Healing × 1')
     expect(res).toContain('Greater × 8')
-    expect(res).not.toContain('Supreme') // none left: nothing to drink
+    expect(res).toContain('Superior × 2')
+    expect(res).toContain('Supreme × 0') // none left: still in its place, faded
+    expect(html).toContain('aria-label="No Potion of Supreme Healing left"')
     expect(html).not.toContain('in-play panel')
     expect(html).toContain('aria-label="Level 1: ')
   })

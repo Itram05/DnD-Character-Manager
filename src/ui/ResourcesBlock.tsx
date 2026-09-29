@@ -3,23 +3,18 @@
 //
 // Folded (the default), the block is a summary of what is left, readable without opening it:
 //   - a chip per slot level with the slots left ("3" over a small "L2"), pact slots as "P", then SP;
-//   - the spell you concentrate on, with an "end" button, or "No concentration";
-//   - a chip per healing potion you have, whose "−" drinks one straight away (the usual mid-fight tap).
+//   - under them, two columns: on the left the spell you concentrate on, with an "end" button, or
+//     "No concentration"; on the right the four healing potions in a 2×2 grid, always in the same places
+//     (Healing, Greater / Superior, Supreme), so nothing jumps when one runs out: a kind at 0 is faded and
+//     its "−" disabled. The "−" drinks one straight away (the usual mid-fight tap).
 // Tapping the header (or any slot chip) unfolds it into the full panels (the pips to spend and restore,
 // Convert, the "+" of the potions). The choice is remembered, like the computer's side column.
 // A computer (900px and up) never sees this block; it keeps the panels as they were.
 import { useState, type ReactNode } from 'react'
 import { t } from '../i18n'
-import type { HealingRow, ManaRow } from '../model/play'
+import { potionCells, type HealingRow, type ManaRow } from '../model/play'
 import type { Item } from '../model/types'
 import { loadResourcesOpen, saveResourcesOpen } from '../model/storage'
-
-/** "Greater Healing" -> "Greater", "Healing" stays: the chip has room for one word. */
-const potionShort = (name: string) => {
-  const n = name.replace(/^potion of\s+/i, '').trim()
-  const w = n.split(/\s+/)
-  return w.length > 1 && /^healing$/i.test(w[w.length - 1]) ? w.slice(0, -1).join(' ') : n
-}
 
 export function ResourcesBlock(props: {
   id: string
@@ -40,7 +35,7 @@ export function ResourcesBlock(props: {
     saveResourcesOpen(next)
   }
   const { mana, sp, conc, potions } = props
-  const have = potions.filter((p) => p.item && p.quantity > 0)
+  const cells = potionCells(potions)
 
   return (
     <section id={props.id} className={`res panel nav-target ${open ? 'open' : ''} ${conc ? 'conc-on' : ''}`}>
@@ -99,16 +94,24 @@ export function ResourcesBlock(props: {
             ) : (
               <span className="res-conc">{t('res.noConc')}</span>
             )}
-            {have.map((p) => (
-              <span key={p.item!.id} className="res-potion" title={p.name}>
-                <button className="mini-btn" onClick={() => props.onDrink(p.item!)} aria-label={t('res.drink', { name: p.name, n: p.quantity })}>
-                  −
-                </button>
-                <span className="res-pn">{potionShort(p.name)}</span>
-                <b>×{p.quantity}</b>
-              </span>
-            ))}
-            {have.length === 0 && <span className="res-nopot">{t('res.noPotions')}</span>}
+            <div className="res-potions">
+              {cells.map((p) => (
+                <span key={p.tier} className={`res-potion ${p.item ? '' : 'none'}`} title={p.name}>
+                  <button
+                    className="mini-btn"
+                    disabled={!p.item}
+                    onClick={() => p.item && props.onDrink(p.item)}
+                    aria-label={p.item ? t('res.drink', { name: p.name, n: p.quantity }) : t('res.noPotion', { name: p.name })}
+                  >
+                    −
+                  </button>
+                  <span className="res-pv">
+                    <span className="res-pn">{t(`res.tier.${p.tier}`)}</span>
+                    <b>×{p.quantity}</b>
+                  </span>
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       )}

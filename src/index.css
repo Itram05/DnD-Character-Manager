@@ -3424,7 +3424,12 @@ details summary {
 .res-chip.none b {
   color: var(--danger);
 }
+/* under the slots: concentration on the left, the potions' 2×2 grid on the right */
 .res-rest {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem;
   font-size: 0.82rem;
 }
 .res-conc {
@@ -3448,11 +3453,24 @@ details summary {
 .res-conc .glyph {
   color: var(--f-spell);
 }
+.res-conc.on {
+  justify-self: start;
+}
+/* the column is as tall as two potion rows: a long spell name gets two lines before it is cut */
 .res-conc-name {
   min-width: 0;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+}
+.res-potions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.3rem;
 }
 .res-conc .mini-btn,
 .res-potion .mini-btn {
@@ -3461,21 +3479,40 @@ details summary {
   flex: 0 0 auto;
   font-weight: 700;
 }
+/* a potion: "−" to drink, then the kind small above the count, like the slot chips above */
 .res-potion {
   --fc: var(--f-item);
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 0.3rem;
-  padding: 0 0.45rem 0 0;
+  padding: 0 0.4rem 0 0;
   border: 1px solid color-mix(in srgb, var(--fc) 55%, var(--line));
   background: color-mix(in srgb, var(--fc) 10%, var(--panel));
   border-radius: 8px;
+}
+.res-pv {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+.res-pn {
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--muted);
 }
 .res-potion b {
   font-variant-numeric: tabular-nums;
   color: var(--hl-heal);
 }
-.res-nopot {
+/* none left: faded in its place, so the other three do not move */
+.res-potion.none {
+  opacity: 0.45;
+  border-style: dashed;
+}
+.res-potion.none .mini-btn:disabled {
+  opacity: 1;
+}
+.res-potion.none b {
   color: var(--muted);
 }
 /* unfolded: the usual panels, without their own frames (the block is the frame) */

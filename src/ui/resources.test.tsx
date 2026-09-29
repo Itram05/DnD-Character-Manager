@@ -2,7 +2,7 @@
 // the end of concentration are there straight away; unfolded, the full panels; the choice is remembered.
 import { renderToString } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { HealingRow, ManaRow } from '../model/play'
+import { potionCells, type HealingRow, type ManaRow } from '../model/play'
 import { loadResourcesOpen, saveResourcesOpen } from '../model/storage'
 import { ResourcesBlock } from './ResourcesBlock'
 
@@ -35,12 +35,24 @@ describe('phone Resources block', () => {
     expect(html).toContain('aria-label="5 of 9 Sorcery Points left"')
     expect(html).not.toContain('FULL')
   })
-  it('folded: a potion you have is one tap to drink; empty kinds are not listed', () => {
-    const t = text(block())
-    expect(t).toContain('− Healing × 2')
-    expect(t).not.toContain('Greater')
-    expect(t).not.toContain('Superior')
-    expect(block()).toContain('aria-label="Drink one Potion of Healing (2 left)"')
+  it('folded: all four kinds always in the same order; one you have is one tap to drink, one at 0 is faded', () => {
+    const html = block()
+    expect(text(html)).toMatch(/− Healing × 2 − Greater × 0 − Superior × 0 − Supreme × 0/)
+    expect(html).toContain('aria-label="Drink one Potion of Healing (2 left)"')
+    expect(html.match(/res-potion none/g)).toHaveLength(3)
+    expect(html).toContain('aria-label="No Potion of Greater Healing left"')
+    expect(html.match(/<button class="mini-btn" disabled=""/g)).toHaveLength(3)
+  })
+  it('potion cells: two items of one kind are one cell with their sum, "−" takes the first with any left', () => {
+    const rows: HealingRow[] = [
+      { tier: 'healing', item: { id: 'a', name: 'Potion of Healing', quantity: 0 } as HealingRow['item'], name: 'Potion of Healing', quantity: 0 },
+      { tier: 'healing', item: { id: 'b', name: 'Potion of Healing', quantity: 3 } as HealingRow['item'], name: 'Potion of Healing', quantity: 3 },
+    ]
+    const cells = potionCells(rows)
+    expect(cells.map((c) => c.tier)).toEqual(['healing', 'greater', 'superior', 'supreme'])
+    expect(cells[0].quantity).toBe(3)
+    expect(cells[0].item?.id).toBe('b')
+    expect(cells[1].item).toBeUndefined()
   })
   it('folded: concentration with its end button, or "No concentration"', () => {
     expect(text(block())).toContain('No concentration')

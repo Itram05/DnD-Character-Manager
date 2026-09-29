@@ -135,6 +135,19 @@ export function healingPotionRows(c: Character): HealingRow[] {
 }
 
 /**
+ * The phone's folded potion grid: one cell per kind, in the fixed order. Two items of one kind
+ * (two "Potion of Healing" entries) are one cell with their sum; "−" drinks from the first one that has any left.
+ */
+export function potionCells(potions: HealingRow[]) {
+  return HEALING_TIERS.map((tier) => {
+    const rows = potions.filter((p) => p.tier === tier)
+    const quantity = rows.reduce((n, p) => n + (p.item ? p.quantity : 0), 0)
+    const next = rows.find((p) => p.item && p.quantity > 0)
+    return { tier, quantity, item: next?.item, name: next?.name ?? rows.find((p) => p.item)?.name ?? HEALING_NAME[tier] }
+  })
+}
+
+/**
  * "+" on a kind the character has no item for: a new item in the inventory with the standard name,
  * its dice in the description and quantity 1. If an item of that kind is on the Play screen, one more of it.
  */

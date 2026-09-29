@@ -278,7 +278,12 @@ export const en: Record<string, string> = {
   'res.noConc': 'No concentration',
   'res.endConc': 'End concentration on {name}',
   'res.drink': 'Drink one {name} ({n} left)',
-  'res.noPotions': 'No healing potions',
+  'res.noPotion': 'No {name} left',
+  // the potion grid of the folded block: one word per kind
+  'res.tier.healing': 'Healing',
+  'res.tier.greater': 'Greater',
+  'res.tier.superior': 'Superior',
+  'res.tier.supreme': 'Supreme',
   'play.notConcentrating': 'Not concentrating on anything.',
   'play.endConcentration': 'End',
   'play.battlefield': 'Always on',
