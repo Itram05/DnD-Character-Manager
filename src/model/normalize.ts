@@ -20,6 +20,7 @@ import {
   type Attack,
   type Character,
   type ClassEntry,
+  type DayTimer,
   type Feature,
   type Formula,
   type Item,
@@ -31,6 +32,7 @@ import {
   type SourceType,
   type Spell,
   type Uses,
+  type XpEntry,
 } from './types'
 
 export class ImportError extends Error {}
@@ -123,7 +125,7 @@ function keepUnknown(raw: Obj, out: object, known: readonly string[], path: stri
 
 // The fields each object has, as read by normalizeCharacter. Anything else is kept by keepUnknown.
 const KNOWN = {
-  top: ['schemaVersion', 'id', 'name', 'player', 'species', 'race', 'background', 'alignment', 'xp', 'classes', 'abilities', 'proficiencies', 'combat', 'conditions', 'exhaustion', 'heroicInspiration', 'features', 'attacks', 'spellcasting', 'spells', 'inventory', 'items', 'money', 'roleplay', 'sessionNotes', 'updatedAt'],
+  top: ['schemaVersion', 'id', 'name', 'player', 'species', 'race', 'background', 'alignment', 'xp', 'partySize', 'xpLog', 'classes', 'abilities', 'proficiencies', 'combat', 'conditions', 'exhaustion', 'heroicInspiration', 'features', 'attacks', 'spellcasting', 'spells', 'inventory', 'items', 'money', 'roleplay', 'sessionNotes', 'timers', 'updatedAt'],
   species: ['name', 'size'],
   abilities: ['str', 'dex', 'con', 'int', 'wis', 'cha', 'strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'],
   class: ['id', 'name', 'level', 'subclass', 'hitDie', 'casterType', 'spellcastingAbility'],
@@ -145,6 +147,8 @@ const KNOWN = {
   money: ['cp', 'sp', 'ep', 'gp', 'pp'],
   roleplay: ['appearance', 'personality', 'ideals', 'bonds', 'flaws', 'voice', 'mannerisms', 'goals', 'backstory', 'allies', 'notes'],
   sessionNote: ['id', 'date', 'title', 'text'],
+  xpEntry: ['id', 'date', 'kind', 'amount', 'groupXp', 'players'],
+  timer: ['id', 'name', 'days', 'start', 'note'],
 } as const
 
 /**
@@ -156,6 +160,9 @@ const MIGRATIONS: Record<number, (raw: Obj, warnings: string[]) => Obj> = {
   // dropping unknown fields. Nothing in a v1 file changes meaning, so the step is a plain copy.
   // Item descriptions are NOT split into powers automatically: that would be guessing at rules text.
   1: (raw) => ({ ...raw }),
+  // v2 -> v3 adds only new fields with defaults: partySize (5), xpLog ([]) and timers ([]). The XP
+  // total already existed and keeps its value. Nothing else changes meaning: a plain copy.
+  2: (raw) => ({ ...raw }),
 }
 
 export function migrate(raw: Obj, from: number, warnings: string[]): Obj {
@@ -530,6 +537,40 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     sessionNotes.push(note)
   })
 
+  // ----- XP log and day timers (schema 3) -----
+  const xpLog: XpEntry[] = []
+  r.arr(raw.xpLog, 'xpLog').forEach((e, i) => {
+    const p = `xpLog[${i}]`
+    if (!isObj(e)) return warnings.push(`${p}: expected an object, ignored.`)
+    const entry: XpEntry = {
+      id: r.str(e.id, `${p}.id`) || newId(),
+      date: r.str(e.date, `${p}.date`),
+      kind: r.oneOf(e.kind, ['session', 'correction'] as const, `${p}.kind`, 'session'),
+      amount: Math.round(r.num(e.amount, `${p}.amount`, 0)),
+    }
+    if (e.groupXp !== undefined) entry.groupXp = Math.round(r.num(e.groupXp, `${p}.groupXp`, 0, 0))
+    if (e.players !== undefined) entry.players = Math.round(r.num(e.players, `${p}.players`, 1, 1))
+    keep(e, entry, KNOWN.xpEntry, p)
+    xpLog.push(entry)
+  })
+  const timers: DayTimer[] = []
+  r.arr(raw.timers, 'timers').forEach((tm, i) => {
+    const p = `timers[${i}]`
+    if (typeof tm === 'string') tm = { name: tm }
+    if (!isObj(tm)) return warnings.push(`${p}: expected an object, ignored.`)
+    const days = Math.round(r.num(tm.days, `${p}.days`, 0, 0))
+    const timer: DayTimer = {
+      id: r.str(tm.id, `${p}.id`) || newId(),
+      name: r.str(tm.name, `${p}.name`) || 'Timer',
+      days,
+      start: Math.round(r.num(tm.start, `${p}.start`, days, 0)),
+    }
+    const note = r.str(tm.note, `${p}.note`)
+    if (note) timer.note = note
+    keep(tm, timer, KNOWN.timer, p)
+    timers.push(timer)
+  })
+
   const conditions = r
     .arr(raw.conditions, 'conditions')
     .map((c) => String(c).toLowerCase())
@@ -544,6 +585,8 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     background: r.str(raw.background, 'background'),
     alignment: r.str(raw.alignment, 'alignment'),
     xp: r.num(raw.xp, 'xp', 0, 0),
+    partySize: Math.round(r.num(raw.partySize, 'partySize', 5, 1, 20)),
+    xpLog,
     classes,
     abilities,
     proficiencies: {
@@ -585,6 +628,7 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     inventory: { items, money },
     roleplay,
     sessionNotes,
+    timers,
     updatedAt: r.str(raw.updatedAt, 'updatedAt') || new Date().toISOString(),
   }
   keep(speciesRaw, character.species, KNOWN.species, 'species')

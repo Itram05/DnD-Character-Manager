@@ -2,7 +2,7 @@
 // Every field is described in SCHEMA.md. When you change a shape here, bump
 // CURRENT_SCHEMA_VERSION and add a migration in normalize.ts.
 
-export const CURRENT_SCHEMA_VERSION = 2
+export const CURRENT_SCHEMA_VERSION = 3
 
 export const ABILITIES = ['str', 'dex', 'con', 'int', 'wis', 'cha'] as const
 export type Ability = (typeof ABILITIES)[number]
@@ -217,6 +217,33 @@ export interface Roleplay {
   notes: string
 }
 
+/**
+ * One change of the XP total, newest last. `amount` is what was added to `xp` (negative for a
+ * correction downwards), so undoing the last entry subtracts it again.
+ */
+export interface XpEntry {
+  id: string
+  /** Local date, YYYY-MM-DD. */
+  date: string
+  /** "session": the group's XP split between the players; "correction": the total set by hand. */
+  kind: 'session' | 'correction'
+  amount: number
+  /** Session only: XP the GM gave the whole group, and how many players shared it. */
+  groupXp?: number
+  players?: number
+}
+
+/** A countdown in days (the king's wedding, rent due, a book being read). A Long Rest takes 1 day off. */
+export interface DayTimer {
+  id: string
+  name: string
+  /** Days left; 0 = ended (stays until you delete or restart it). */
+  days: number
+  /** Days it was set to, for Restart. */
+  start: number
+  note?: string
+}
+
 export interface Character {
   schemaVersion: number
   id: string
@@ -226,6 +253,10 @@ export interface Character {
   background: string
   alignment: string
   xp: number
+  /** How many players share the session XP the GM gives (default 5). */
+  partySize: number
+  /** Every change of `xp` made through the XP panel, oldest first. */
+  xpLog: XpEntry[]
   classes: ClassEntry[]
   abilities: Record<Ability, number>
   proficiencies: {
@@ -275,5 +306,6 @@ export interface Character {
   inventory: { items: Item[]; money: Money }
   roleplay: Roleplay
   sessionNotes: SessionNote[]
+  timers: DayTimer[]
   updatedAt: string
 }

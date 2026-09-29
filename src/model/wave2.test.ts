@@ -10,32 +10,34 @@ import { CURRENT_SCHEMA_VERSION, type Character } from './types'
 import sampleText from '../../examples/sample-character.json?raw'
 
 describe('schema version 2 and the migration from 1', () => {
-  it('the app writes version 2', () => {
-    expect(CURRENT_SCHEMA_VERSION).toBe(2)
-    expect(normalizeCharacter({}).character.schemaVersion).toBe(2)
+  // the current version is checked in wave3.test.ts; these tests hold for every version from 2 on
+  it('the app writes the current version (2 or newer)', () => {
+    expect(CURRENT_SCHEMA_VERSION).toBeGreaterThanOrEqual(2)
+    expect(normalizeCharacter({}).character.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
   })
   it('a version 1 file (the sample hero) imports without warnings and loses nothing but the version number', () => {
     const raw = JSON.parse(sampleText)
     expect(raw.schemaVersion).toBe(1)
     const { character, warnings } = importCharacterJson(sampleText)
     expect(warnings).toEqual([])
-    expect(character.schemaVersion).toBe(2)
-    expect(JSON.parse(JSON.stringify(character))).toMatchObject({ ...raw, schemaVersion: 2 })
+    expect(character.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
+    expect(JSON.parse(JSON.stringify(character))).toMatchObject({ ...raw, schemaVersion: CURRENT_SCHEMA_VERSION })
   })
-  it('a file without schemaVersion is read as version 1 and exported as 2', () => {
+  it('a file without schemaVersion is read as version 1 and exported as the current version', () => {
     const { character, warnings } = importCharacterJson('{"name":"Old"}')
     expect(warnings).toEqual([])
-    expect(character.schemaVersion).toBe(2)
+    expect(character.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
   })
-  it('an exported v2 file imports back identically', () => {
+  it('an exported file imports back identically', () => {
     const c = importCharacterJson(sampleText).character
     const again = importCharacterJson(JSON.stringify(c))
     expect(again.warnings).toEqual([])
     expect(again.character).toEqual(c)
   })
-  it('version 3 is refused with a readable message', () => {
-    expect(() => importCharacterJson('{"schemaVersion": 3}')).toThrow(ImportError)
-    expect(() => importCharacterJson('{"schemaVersion": 3}')).toThrow(/version 3.*only knows version 2/)
+  it('a newer version is refused with a readable message', () => {
+    const newer = `{"schemaVersion": ${CURRENT_SCHEMA_VERSION + 1}}`
+    expect(() => importCharacterJson(newer)).toThrow(ImportError)
+    expect(() => importCharacterJson(newer)).toThrow(new RegExp(`version ${CURRENT_SCHEMA_VERSION + 1}.*only knows version ${CURRENT_SCHEMA_VERSION}`))
   })
 })
 

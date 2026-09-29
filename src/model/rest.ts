@@ -9,8 +9,10 @@
 //   Short or Long Rest comes back; all spell slots come back.
 //   Temporary HP end ("last until depleted or you finish a Long Rest").
 //   Concentration ends because you sleep (Unconscious -> Incapacitated ends Concentration).
+//   A day passes: every running day timer loses 1 (timers.ts). The app's own rule, not the SRD's.
 import { abilityMod, evalFormula, hitDicePool, usesMax } from './rules'
 import { clearBonusSlots } from './sorcery'
+import { passDays, type TimerChange } from './timers'
 import type { Character, Uses } from './types'
 
 export interface RestResult {
@@ -19,6 +21,8 @@ export interface RestResult {
   restored: string[]
   /** Things the app can't do for you (rolls, choices). */
   reminders: string[]
+  /** Day timers the rest moved (Long Rest: 1 day off each running timer). */
+  timers: TimerChange[]
 }
 
 type Kind = 'short' | 'long'
@@ -67,7 +71,7 @@ function shortRestReminders(c: Character, out: RestResult) {
 }
 
 export function shortRest(c: Character, opts: { dawn?: boolean } = {}): RestResult {
-  const out: RestResult = { character: c, restored: [], reminders: [] }
+  const out: RestResult = { character: c, restored: [], reminders: [], timers: [] }
   if (c.combat.hp.current < 1) out.reminders.push('Rules: you need at least 1 HP to start a Short Rest.')
   let next = restoreAll(c, 'short', !!opts.dawn, out)
   if (next.spellcasting.pactSlotsUsed > 0) out.restored.push('Pact Magic slots')
@@ -78,7 +82,7 @@ export function shortRest(c: Character, opts: { dawn?: boolean } = {}): RestResu
 }
 
 export function longRest(c: Character, opts: { dawn?: boolean } = { dawn: true }): RestResult {
-  const out: RestResult = { character: c, restored: [], reminders: [] }
+  const out: RestResult = { character: c, restored: [], reminders: [], timers: [] }
   if (c.combat.hp.current < 1) out.reminders.push('Rules: you need at least 1 HP to start a Long Rest.')
   let next = restoreAll(c, 'long', opts.dawn !== false, out)
   if (c.combat.hp.current < c.combat.hp.max) out.restored.push('All Hit Points')
@@ -90,6 +94,9 @@ export function longRest(c: Character, opts: { dawn?: boolean } = { dawn: true }
   if (c.spellcasting.concentration) out.reminders.push(`Concentration on ${c.spellcasting.concentration} ended (you slept).`)
   if (c.spellcasting.bonusSlots?.some((n) => n > 0)) out.reminders.push('Spell slots created with Sorcery Points vanished.')
   next = clearBonusSlots(next)
+  const days = passDays(next, 1)
+  next = days.character
+  out.timers = days.changes
   next = {
     ...next,
     combat: {
