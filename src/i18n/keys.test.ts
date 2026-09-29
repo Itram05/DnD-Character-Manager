@@ -33,6 +33,7 @@ describe('i18n keys', () => {
       // built-in tags have labels; a missing one would show the raw id
       'tag.': [...BUILT_IN_TAGS],
       'filter.group.': FILTER_GROUPS,
+      'strip.shape.': ['sphere', 'cone', 'cube', 'line', 'cylinder', 'emanation', 'radius', 'square'],
       'rules.': ['turn', 'actions', 'conditions', 'rest', 'concentration', 'dying', 'changes', 'about'],
     }
     const missing = Object.entries(families).flatMap(([p, ks]) => ks.map((k) => p + k).filter((k) => !(k in en)))

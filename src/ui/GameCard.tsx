@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { t } from '../i18n'
 import type { Frame, PlayCard } from '../model/play'
 import { titleRem } from './cardTitle'
+import { CardStrip } from './CardStrip'
 import { CategoryBand, CategoryIcons, cardCategories } from './categoryMarks'
 import { Highlighted, Pips } from './common'
 
@@ -168,11 +169,14 @@ export function GameCard(props: { card: CardFace; mode: 'cards' | 'list'; onOpen
           <CategoryIcons cats={cats} />
           <span className="type-text">{card.sourceLabel}</span>
           {card.concentration && <span className="tag" title={t('spell.concentration')}>C</span>}
-          {card.ritual && <span className="tag" title={t('spell.ritual')}>R</span>}
+          {/* the strip below shows Ritual with its own icon */}
+          {card.ritual && !card.strip?.ritual && <span className="tag" title={t('spell.ritual')}>R</span>}
           <ChargeCost card={card} />
         </div>
+        <CardStrip strip={card.strip} />
         {card.stat && <div className="card-stat">{card.stat}</div>}
-        {card.meta && <div className="card-meta">{card.meta}</div>}
+        {/* a scroll's "Action · 60 feet": the strip above already says it */}
+        {card.meta && (!card.strip?.action || !card.strip.range) && <div className="card-meta">{card.meta}</div>}
         <div className="card-text"><Highlighted text={card.text} /></div>
         <div className="card-foot" onClick={(e) => e.stopPropagation()}>
           {counter}

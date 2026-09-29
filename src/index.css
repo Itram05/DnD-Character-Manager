@@ -1532,6 +1532,42 @@ body.untap-step .card:not(.tapped) {
   border: 2px solid var(--text);
 }
 
+/* the icon strip under the type line (CardStrip.tsx): action, range, area, damage, save */
+.card-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.22rem;
+  row-gap: 0.1rem;
+  font-size: 0.68rem;
+  line-height: 1.2;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.strip-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  white-space: nowrap;
+}
+.strip-item svg {
+  flex: none;
+}
+.strip-val {
+  color: var(--text);
+  font-weight: 600;
+}
+.strip-action.z-action { color: var(--z-action); }
+.strip-action.z-bonus { color: var(--z-bonus); }
+.strip-action.z-reaction { color: var(--z-reaction); }
+.strip-action.z-other { color: var(--muted); }
+.strip-ritual { color: var(--f-spell); }
+.strip-damage { color: var(--dmg); }
+.strip-damage .strip-val { color: var(--dmg); font-weight: 700; }
+.strip-damage.dmg-untyped { --dmg: var(--text); }
+.strip-save { color: var(--hl-save); }
+.strip-save .strip-val { color: var(--hl-save); font-weight: 700; }
+
 /* list mode */
 .card-list {
   display: flex;

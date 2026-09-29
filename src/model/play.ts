@@ -7,8 +7,9 @@
 import type { SrdSpell } from '../data/srd'
 import { HEALING_NAME, HEALING_TIERS, healingDescription, healingTier, isHealingPotion, isPotion, isScroll, scrollInfo, type HealingTier } from './consumables'
 import { newId } from './normalize'
-import { pactSlots, spellSlots, usesMax } from './rules'
+import { pactSlots, spellSlots, totalLevel, usesMax } from './rules'
 import { bonusSlotsAt, isSorceryPoints } from './sorcery'
+import { cardStrip, type CardStrip } from './strip'
 import { featureTags, itemTags, mergeTags, powerTags, spellAutoTags, spellTags } from './tags'
 import type { Activation, Character, Feature, Item, ItemPower, PowerCost, SourceType, Spell, Uses } from './types'
 
@@ -54,6 +55,8 @@ export interface PlayCard {
   /** Item power: the item it belongs to, and what one use costs from the item's charges. */
   itemId?: string
   chargeCost?: PowerCost
+  /** Spells, scrolls, item powers: the icon strip (action, range, area, damage, save), see strip.ts. */
+  strip?: CardStrip
 }
 
 export const activationZone = (a: Activation | undefined): Zone =>
@@ -234,6 +237,7 @@ export function powerCard(c: Character, i: Item, p: ItemPower): PlayCard {
     chargeCost: p.cost && i.charges ? p.cost : undefined,
     tapped: !powerAffordable(c, i, p),
     tags: powerTags(i, p),
+    strip: cardStrip({ activation: p.activation, text: p.description }),
   }
 }
 
@@ -292,6 +296,7 @@ export function scrollCard(c: Character, i: Item, srd?: readonly SrdSpell[]): Pl
     ritual: s.ritual,
     meta: [s.castingTime, s.range].filter(Boolean).join(' · ') || undefined,
     tags: mergeTags(spellAutoTags(s), i.tags),
+    strip: cardStrip({ castingTime: s.castingTime, activation: i.activation, range: s.range, ritual: s.ritual, text: s.description, cantripLevel: s.level === 0 ? totalLevel(c) : undefined }),
   }
 }
 
@@ -333,6 +338,7 @@ export function spellCard(c: Character, s: Spell): PlayCard {
     concentration: s.concentration,
     ritual: s.ritual,
     tags: spellTags(s),
+    strip: cardStrip({ castingTime: s.castingTime, range: s.range, ritual: s.ritual, text: s.description, cantripLevel: s.level === 0 ? totalLevel(c) : undefined }),
   }
 }
 

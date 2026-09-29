@@ -301,6 +301,23 @@ export const en: Record<string, string> = {
   'card.toHit': 'to hit',
   'card.tappedLabel': '{name} (spent)',
 
+  // the icon strip on spell, scroll and item power cards (strip.ts, CardStrip.tsx)
+  'strip.label': 'At a glance',
+  'strip.castingTime': 'Casting time: {time}',
+  'strip.ritual': 'Can be cast as a Ritual',
+  'strip.range': 'Range: {range}',
+  'strip.area': 'Area: {size} {shape}',
+  'strip.damage': 'Damage: {damage}',
+  'strip.save': '{ability} saving throw',
+  'strip.shape.sphere': 'sphere',
+  'strip.shape.cone': 'cone',
+  'strip.shape.cube': 'cube',
+  'strip.shape.line': 'line',
+  'strip.shape.cylinder': 'cylinder',
+  'strip.shape.emanation': 'emanation',
+  'strip.shape.radius': 'radius',
+  'strip.shape.square': 'square',
+
   // casting
   'cast.title': 'Cast it',
   'cast.cantrip': 'Cast (cantrip, free)',
