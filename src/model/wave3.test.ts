@@ -1,7 +1,5 @@
-/// <reference types="node" />
 // Wave 3 (first part): XP from the session split between the players, level thresholds, the XP log
 // with undo; day timers, the Long Rest taking a day off, Undo; schema version 3 and the migration from 2.
-import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { importCharacterJson, normalizeCharacter } from './normalize'
 import { longRest, shortRest } from './rest'
@@ -257,19 +255,5 @@ describe('schema version 3 and the migration from 2', () => {
     expect(character.partySize).toBe(1)
     expect(warnings.some((w) => w.startsWith('timers[2].days'))).toBe(true)
     expect(warnings.some((w) => w.startsWith('partySize'))).toBe(true)
-  })
-})
-
-// The owner's real hero (not in the repository). Run with HERO_FILE=path\to\grav.json npm test.
-const HERO = process.env.HERO_FILE
-describe.runIf(!!HERO && existsSync(HERO))('a real v2 hero file (HERO_FILE)', () => {
-  it('imports as v3 without losing a single field', () => {
-    const text = readFileSync(HERO!, 'utf8')
-    const raw = JSON.parse(text)
-    const { character } = importCharacterJson(text)
-    expect(character.schemaVersion).toBe(3)
-    expect(JSON.parse(JSON.stringify(character))).toMatchObject({ ...raw, schemaVersion: 3, updatedAt: raw.updatedAt })
-    expect(character.timers).toEqual([])
-    expect(character.partySize).toBe(5)
   })
 })

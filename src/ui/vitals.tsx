@@ -18,6 +18,7 @@ import {
 import type { Character } from '../model/types'
 import { Check, Modal, Pips, RichText, fmtMod } from './common'
 import type { SheetApi } from './Sheet'
+import { daysText, levelReadyShort, levelReadyText, timerLines } from './progressText'
 
 export function classLine(c: Character) {
   return c.classes.map((k) => `${k.name} ${k.level}${k.subclass ? ` (${k.subclass})` : ''}`).join(' / ')
@@ -32,6 +33,8 @@ export function TopBar({ api, onBack, onUndo, children }: { api: SheetApi; onBac
   const ac = armorClass(c)
   const condCount = c.conditions.length + (c.exhaustion > 0 ? 1 : 0)
   const bloodied = hp.current > 0 && hp.current <= hp.max / 2
+  const ready = levelReadyText(c)
+  const readyShort = levelReadyShort(c)
 
   return (
     <header className="topbar">
@@ -45,6 +48,12 @@ export function TopBar({ api, onBack, onUndo, children }: { api: SheetApi; onBac
             {t('vitals.level', { n: totalLevel(c) })} · {classLine(c)}
           </div>
         </div>
+        {ready && (
+          <button className="level-ready" onClick={() => api.go('level')} title={t('xp.readyBadgeTitle')}>
+            ⇪ <span className="level-ready-text">{ready}</span>
+            <span className="level-ready-short">{readyShort}</span>
+          </button>
+        )}
         {onUndo && (
           <button className="icon-btn" onClick={onUndo} aria-label={t('common.undo')} title={t('common.undo')}>
             ↶
@@ -291,12 +300,13 @@ function RestModal({ api, kind, onClose }: { api: SheetApi; kind: 'short' | 'lon
   const finish = () => {
     const r = kind === 'short' ? shortRest(c, { dawn }) : longRest(c, { dawn })
     update(() => r.character)
+    const days = r.timers.length ? [t('rest.daysMoved', { list: timerLines(r.timers).join(' · ') })] : []
     document.body.classList.add('untap-step')
     setTimeout(() => document.body.classList.remove('untap-step'), 700)
     toast({
       title: kind === 'short' ? t('rest.shortDone') : t('rest.longDone'),
-      lines: [...(r.restored.length ? [t('rest.untapped', { list: r.restored.join(', ') })] : [t('rest.nothing')]), ...r.reminders],
-      tone: 'good',
+      lines: [...(r.restored.length ? [t('rest.untapped', { list: r.restored.join(', ') })] : [t('rest.nothing')]), ...days, ...r.reminders, t('rest.undoHint')],
+      tone: r.timers.some((x) => x.ended) ? 'bad' : 'good',
     })
     onClose()
   }
@@ -362,6 +372,16 @@ function RestModal({ api, kind, onClose }: { api: SheetApi; kind: 'short' | 'lon
             <li>{t('rest.long.features')}</li>
             <li>{t('rest.long.exhaustion')}</li>
             <li>{t('rest.long.temp')}</li>
+            {c.timers.some((x) => x.days > 0) && (
+              <li>
+                {t('rest.long.days', {
+                  list: c.timers
+                    .filter((x) => x.days > 0)
+                    .map((x) => `${x.name} ${daysText(x.days)} → ${x.days - 1 === 0 ? t('days.ended') : daysText(x.days - 1)}`)
+                    .join(', '),
+                })}
+              </li>
+            )}
           </ul>
         </>
       )}

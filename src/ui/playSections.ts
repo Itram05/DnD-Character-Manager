@@ -13,7 +13,7 @@ export function groupTitle(k: PlayKind, cards: CardFace[]): string {
   return hasScroll && hasPotion ? t('kind.scrollPotion') : hasPotion ? t('kind.potion') : t('kind.scroll')
 }
 
-/** DOM id of a Play section: a panel ("mana", "conc", "field"), a hand, or a kind inside a hand. */
+/** DOM id of a Play section: a panel ("mana", "conc", "field", "days"), a hand, or a kind inside a hand. */
 export const sectionId = (part: string, kind?: PlayKind) => `play-${part}${kind ? `-${kind}` : ''}`
 
 /** One hand as shown: its cards after the filter, split by kind unless a single kind is selected. */
@@ -36,8 +36,9 @@ export function playHands(zones: Zone[], cards: CardFace[], grouped: boolean): H
  * filter is not listed (its "No cards here." is not worth a jump). `passivesFirst`: on a computer
  * "Always on" sits in the top row; on a phone it comes after the hands. `resources`: the phone's one
  * Resources block (ResourcesBlock.tsx) stands for slots and concentration, so it is one entry.
+ * `days`: the day timers panel at the very end (its number = timers); absent = no entry.
  */
-export function playSections(p: { mana: boolean; passives: number; hands: HandView[]; passivesFirst: boolean; resources?: boolean }): NavSection[] {
+export function playSections(p: { mana: boolean; passives: number; hands: HandView[]; passivesFirst: boolean; resources?: boolean; days?: number }): NavSection[] {
   const field: NavSection[] = p.passives > 0 ? [{ id: sectionId('field'), label: t('play.battlefield'), n: p.passives }] : []
   const hands = p.hands
     .filter((h) => h.cards.length > 0)
@@ -53,6 +54,7 @@ export function playSections(p: { mana: boolean; passives: number; hands: HandVi
     ...(p.passivesFirst ? field : []),
     ...hands,
     ...(p.passivesFirst ? [] : field),
+    ...(p.days !== undefined ? [{ id: sectionId('days'), label: t('days.title'), n: p.days || undefined }] : []),
   ]
 }
 

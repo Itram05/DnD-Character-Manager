@@ -6,6 +6,7 @@ import { totalLevel } from '../model/rules'
 import { ACTIVATIONS, type Activation } from '../model/types'
 import { Check, NumberField, RichText, Select, TextArea, TextField, fmtMod } from './common'
 import type { SheetApi } from './Sheet'
+import { XpPanel } from './XpPanel'
 
 type Extra = LevelUpChoices['extraFeatures'][number]
 
@@ -15,12 +16,19 @@ export function LevelUpView({ api }: { api: SheetApi }) {
   const [customName, setCustomName] = useState('')
   const [customDie, setCustomDie] = useState(8)
 
-  if (totalLevel(c) >= 20 && c.classes.reduce((s, k) => s + k.level, 0) >= 20) return <p className="panel">{t('level.max')}</p>
+  if (totalLevel(c) >= 20 && c.classes.reduce((s, k) => s + k.level, 0) >= 20)
+    return (
+      <div className="levelup">
+        <XpPanel api={api} />
+        <p className="panel">{t('level.max')}</p>
+      </div>
+    )
 
   if (!classId)
     return (
       <div className="levelup">
-        <section className="panel">
+        <XpPanel api={api} />
+        <section className="panel" id="levelup-pick">
           <h3>{t('level.pickClass')}</h3>
           <div className="class-picks">
             {c.classes.map((k) => (

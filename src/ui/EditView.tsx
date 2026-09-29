@@ -33,11 +33,16 @@ export function EditView({ api }: { api: SheetApi }) {
           />
           <TextField label={t('edit.background')} value={c.background} list="srd-backgrounds" onChange={(background) => update((x) => ({ ...x, background }))} />
           <TextField label={t('edit.alignment')} value={c.alignment} onChange={(alignment) => update((x) => ({ ...x, alignment }))} />
-          <NumberField label={t('edit.xp')} value={c.xp} min={0} onChange={(xp) => update((x) => ({ ...x, xp }))} />
         </div>
         <datalist id="srd-species">{SRD_SPECIES.map((s) => <option key={s.name} value={s.name} />)}</datalist>
         <datalist id="srd-backgrounds">{SRD_BACKGROUNDS.map((s) => <option key={s.name} value={s.name} />)}</datalist>
         <p className="hint">{t('edit.speciesHint')}</p>
+        <p className="hint">
+          {t('edit.xpMoved')}{' '}
+          <button className="link-btn" onClick={() => api.go('level')}>
+            {t('edit.xpOpen')}
+          </button>
+        </p>
       </section>
 
       <section className="panel">

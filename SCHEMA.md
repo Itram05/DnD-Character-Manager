@@ -1,4 +1,4 @@
-# Character file format (schemaVersion 2)
+# Character file format (schemaVersion 3)
 
 A character is one JSON object. The app exports it with **Export JSON** and reads it with **Import JSON**.
 A full example: [`examples/sample-character.json`](examples/sample-character.json) (Paladin 3 / Sorcerer 3 / Warlock 1).
@@ -41,14 +41,16 @@ Class table column names = the table header in lowercase with dashes: `rages`, `
 
 | Field | Type | Default | Notes |
 |---|---|---|---|
-| `schemaVersion` | number | 1 | Bump only through the app. A file without it is read as version 1. The app writes 2. |
+| `schemaVersion` | number | 1 | Bump only through the app. A file without it is read as version 1. The app writes 3. |
 | `id` | text | generated | |
 | `name` | text | "Unnamed hero" | |
 | `player` | text | "" | |
 | `species` | `{ name, size }` or text | `{ "", "Medium" }` | `race` is accepted as an alias. |
 | `background` | text | "" | |
 | `alignment` | text | "" | |
-| `xp` | number | 0 | |
+| `xp` | number | 0 | Total experience points. The Level Up tab adds session XP to it; see [experience](#experience). |
+| `partySize` | 1–20 | 5 | How many players share the session XP. |
+| `xpLog` | list of [XP entries](#experience) | [] | |
 | `classes` | list of [class](#classes) | Fighter 1 | **The first class is the starting class** (it gives saving throw proficiencies). |
 | `abilities` | `{ str, dex, con, int, wis, cha }` | all 10 | Scores 1–30. Long names (`strength`) also work. |
 | `proficiencies` | [object](#proficiencies) | | |
@@ -63,6 +65,7 @@ Class table column names = the table header in lowercase with dashes: `rages`, `
 | `inventory` | `{ items, money }` | | See [items](#items). `money = { cp, sp, ep, gp, pp }`. |
 | `roleplay` | [object](#roleplay) | all "" | |
 | `sessionNotes` | list of `{ date, title, text }` | [] | |
+| `timers` | list of [day timers](#timers) | [] | |
 | `updatedAt` | ISO date | now | Set by the app. |
 
 ## classes
@@ -264,6 +267,39 @@ damage types behind a separate ▾ next to Damage), Properties and Other tags. I
 (Action or Bonus; Healing or Buff); across groups all must hold (an Action card that heals). Chosen damage types narrow
 Damage down to those types. The active filters are listed under the controls, each with ✕.
 
+## experience
+
+The GM gives XP for the whole group; the Level Up tab divides it by `partySize` (rounded **down**) and adds the share to `xp`.
+Every change goes into `xpLog`, oldest first; "Undo" takes back the newest entry (subtracts its `amount`).
+
+```json
+{ "id": "…", "date": "2026-09-29", "kind": "session", "amount": 2469, "groupXp": 12345, "players": 5 }
+{ "id": "…", "date": "2026-09-29", "kind": "correction", "amount": 48450 }
+```
+
+| Field | Notes |
+|---|---|
+| `date` | Local date, YYYY-MM-DD. |
+| `kind` | `session` (a share of the group's XP) or `correction` (the total set by hand). |
+| `amount` | What was added to `xp`; negative for a correction downwards. |
+| `groupXp`, `players` | Session only: the group's XP and how many shared it. |
+
+The next level is measured against the **total** character level (Paladin 5 / Sorcerer 9 = 14), by the 5e table
+(300, 900, 2 700 … 355 000). The level is never raised by itself: the sheet shows "New level ready" and Level Up does the rest.
+
+## timers
+
+Countdowns in days: `{ "name": "King's wedding", "days": 12, "start": 12, "note": "bring a gift" }`.
+
+| Field | Notes |
+|---|---|
+| `name` | Text. A plain string `"Rent"` also works (0 days). |
+| `days` | Days left, 0 or more. **0 = ended**: the timer stays, marked, until deleted or restarted. |
+| `start` | What Restart goes back to. Defaults to `days`. |
+| `note` | Optional text. |
+
+A Long Rest takes 1 day off every timer above 0. "Days pass" on the Play screen takes several off at once.
+
 ## roleplay
 
 All text: `appearance`, `personality`, `ideals`, `bonds`, `flaws`, `voice`, `mannerisms`, `goals`, `backstory`, `allies`, `notes`.
@@ -271,12 +307,13 @@ Blank lines separate paragraphs.
 
 ## Versioning
 
-`schemaVersion` is 2. When the format changes, the app bumps it and converts older files on import, one step per version
+`schemaVersion` is 3. When the format changes, the app bumps it and converts older files on import, one step per version
 (`MIGRATIONS` in `src/model/normalize.ts`). Files from a newer app version are rejected with a clear message.
 
 | Version | What changed | Conversion of older files |
 |---|---|---|
 | 1 | First format. | |
 | 2 | New optional fields: `tags` (spells, features, items, item powers) and `powers` (items). Unknown fields are kept instead of dropped. | None needed: every version 1 field means the same in version 2, so a version 1 file imports unchanged and is exported as version 2. Item descriptions are **not** split into powers automatically (that would be guessing at rules text); add powers on the Gear tab or in the file. |
+| 3 | New fields: `partySize`, `xpLog` (experience log) and `timers` (day timers). | None needed: a version 2 file gets `partySize` 5 and empty `xpLog` and `timers`; `xp` keeps its value. |
 
-**Careful with older copies of the app:** a version 1 app refuses version 2 files ("Update the app"). Export from the app you will import into.
+**Careful with older copies of the app:** an app refuses files of a newer version ("Update the app"): a version 2 app refuses version 3 files. Export from the app you will import into.
