@@ -136,6 +136,12 @@ export interface Attack {
   damageBonus: number
   mastery?: string
   notes?: string
+  /**
+   * The item this attack is made with (Staff of Ages (+3) -> Staff of Ages): the attack is also a card in
+   * that item's panel in Play. An id, so renaming the item keeps the link. null = no item, on purpose or
+   * because none matched. Absent = never checked: the next read links it by name (normalize.ts, linkAttacks).
+   */
+  itemId?: string | null
 }
 
 export interface ArmorInfo {

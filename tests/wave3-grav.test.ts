@@ -8,6 +8,7 @@ import { longRest } from '../src/model/rest'
 import { addTimer } from '../src/model/timers'
 import { setAttunement, spellDcView } from '../src/model/rules'
 import { addSessionXp, correctXp, raiseXpToLevel, undoLastXp, xpProgress } from '../src/model/xp'
+import { itemPanel, itemTiles } from '../src/model/itemPanel'
 import { GRAV_DESKTOP, expectGravImportWarnings, gravAfterImport, ownerFile } from './ownerFiles'
 
 const GRAV_V2 = GRAV_DESKTOP
@@ -70,5 +71,27 @@ describe.skipIf(!HAVE_GRAV_V2)('Grav v2: spell save DC in the head and the XP on
     const up = raiseXpToLevel(c)
     expect(up.xp).toBe(140000)
     expect(undoLastXp(up).xp).toBe(91550)
+  })
+})
+
+// Stage 4 of the inventory redesign on his file: the Items section of Play
+describe.skipIf(!HAVE_GRAV_V2)('Grav v2: items in Play', () => {
+  const { character: c } = importCharacterJson(existsSync(GRAV_V2) ? readFileSync(GRAV_V2, 'utf8') : '{}')
+  it('seven tiles; Witch Focus (not attuned), Wand of Web and the Amulet (not attuned), Silent Amulet (does nothing), scrolls and potions get none', () => {
+    expect(itemTiles(c).map((x) => [x.item.name, x.charges?.max ?? 0])).toEqual([
+      ['Staff of Ages', 3],
+      ['Pearl of Power', 1],
+      ['"Not for a Crown" (+2 longsword)', 1],
+      ['Everfrost Trident', 2],
+      ['Chain hook', 0],
+      ["Nicklaus' Spectacles", 3],
+      ['Helm of the Constellation', 1],
+    ])
+  })
+  it('Staff of Ages gives 4 cards: Temporal Echo, Hourglass Ward, Echo of Ages and its attack; +3 spell attack as a chip', () => {
+    const staff = c.inventory.items.find((i) => i.name === 'Staff of Ages')!
+    const p = itemPanel(c, staff)
+    expect([...p.cards.map((x) => x.name), ...p.attacks.map((a) => a.name)]).toEqual(['Temporal Echo', 'Hourglass Ward', 'Echo of Ages', 'Staff of Ages (+3)'])
+    expect(p.chips.map((x) => x.name)).toEqual(['+3 spell attack'])
   })
 })

@@ -29,8 +29,9 @@ type Obj = Record<string, unknown>
 
 /**
  * What Grav's raw file must look like after import, field by field: exactly the raw file, except the
- * one conversion of 2026-09-29 (item bonuses to spells from powers to fields). Written out by hand on
- * purpose, so any other change the importer makes to his file fails the "loses nothing" check.
+ * two conversions of 2026-09-29 (item bonuses to spells from powers to fields; attacks linked to their
+ * items by name). Written out by hand on purpose, so any other change the importer makes to his file
+ * fails the "loses nothing" check.
  */
 export function gravAfterImport(raw: Obj): Obj {
   const copy = JSON.parse(JSON.stringify(raw)) as Obj & { inventory: { items: Obj[] } }
@@ -45,19 +46,44 @@ export function gravAfterImport(raw: Obj): Obj {
     item.description = [item.description as string, bonus.description].filter((s) => s?.trim()).join('\n\n')
     item.powers = powers.filter((p) => p !== bonus)
   }
+  // his attacks and the item each is made with (null: none); every name here is the item's exact name
+  const attacks = copy.attacks as Obj[]
+  for (const a of attacks) {
+    if ('itemId' in a) continue
+    const itemName = GRAV_ATTACK_ITEMS[a.name as string]
+    if (itemName === undefined) throw new Error(`gravAfterImport: unexpected attack ${String(a.name)}, add it to GRAV_ATTACK_ITEMS`)
+    a.itemId = itemName === null ? null : (copy.inventory.items.find((i) => i.name === itemName)!.id as string)
+  }
   return { ...copy, schemaVersion: 3 }
 }
 
+/** Grav's attacks and the item the import links each one to (2026-09-29). */
+export const GRAV_ATTACK_ITEMS: Record<string, string | null> = {
+  'Staff of Ages (+3)': 'Staff of Ages',
+  '"Not for a Crown" (+2 longsword)': '"Not for a Crown" (+2 longsword)',
+  'Chain hook': 'Chain hook',
+  'Everfrost Trident': 'Everfrost Trident',
+  'Fire Bolt': null,
+}
+
 /**
- * The warnings the conversion gives on Grav's file. Nothing else.
+ * The warnings the conversions give on Grav's file. Nothing else.
  * Itram's copy still has Witch Focus's old "+1 spell save DC" power: two powers moved, Witch Focus equipped.
  * The desktop file was fixed by hand on 2026-09-29 (Witch Focus needs attunement; spellDcBonus is already
  * a field): only the Staff's "+3 spell attack" moves.
  */
 export function expectGravImportWarnings(warnings: string[], { witchFocusPower }: { witchFocusPower: boolean }) {
-  expect(warnings).toHaveLength(witchFocusPower ? 3 : 1)
+  const bonus = witchFocusPower ? 3 : 1
+  expect(warnings).toHaveLength(bonus + 4)
   expect(warnings[0]).toMatch(/: the power "\+3 spell attack" is now the item's spellAttackBonus \(3\); its text was added to the item description\.$/)
-  if (!witchFocusPower) return
-  expect(warnings[1]).toMatch(/: the power "\+1 spell save DC" is now the item's spellDcBonus \(1\); its text was added to the item description\.$/)
-  expect(warnings[2]).toMatch(/: "Witch Focus" is now equipped: /)
+  if (witchFocusPower) {
+    expect(warnings[1]).toMatch(/: the power "\+1 spell save DC" is now the item's spellDcBonus \(1\); its text was added to the item description\.$/)
+    expect(warnings[2]).toMatch(/: "Witch Focus" is now equipped: /)
+  }
+  // then the four attacks linked to their items by name (Fire Bolt has none and gets null, silently)
+  expect(warnings.slice(bonus)).toEqual(
+    Object.entries(GRAV_ATTACK_ITEMS)
+      .filter(([, item]) => item !== null)
+      .map(([attack, item], i) => `attacks[${i}]: "${attack}" is now linked to the item "${item}" (by name); change it in the attack's editor.`),
+  )
 }

@@ -35,6 +35,8 @@ import { ActiveFilters, FilterButton } from './filter'
 import { TagList } from './tags'
 import { SIDE_NAV_SIDE, SectionNavMenu, SectionNavSide } from './SectionNav'
 import { ResourcesBlock } from './ResourcesBlock'
+import { ItemPanel, ItemsSection } from './ItemsSection'
+import { itemPanel, itemTiles } from '../model/itemPanel'
 import { groupTitle, playHands, playSections, sectionId } from './playSections'
 
 function attackFaces(c: Character): CardFace[] {
@@ -86,6 +88,8 @@ export function PlayView({ api }: { api: SheetApi }) {
   const [open, setOpen] = useState<CardFace | null>(null)
   const [flexOpen, setFlexOpen] = useState(false)
   const [openPassive, setOpenPassive] = useState<PassiveChip | null>(null)
+  // the item whose panel is open (Items section); hidden while a card or chip from it is zoomed, back after
+  const [openItem, setOpenItem] = useState<string | null>(null)
   const mode = settings.view
   const srd = useSrdForScrolls(c)
 
@@ -105,6 +109,8 @@ export function PlayView({ api }: { api: SheetApi }) {
     ...playPassives(c).map((f) => ({ key: f.id, name: f.name, glyph: FRAME_GLYPH[f.source.type], frame: f.source.type, source: f.source.name || t(`source.${f.source.type}`), description: f.description })),
     ...playPassivePowers(c).map(({ item, power }) => ({ key: power.id, name: power.name, glyph: FRAME_GLYPH.item, frame: 'item', source: item.name, description: power.description })),
   ]
+  const tiles = itemTiles(c)
+  const panelItem = openItem ? tiles.find((x) => x.item.id === openItem)?.item : undefined
   const mana = manaRows(c)
   const conc = c.spellcasting.concentration
   const concSpell = c.spells.find((s) => s.name === conc)
@@ -146,7 +152,7 @@ export function PlayView({ api }: { api: SheetApi }) {
 
   const zonesToShow: Zone[] = selectedZones(filter)
   const hands = playHands(zonesToShow, cards, kinds.length !== 1)
-  const sections = playSections({ mana: mana.length > 0 || !!sp, passives: passives.length, hands, passivesFirst: wide, resources: !wide })
+  const sections = playSections({ mana: mana.length > 0 || !!sp, passives: passives.length, items: tiles.length, hands, passivesFirst: wide, resources: !wide })
 
   const renderCard = (card: CardFace) => {
     if (card.kind === 'scroll')
@@ -311,6 +317,8 @@ export function PlayView({ api }: { api: SheetApi }) {
           </ResourcesBlock>
         )}
 
+        {tiles.length > 0 && <ItemsSection id={sectionId('items')} tiles={tiles} collapsible={!wide} onOpen={setOpenItem} />}
+
         {passives.length > 0 && (
           <section id={sectionId('field')} className="battlefield panel nav-target">
             <h3>
@@ -382,6 +390,26 @@ export function PlayView({ api }: { api: SheetApi }) {
           srd={srd}
         />
       )}
+      {panelItem &&
+        !open &&
+        !openPassive &&
+        (() => {
+          const view = itemPanel(c, panelItem)
+          // the same faces as in the hands (by key), so a card spent here shows spent there
+          const faces: CardFace[] = [
+            ...view.cards.map((x) => allCards.find((y) => y.key === x.key) ?? x),
+            ...attackFaces(c).filter((a) => view.attacks.some((x) => x.id === a.id)),
+          ]
+          return (
+            <ItemPanel
+              view={view}
+              cards={faces.map(renderCard)}
+              mode={mode}
+              onChip={(chip) => setOpenPassive({ key: chip.key, name: chip.name, glyph: FRAME_GLYPH[chip.frame as keyof typeof FRAME_GLYPH] ?? FRAME_GLYPH.item, frame: chip.frame, source: panelItem.name, description: chip.description })}
+              onClose={() => setOpenItem(null)}
+            />
+          )
+        })()}
       {openPassive && (
         <Modal title={openPassive.name} onClose={() => setOpenPassive(null)}>
           <p className="muted">

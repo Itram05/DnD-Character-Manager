@@ -136,7 +136,7 @@ const KNOWN = {
   feature: ['id', 'name', 'source', 'activation', 'uses', 'description', 'level', 'tags'],
   source: ['type', 'name'],
   uses: ['max', 'used', 'recharge', 'shortRestRegain', 'regain', 'note', 'resource'],
-  attack: ['id', 'name', 'ability', 'proficient', 'bonus', 'damage', 'damageType', 'addAbilityToDamage', 'damageBonus', 'mastery', 'notes'],
+  attack: ['id', 'name', 'ability', 'proficient', 'bonus', 'damage', 'damageType', 'addAbilityToDamage', 'damageBonus', 'mastery', 'notes', 'itemId'],
   spell: ['id', 'name', 'level', 'source', 'prepared', 'alwaysPrepared', 'ritual', 'concentration', 'school', 'castingTime', 'range', 'components', 'duration', 'description', 'freeCasts', 'tags'],
   spellcasting: ['slotsUsed', 'pactSlotsUsed', 'concentration', 'slotsOverride', 'pactOverride', 'bonusSlots'],
   pactOverride: ['slots', 'level'],
@@ -214,6 +214,47 @@ export function liftSpellBonusPowers(item: Item, path: string, warnings: string[
     item.equipped = true
     warnings.push(`${path}: "${item.name}" is now equipped: a spell DC or spell attack bonus counts only while the item is equipped (like AC), and it counted before.`)
   }
+}
+
+// Since 2026-09-29 an attack can name the item it is made with (Attack.itemId). A file without the
+// field (older, or written by hand) gets it on read: the attack is linked to the item whose name its own
+// name starts with ("Staff of Ages (+3)" -> "Staff of Ages"; the longest such name wins, an equipped item
+// before an unequipped one of the same name). An attack no item matches gets null, so the guess is made
+// once: adding a "Chain hook" item later does not quietly link the old "Chain hook" attack. Like the
+// spell bonuses above, this runs on every read, not as a version step (schema 3 files exist without it).
+
+const normName = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase()
+const WORD_CHAR = /[\p{L}\p{N}]/u
+
+/** The item an attack's name starts with (whole words), or undefined. */
+export function itemForAttackName(name: string, items: readonly Item[]): Item | undefined {
+  const a = normName(name)
+  let best: Item | undefined
+  for (const i of items) {
+    const n = normName(i.name)
+    if (!n || !a.startsWith(n)) continue
+    // "Staff" must not match "Staffordshire": the item's name ends at a word boundary of the attack's
+    if (a.length > n.length && WORD_CHAR.test(a[n.length]) && WORD_CHAR.test(n[n.length - 1])) continue
+    const longer = !best || n.length > normName(best.name).length
+    const sameButEquipped = !!best && n.length === normName(best.name).length && i.equipped && !best.equipped
+    if (longer || sameButEquipped) best = i
+  }
+  return best
+}
+
+/** Links attacks without the field to their item (see above); a link to an item that is gone becomes null. */
+export function linkAttacks(attacks: Attack[], items: readonly Item[], warnings: string[]) {
+  attacks.forEach((a, i) => {
+    const p = `attacks[${i}]`
+    if (a.itemId === undefined) {
+      const item = itemForAttackName(a.name, items)
+      a.itemId = item ? item.id : null
+      if (item) warnings.push(`${p}: "${a.name}" is now linked to the item "${item.name}" (by name); change it in the attack's editor.`)
+    } else if (a.itemId && !items.some((x) => x.id === a.itemId)) {
+      warnings.push(`${p}: "${a.name}" was linked to an item that is not in the inventory; the link was removed.`)
+      a.itemId = null
+    }
+  })
 }
 
 export function migrate(raw: Obj, from: number, warnings: string[]): Obj {
@@ -439,6 +480,9 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
       mastery: r.str(a.mastery, `${p}.mastery`),
       notes: r.str(a.notes, `${p}.notes`),
     }
+    // absent stays absent here: linkAttacks (after the items are read) links it by name or sets null
+    if (a.itemId === null) atk.itemId = null
+    else if (a.itemId !== undefined) atk.itemId = r.str(a.itemId, `${p}.itemId`) || null
     keep(a, atk, KNOWN.attack, p)
     attacks.push(atk)
   })
@@ -556,6 +600,7 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     keep(it, item, KNOWN.item, p)
     items.push(item)
   })
+  linkAttacks(attacks, items, warnings)
   const attuned = items.filter((i) => i.attuned)
   if (attuned.length > 3) {
     warnings.push(`More than 3 attuned items (${attuned.length}); only the first 3 stay attuned.`)

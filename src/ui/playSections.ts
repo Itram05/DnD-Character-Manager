@@ -13,7 +13,7 @@ export function groupTitle(k: PlayKind, cards: CardFace[]): string {
   return hasScroll && hasPotion ? t('kind.scrollPotion') : hasPotion ? t('kind.potion') : t('kind.scroll')
 }
 
-/** DOM id of a Play section: a panel ("mana", "conc", "field", "res"), a hand, or a kind inside a hand. */
+/** DOM id of a Play section: a panel ("mana", "conc", "field", "res", "items"), a hand, or a kind inside a hand. */
 export const sectionId = (part: string, kind?: PlayKind) => `play-${part}${kind ? `-${kind}` : ''}`
 
 /** One hand as shown: its cards after the filter, split by kind unless a single kind is selected. */
@@ -36,9 +36,12 @@ export function playHands(zones: Zone[], cards: CardFace[], grouped: boolean): H
  * filter is not listed (its "No cards here." is not worth a jump). `passivesFirst`: on a computer
  * "Always on" sits in the top row; on a phone it comes after the hands. `resources`: the phone's one
  * Resources block (ResourcesBlock.tsx) stands for slots and concentration, so it is one entry.
+ * "Items" (one tile per magic item in play) comes right before the hands.
  * The day timers are not here: they live at the top of the Story tab (not for the fight).
  */
-export function playSections(p: { mana: boolean; passives: number; hands: HandView[]; passivesFirst: boolean; resources?: boolean }): NavSection[] {
+export function playSections(p: { mana: boolean; passives: number; items?: number; hands: HandView[]; passivesFirst: boolean; resources?: boolean }): NavSection[] {
+  // the Items section (ItemsSection.tsx) sits between the top panels and the hands, on both widths
+  const items: NavSection[] = p.items ? [{ id: sectionId('items'), label: t('items.title'), n: p.items }] : []
   const field: NavSection[] = p.passives > 0 ? [{ id: sectionId('field'), label: t('play.battlefield'), n: p.passives }] : []
   const hands = p.hands
     .filter((h) => h.cards.length > 0)
@@ -52,6 +55,7 @@ export function playSections(p: { mana: boolean; passives: number; hands: HandVi
   return [
     ...top,
     ...(p.passivesFirst ? field : []),
+    ...items,
     ...hands,
     ...(p.passivesFirst ? [] : field),
   ]

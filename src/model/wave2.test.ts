@@ -15,11 +15,11 @@ describe('schema version 2 and the migration from 1', () => {
     expect(CURRENT_SCHEMA_VERSION).toBeGreaterThanOrEqual(2)
     expect(normalizeCharacter({}).character.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
   })
-  it('a version 1 file (the sample hero) imports without warnings and loses nothing but the version number', () => {
+  it('a version 1 file (the sample hero) imports without warnings (but the Javelin attack linked to its item) and loses nothing but the version number', () => {
     const raw = JSON.parse(sampleText)
     expect(raw.schemaVersion).toBe(1)
     const { character, warnings } = importCharacterJson(sampleText)
-    expect(warnings).toEqual([])
+    expect(warnings).toEqual([expect.stringMatching(/^attacks\[1\]: "Javelin" is now linked to the item "Javelin"/)])
     expect(character.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
     expect(JSON.parse(JSON.stringify(character))).toMatchObject({ ...raw, schemaVersion: CURRENT_SCHEMA_VERSION })
   })

@@ -149,3 +149,12 @@ export function loadResourcesOpen(): boolean {
 }
 
 export const saveResourcesOpen = (open: boolean) => safeSet(RESOURCES_OPEN_KEY, open ? '1' : '0')
+
+const ITEMS_OPEN_KEY = `${PREFIX}.phoneItemsOpen`
+
+/** Whether the phone's "Items" section (Play) is unfolded. Default: folded, so the first card stays near the top. */
+export function loadItemsOpen(): boolean {
+  return safeGet(ITEMS_OPEN_KEY) === '1'
+}
+
+export const saveItemsOpen = (open: boolean) => safeSet(ITEMS_OPEN_KEY, open ? '1' : '0')

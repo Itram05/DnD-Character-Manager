@@ -7,8 +7,13 @@ import sampleText from '../../examples/sample-character.json?raw'
 
 describe('sample character', () => {
   const { character: c, warnings } = importCharacterJson(sampleText)
-  it('imports without warnings', () => {
-    expect(warnings).toEqual([])
+  it('imports without warnings but the one link of its Javelin attack to the Javelin item (since 2026-09-29)', () => {
+    expect(warnings).toEqual([`attacks[1]: "Javelin" is now linked to the item "Javelin" (by name); change it in the attack's editor.`])
+    expect(c.attacks.map((a) => [a.name, c.inventory.items.find((i) => i.id === a.itemId)?.name ?? a.itemId])).toEqual([
+      ['Longsword (pact weapon)', null],
+      ['Javelin', 'Javelin'],
+      ['Fire Bolt', null],
+    ])
   })
   it('has the expected derived values', () => {
     expect(totalLevel(c)).toBe(7)

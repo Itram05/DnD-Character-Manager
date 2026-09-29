@@ -234,7 +234,19 @@ export function ItemEditor({ api, initial, onClose }: { api: SheetApi; initial: 
       onClose={onClose}
       onSave={save}
       canSave={!!it.name.trim()}
-      onDelete={exists ? () => (api.update((c) => ({ ...c, inventory: { ...c.inventory, items: c.inventory.items.filter((x) => x.id !== it.id) } })), onClose()) : undefined}
+      onDelete={
+        exists
+          ? () => (
+              api.update((c) => ({
+                ...c,
+                inventory: { ...c.inventory, items: c.inventory.items.filter((x) => x.id !== it.id) },
+                // an attack made with the deleted item stays, unlinked
+                attacks: c.attacks.map((a) => (a.itemId === it.id ? { ...a, itemId: null } : a)),
+              })),
+              onClose()
+            )
+          : undefined
+      }
     >
       <TextField label={t('common.name')} value={it.name} onChange={(name) => setIt({ ...it, name })} />
       <div className="grid-3">
@@ -368,7 +380,8 @@ function PowersEditor({ api, item, onChange }: { api: SheetApi; item: Item; onCh
 // ---------------- attack ----------------
 
 export function blankAttack(): Attack {
-  return { id: newId(), name: '', ability: 'str', proficient: true, bonus: 0, damage: '1d8', damageType: '', addAbilityToDamage: true, damageBonus: 0 }
+  // itemId null: no item, chosen in the editor (absent would let the next read guess one by name)
+  return { id: newId(), name: '', ability: 'str', proficient: true, bonus: 0, damage: '1d8', damageType: '', addAbilityToDamage: true, damageBonus: 0, itemId: null }
 }
 
 export function AttackEditor({ api, initial, onClose }: { api: SheetApi; initial: Attack; onClose: () => void }) {
@@ -400,6 +413,13 @@ export function AttackEditor({ api, initial, onClose }: { api: SheetApi; initial
         <Check label={t('attack.proficient')} checked={a.proficient} onChange={(proficient) => setA({ ...a, proficient })} />
         <Check label={t('attack.addAbility')} checked={a.addAbilityToDamage} onChange={(addAbilityToDamage) => setA({ ...a, addAbilityToDamage })} />
       </div>
+      <Select
+        label={t('attack.item')}
+        value={a.itemId && api.c.inventory.items.some((i) => i.id === a.itemId) ? a.itemId : ''}
+        options={[{ value: '', label: t('attack.itemNone') }, ...api.c.inventory.items.map((i) => ({ value: i.id, label: i.name }))]}
+        onChange={(v) => setA({ ...a, itemId: v || null })}
+      />
+      <p className="hint">{t('attack.itemHint')}</p>
       <TextArea label={t('attack.notes')} rows={3} value={a.notes ?? ''} onChange={(notes) => setA({ ...a, notes })} />
     </EditorFrame>
   )

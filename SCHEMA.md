@@ -158,6 +158,13 @@ Used by features (`uses`), spells (`freeCasts`) and items (`charges`).
 `ability`: an ability, `finesse` (best of Str/Dex) or `spell` (the first spellcasting class's ability).
 To-hit and damage bonus are computed. Attacks appear as cards in the Action hand.
 
+`itemId` (optional): the `id` of the item the attack is made with. The attack then also shows in that item's panel
+in the Items section of Play. It is an id, not a name, so renaming the item keeps the link. `null` = no item.
+When the field is **missing**, the app links the attack on import to the item whose name the attack's name starts
+with (`"Staff of Ages (+3)"` → the item `"Staff of Ages"`; whole words, the longest item name wins) and says so in
+the import report; if no item matches, it writes `null`, so the guess is made only once. A link to an item that is
+no longer in the inventory becomes `null`. Change the link in the attack's editor (Stats tab).
+
 ## spellcasting
 
 | Field | Notes |
@@ -320,6 +327,6 @@ Blank lines separate paragraphs.
 |---|---|---|
 | 1 | First format. | |
 | 2 | New optional fields: `tags` (spells, features, items, item powers) and `powers` (items). Unknown fields are kept instead of dropped. | None needed: every version 1 field means the same in version 2, so a version 1 file imports unchanged and is exported as version 2. Item descriptions are **not** split into powers automatically (that would be guessing at rules text); add powers on the Gear tab or in the file. |
-| 3 | New fields: `partySize`, `xpLog` (experience log) and `timers` (day timers). Items: `spellDcBonus`, `spellAttackBonus`. | A version 2 file gets `partySize` 5 and empty `xpLog` and `timers`; `xp` keeps its value. A passive item power named like "+1 spell save DC" / "+3 spell attack" becomes the item's `spellDcBonus` / `spellAttackBonus` (its text goes to the item's `description`); if the item counted before but is not equipped, it is equipped, so the DC and spell attack stay the same. This conversion runs on every import, so version 3 files saved before these fields existed are converted too. |
+| 3 | New fields: `partySize`, `xpLog` (experience log) and `timers` (day timers). Items: `spellDcBonus`, `spellAttackBonus`. | A version 2 file gets `partySize` 5 and empty `xpLog` and `timers`; `xp` keeps its value. A passive item power named like "+1 spell save DC" / "+3 spell attack" becomes the item's `spellDcBonus` / `spellAttackBonus` (its text goes to the item's `description`); if the item counted before but is not equipped, it is equipped, so the DC and spell attack stay the same. This conversion runs on every import, so version 3 files saved before these fields existed are converted too. Attacks: `itemId` (see attacks); a missing `itemId` is filled in on every import, the same way. |
 
 **Careful with older copies of the app:** an app refuses files of a newer version ("Update the app"): a version 2 app refuses version 3 files. Export from the app you will import into.
