@@ -65,10 +65,16 @@
   --cat-summon: #9a6b45;
   --cat-utility: #858090;
 
-  --card-w: 150px;
+  --card-w: 150px; /* phone; a computer gets 180px (below) */
   --radius: 12px;
   --t: 180ms;
   color-scheme: dark;
+}
+/* computer (the same 900px line as the tabs on top): wider cards, room for a two-line title and the icon strip */
+@media (min-width: 900px) {
+  :root {
+    --card-w: 180px;
+  }
 }
 
 :root[data-theme='light'] {
