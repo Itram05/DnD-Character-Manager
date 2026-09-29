@@ -1581,6 +1581,10 @@ body.untap-step .card:not(.tapped) {
 .strip-damage.dmg-untyped { --dmg: var(--text); }
 .strip-save { color: var(--hl-save); }
 .strip-save .strip-val { color: var(--hl-save); font-weight: 700; }
+.strip-heal { color: var(--hl-heal); }
+.strip-heal .strip-val { color: var(--hl-heal); font-weight: 700; }
+/* "×3": how many rays, beams or darts roll the damage; a touch apart from the dice, in the same colour */
+.strip-times { margin-left: 1px; font-weight: 800; }
 
 /* list mode */
 .card-list {

@@ -85,6 +85,10 @@ const AREA_ICON: Record<AreaShape, ReactNode> = {
 
 // a burst, as on the Damage category
 const DAMAGE_ICON = <path d="M8 1l1.6 4.2L14 4l-2.6 3.6L15 10l-4.4.2L10 15l-2-3.8L6 15l-.6-4.8L1 10l3.6-2.4L2 4l4.4 1.2z" fill="currentColor" />
+// a heart: Hit Points back; outlined for Temporary Hit Points (they sit on top, they are not healed)
+const HEAL_PATH = 'M8 14.2S1.6 10.3 1.6 5.6A3.3 3.3 0 0 1 8 4.1a3.3 3.3 0 0 1 6.4 1.5C14.4 10.3 8 14.2 8 14.2z'
+const HEAL_ICON = <path d={HEAL_PATH} fill="currentColor" />
+const TEMP_HP_ICON = <path d={HEAL_PATH} {...stroke} />
 // a d20: a roll the target makes
 const SAVE_ICON = (
   <>
@@ -112,9 +116,12 @@ const ZONE_CLASS: Record<StripAction, string> = { action: 'z-action', bonus: 'z-
 /** The strip itself; nothing at all when there is nothing to show. */
 export function CardStrip({ strip }: { strip?: Strip }) {
   if (!strip || stripEmpty(strip)) return null
-  const { action, ritual, range, area, damage, save } = strip
+  const { action, ritual, range, area, damage, heal, save } = strip
   const dmgText = damage ? (damage.dice ?? (damage.type ? tagLabel(damage.type) : '')) : ''
-  const dmgLabel = damage ? t('strip.damage', { damage: [damage.dice, damage.type ? tagLabel(damage.type) : ''].filter(Boolean).join(' ') }) : ''
+  const dmgWhat = damage ? [damage.dice, damage.type ? tagLabel(damage.type) : ''].filter(Boolean).join(' ') : ''
+  const dmgLabel = damage ? (damage.times ? t('strip.damageTimes', { damage: dmgWhat, n: damage.times }) : t('strip.damage', { damage: dmgWhat })) : ''
+  const healText = heal?.dice === 'all' ? t('strip.healAll') : heal?.dice
+  const healLabel = heal ? t(heal.temp ? 'strip.tempHp' : 'strip.heal', { amount: healText ?? '' }).replace(/:\s*$/, '') : ''
   return (
     <div className="card-strip" role="group" aria-label={t('strip.label')}>
       {action && (
@@ -137,6 +144,12 @@ export function CardStrip({ strip }: { strip?: Strip }) {
       {damage && (
         <Item cls={`strip-damage ${damage.type ? damageClass(damage.type) : 'dmg-untyped'}`} label={dmgLabel} icon={DAMAGE_ICON}>
           {dmgText}
+          {damage.times && <span className="strip-times">{`×${damage.times}`}</span>}
+        </Item>
+      )}
+      {heal && (
+        <Item cls={`strip-heal${heal.temp ? ' strip-temp' : ''}`} label={healLabel} icon={heal.temp ? TEMP_HP_ICON : HEAL_ICON}>
+          {healText}
         </Item>
       )}
       {save && (

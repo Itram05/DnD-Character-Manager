@@ -19,8 +19,13 @@ export interface CardStrip {
   range?: string
   /** Size with unit ("20 ft", "5 mi"). */
   area?: { shape: AreaShape; size: string }
-  /** The first damage in the main text: dice ("8d6", "1d8+Cha", "20") and/or type. */
-  damage?: { dice?: string; type?: DamageType }
+  /**
+   * The first damage in the main text: dice ("8d6", "1d8+Cha", "20") and/or type. `times`: how many rays,
+   * beams or darts roll it (Scorching Ray 3, Eldritch Blast 3 at level 11), only when the text says so.
+   */
+  damage?: { dice?: string; type?: DamageType; times?: number }
+  /** The first healing in the main text: dice or a number ("2d8+mod", "70", "all"); `temp` = Temporary Hit Points. */
+  heal?: { dice?: string; temp?: boolean }
   /** The ability of the first saving throw the target makes. */
   save?: Ability
 }
@@ -132,6 +137,7 @@ const DAMAGE = new RegExp(
 export function shortDice(d: string): string {
   return d
     .replace(/\s+/g, ' ')
+    .replace(/\s+plus\s+/gi, '+')
     .replace(/\s*([+\-−])\s*/g, '$1')
     .replace(/([+\-−])(Str|Dex|Con|Int|Wis|Cha)[a-z]*(?: modifier)?$/i, (_m, sign: string, a: string) => sign + a.charAt(0).toUpperCase() + a.slice(1, 3).toLowerCase())
     .replace(/(?:your )?(?:spellcasting ability )?modifier$/i, 'mod')
@@ -157,8 +163,79 @@ export function cantripDice(dice: string, fullText: string | undefined, level: n
   if (!m) return dice
   const upgrade = (fullText ?? '').slice(mainText(fullText).length)
   if (!/\b(?:5th level|levels? 5)\b/i.test(upgrade)) return dice
+  // Eldritch Blast grows by beams, not by dice: each beam stays 1d10 (the count is `times`, see findTimes)
+  if (UPGRADE_TIMES.test(upgrade)) return dice
   const n = 1 + (level >= 5 ? 1 : 0) + (level >= 11 ? 1 : 0) + (level >= 17 ? 1 : 0)
   return n === 1 ? dice : `${n}${m[1]}`
+}
+
+// ---------------- rays, beams, darts ----------------
+
+const COUNT: Record<string, number> = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 }
+const NUMBER = String.raw`(?:two|three|four|five|six|seven|eight|nine|ten|\d+)`
+const SHOTS = String.raw`(?:rays|beams|darts|bolts|missiles)`
+// "You hurl three fiery rays", "You create three glowing darts of magical force": up to three words between
+const TIMES = new RegExp(String.raw`\b(${NUMBER})\s+(?:[a-z-]+\s+){0,3}?${SHOTS}\b`, 'i')
+// "two beams at level 5, three beams at level 11" (2024), "two beams at 5th level" (2014)
+const UPGRADE_TIMES_G = new RegExp(String.raw`\b(${NUMBER})\s+${SHOTS}\s+(?:at|when\s+you\s+reach)\s+(?:(?:character\s+)?level\s+(\d+)|(\d+)(?:st|nd|rd|th)\s+level)`, 'gi')
+const UPGRADE_TIMES = new RegExp(UPGRADE_TIMES_G.source, 'i')
+
+const toCount = (w: string) => COUNT[w.toLowerCase()] ?? parseInt(w, 10)
+
+/**
+ * How many rays, beams or darts the spell makes, when the text says a number of them: the main text
+ * ("three fiery rays"), or for a cantrip the upgrade line at the character's level ("three beams at
+ * level 11"). One, or nothing said: undefined. The count at the spell's own level, like the damage.
+ */
+export function findTimes(fullText: string | undefined, level?: number): number | undefined {
+  const main = mainText(fullText)
+  let n: number | undefined
+  const m = main.match(TIMES)
+  if (m) n = toCount(m[1])
+  if (level !== undefined) {
+    const upgrade = (fullText ?? '').slice(main.length)
+    for (const u of upgrade.matchAll(UPGRADE_TIMES_G)) {
+      const at = parseInt(u[2] ?? u[3], 10)
+      if (level >= at) n = Math.max(n ?? 1, toCount(u[1]))
+    }
+  }
+  return n !== undefined && n >= 2 && n <= 20 ? n : undefined
+}
+
+// ---------------- healing ----------------
+
+// the same dice as damage, plus the written-out "plus": "2d8 plus your spellcasting ability modifier"
+const HMOD = String.raw`\s*(?:[+\-−]|plus)\s*(?:\d+(?!\s*d\d)|(?:your\s+)?(?:spellcasting\s+ability\s+)?modifier|(?:${ABIL_SHORT}|${ABIL_LONG})\b(?:\s+modifier)?)`
+const HDICE = String.raw`(?:\d*d\d+(?:${HMOD})?|\d+(?:${HMOD})?)`
+const HEAL = new RegExp(
+  [
+    // "regains 4d8 + 15 Hit Points", "restoring 70 Hit Points", "restore up to 700 Hit Points", "gain 2d4 + 4 Temporary Hit Points"
+    String.raw`\b(?:regains?|restores?|restoring|gains?)\s+(?:up\s+to\s+)?(?<n1>${HDICE})\s+(?<t1>Temporary\s+)?Hit\s+Points?\b`,
+    // "regains a number of Hit Points equal to 2d8 plus ...", "regain Hit Points equal to half the damage"
+    String.raw`\b(?:regains?|restores?|gains?)\s+(?:a\s+number\s+of\s+)?(?<t2>Temporary\s+)?Hit\s+Points\s+equal\s+to\s+(?:(?<n2>${HDICE})(?!\w))?`,
+    // "regains all its Hit Points"
+    String.raw`\b(?<all>regains?\s+all\s+(?:of\s+)?(?:its|their|your)\s+Hit\s+Points)\b`,
+    // short notes as people write them: "Heal 1d8 + Cha modifier"
+    String.raw`\bheals?\s+(?<n3>\d*d\d+(?:${HMOD})?)`,
+    // anything else that gives Hit Points back: the icon without a number
+    String.raw`\b(?:regains?|restores?)\s+(?<t4>Temporary\s+)?Hit\s+Points?\b`,
+  ].join('|'),
+  'gi',
+)
+// "can't regain Hit Points" (Chill Touch) is the opposite of healing
+const NO_HEAL = /(?:can't|cannot|can\s+not|doesn't|don't|no\s+longer)\s+$/i
+
+/** The first healing in the text a target gets: "2d8+mod", "70", "all", or only that there is some. */
+export function findHeal(text: string | undefined): CardStrip['heal'] {
+  const s = text ?? ''
+  for (const m of s.matchAll(HEAL)) {
+    if (NO_HEAL.test(s.slice(Math.max(0, m.index! - 20), m.index))) continue
+    const g = m.groups!
+    const n = g.n1 ?? g.n2 ?? g.n3
+    const temp = !!(g.t1 ?? g.t2 ?? g.t4)
+    return { ...(n ? { dice: shortDice(n) } : g.all ? { dice: 'all' } : {}), ...(temp ? { temp } : {}) }
+  }
+  return undefined
 }
 
 // ---------------- saving throw ----------------
@@ -213,7 +290,14 @@ export function cardStrip(src: StripSource): CardStrip {
   const damage = findDamage(main)
   if (damage) {
     if (damage.dice && src.cantripLevel) damage.dice = cantripDice(damage.dice, src.text, src.cantripLevel)
+    const times = findTimes(src.text, src.cantripLevel)
+    if (times) damage.times = times
     out.damage = damage
+  }
+  const heal = findHeal(main)
+  if (heal) {
+    if (heal.dice && heal.dice !== 'all' && src.cantripLevel) heal.dice = cantripDice(heal.dice, src.text, src.cantripLevel)
+    out.heal = heal
   }
   const save = findSave(main)
   if (save) out.save = save

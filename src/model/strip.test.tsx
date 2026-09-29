@@ -3,7 +3,7 @@ import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { CardStrip } from '../ui/CardStrip'
 import { GameCard, type CardFace } from '../ui/GameCard'
-import { cantripDice, cardStrip, castingAction, findArea, findDamage, findSave, mainText, shortDice, shortRange } from './strip'
+import { cantripDice, cardStrip, castingAction, findArea, findDamage, findHeal, findSave, findTimes, mainText, shortDice, shortRange } from './strip'
 
 describe('strip: action', () => {
   it('reads the casting time', () => {
@@ -115,6 +115,65 @@ describe('strip: cantrips grow with the character level', () => {
   })
 })
 
+describe('strip: healing', () => {
+  it('reads the healing in the usual wordings', () => {
+    // SRD 2024
+    expect(findHeal('A creature you touch regains a number of Hit Points equal to 2d8 plus your spellcasting ability modifier.')).toEqual({ dice: '2d8+mod' })
+    expect(findHeal('within range regains Hit Points equal to 2d4 plus your spellcasting ability modifier.')).toEqual({ dice: '2d4+mod' })
+    expect(findHeal('A creature you touch regains 4d8 + 15 Hit Points.')).toEqual({ dice: '4d8+15' })
+    expect(findHeal('Positive energy washes through the target, restoring 70 Hit Points.')).toEqual({ dice: '70' })
+    expect(findHeal('You restore up to 700 Hit Points, divided as you choose')).toEqual({ dice: '700' })
+    expect(findHeal('gain the benefits of a Short Rest and also regain 2d8 Hit Points.')).toEqual({ dice: '2d8' })
+    expect(findHeal('The target regains all its Hit Points.')).toEqual({ dice: 'all' })
+    // notes as written by hand (Grav)
+    expect(findHeal('Heal 1d8 + Cha modifier, +1d8 per slot level above 1st.')).toEqual({ dice: '1d8+Cha' })
+    expect(findHeal('Heal 1d4 + Cha modifier. Best for picking up a fallen ally.')).toEqual({ dice: '1d4+Cha' })
+  })
+  it('Temporary Hit Points are marked as such', () => {
+    expect(findHeal('You gain 2d4 + 4 Temporary Hit Points.')).toEqual({ dice: '2d4+4', temp: true })
+    expect(findHeal('gains Temporary Hit Points equal to your spellcasting ability modifier')).toEqual({ temp: true })
+  })
+  it('healing without a number is the icon alone; "can not regain" is not healing', () => {
+    expect(findHeal('you regain Hit Points equal to half the amount of Necrotic damage dealt')).toEqual({})
+    expect(findHeal("the target takes 1d10 Necrotic damage, and it can't regain Hit Points until the end of your next turn")).toBeUndefined()
+    expect(findHeal('The first time the target would drop to 0 hit points')).toBeUndefined()
+    expect(findHeal("Each target's Hit Point maximum and current Hit Points increase by 5")).toBeUndefined()
+  })
+  it('on the strip, next to the damage; the upgrade line does not count', () => {
+    const cure = 'A creature you touch regains a number of Hit Points equal to 2d8 plus your spellcasting ability modifier.\n\n_Using a Higher-Level Spell Slot._ The healing increases by 2d8 for each spell slot level above 1.'
+    expect(cardStrip({ castingTime: 'Action', range: 'Touch', text: cure })).toEqual({ action: { kind: 'action' }, range: 'Touch', heal: { dice: '2d8+mod' } })
+    const vamp = 'On a hit, the target takes 3d6 Necrotic damage, and you regain Hit Points equal to half the amount of Necrotic damage dealt.'
+    expect(cardStrip({ text: vamp })).toMatchObject({ damage: { dice: '3d6', type: 'necrotic' }, heal: {} })
+  })
+})
+
+describe('strip: rays, beams and darts', () => {
+  const ray = 'You hurl three fiery rays. You can hurl them at one target within range or at several. Make a ranged spell attack for each ray. On a hit, the target takes 2d6 Fire damage.\n\n_Using a Higher-Level Spell Slot._ You create one additional ray for each spell slot level above 2.'
+  const missile = 'You create three glowing darts of magical force. Each dart strikes a creature of your choice that you can see within range. A dart deals 1d4 + 1 Force damage to its target.\n\n_Using a Higher-Level Spell Slot._ The spell creates one more dart for each spell slot level above 1.'
+  const blast = 'You hurl a beam of crackling energy. Make a ranged spell attack against one creature or object in range. On a hit, the target takes 1d10 Force damage.\n\n_Cantrip Upgrade._ The spell creates two beams at level 5, three beams at level 11, and four beams at level 17. You can direct the beams at the same target or at different ones.'
+  const blast2014 = 'A beam of crackling energy streaks toward a creature within range. Make a ranged spell attack against the target. On a hit, the target takes 1d10 force damage.\n\nAt Higher Levels. The spell creates more than one beam when you reach higher levels: two beams at 5th level, three beams at 11th level, and four beams at 17th level.'
+  it('the count in the text', () => {
+    expect(findTimes(ray)).toBe(3)
+    expect(findTimes(missile)).toBe(3)
+    expect(cardStrip({ text: ray }).damage).toEqual({ dice: '2d6', type: 'fire', times: 3 })
+    expect(cardStrip({ text: missile }).damage).toEqual({ dice: '1d4+1', type: 'force', times: 3 })
+  })
+  it('Eldritch Blast: beams by the character level, and each beam keeps its 1d10', () => {
+    expect(findTimes(blast, 4)).toBeUndefined()
+    expect(findTimes(blast, 5)).toBe(2)
+    expect(findTimes(blast, 14)).toBe(3)
+    expect(findTimes(blast, 17)).toBe(4)
+    expect(findTimes(blast2014, 11)).toBe(3)
+    expect(cardStrip({ text: blast, cantripLevel: 14 }).damage).toEqual({ dice: '1d10', type: 'force', times: 3 })
+    expect(cardStrip({ text: blast2014, cantripLevel: 14 }).damage).toEqual({ dice: '1d10', type: 'force', times: 3 })
+  })
+  it('no count said, no count shown', () => {
+    expect(findTimes('Up to three creatures of your choice make a Charisma saving throw')).toBeUndefined()
+    expect(findTimes('A silvery beam of pale light shines down')).toBeUndefined()
+    expect(cardStrip({ text: 'The target takes 8d6 Fire damage.' }).damage).toEqual({ dice: '8d6', type: 'fire' })
+  })
+})
+
 describe('strip: nothing is guessed', () => {
   it('a card with nothing to read has an empty strip', () => {
     expect(cardStrip({})).toEqual({})
@@ -150,6 +209,18 @@ describe('strip: on the card', () => {
     const html = renderToString(<CardStrip strip={{ damage: { dice: '3d8', type: 'thunder' } }} />)
     expect(html).toContain('dmg-thunder')
     expect(html).toContain('aria-label="Damage: 3d8 Thunder"')
+  })
+  it('healing in green with its amount; Temporary Hit Points get their own label', () => {
+    const html = renderToString(<CardStrip strip={{ heal: { dice: '2d8+mod' } }} />)
+    expect(html).toContain('strip-heal')
+    expect(html).toContain('aria-label="Healing: 2d8+mod"')
+    expect(renderToString(<CardStrip strip={{ heal: {} }} />)).toContain('aria-label="Healing"')
+    expect(renderToString(<CardStrip strip={{ heal: { dice: '2d4+4', temp: true } }} />)).toContain('aria-label="Temporary Hit Points: 2d4+4"')
+  })
+  it('"×3" beside the damage dice', () => {
+    const html = renderToString(<CardStrip strip={{ damage: { dice: '2d6', type: 'fire', times: 3 } }} />)
+    expect(html).toContain('×3')
+    expect(html).toContain('3 times')
   })
   it('an empty strip renders nothing', () => {
     expect(renderToString(<CardStrip strip={{}} />)).toBe('')
