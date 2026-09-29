@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { importCharacterJson } from '../src/model/normalize'
 import { longRest } from '../src/model/rest'
 import { addTimer } from '../src/model/timers'
-import { spellDcView } from '../src/model/rules'
+import { setAttunement, spellDcView } from '../src/model/rules'
 import { addSessionXp, correctXp, raiseXpToLevel, undoLastXp, xpProgress } from '../src/model/xp'
 import { GRAV_DESKTOP, expectGravImportWarnings, gravAfterImport, ownerFile } from './ownerFiles'
 
@@ -19,7 +19,7 @@ describe.skipIf(!HAVE_GRAV_V2)('Grav v2 from the desktop, read by schema 3', () 
 
   it('is a v2 file and comes out as v3 with every field unchanged but the listed spell bonus conversion', () => {
     expect(raw.schemaVersion).toBe(2)
-    expectGravImportWarnings(warnings)
+    expectGravImportWarnings(warnings, { witchFocusPower: false })
     // hand-edited file: the import adds ids and defaults it lacks; every field written in it survives
     expect(JSON.parse(JSON.stringify(c))).toMatchObject(gravAfterImport(raw))
     expect(c.xp).toBe(91550)
@@ -50,11 +50,21 @@ describe.skipIf(!HAVE_GRAV_V2)('Grav v2 from the desktop, read by schema 3', () 
 
 describe.skipIf(!HAVE_GRAV_V2)('Grav v2: spell save DC in the head and the XP one-tap fix', () => {
   const { character: c } = importCharacterJson(existsSync(GRAV_V2) ? readFileSync(GRAV_V2, 'utf8') : '{}')
-  it('DC 19 = 8 + CHA 5 + PB 5 + Witch Focus 1; spell attack +13 = CHA 5 + PB 5 + Staff of Ages 3', () => {
+  // Witch Focus needs attunement (fixed in the file 2026-09-29) and his 3 slots are taken: its +1 does not count
+  it('DC 18 = 8 + CHA 5 + PB 5 (Witch Focus not attuned); spell attack +13 = CHA 5 + PB 5 + Staff of Ages 3', () => {
     const v = spellDcView(c)
     expect(v).toHaveLength(1)
-    expect(v[0]).toMatchObject({ ability: 'cha', saveDc: 19, attack: 13 })
-    expect(v[0].dcParts.filter((p) => p.kind === 'item')).toEqual([{ kind: 'item', label: 'Witch Focus', value: 1 }])
+    expect(v[0]).toMatchObject({ ability: 'cha', saveDc: 18, attack: 13 })
+    expect(v[0].dcParts.filter((p) => p.kind === 'item')).toEqual([])
+    expect(v[0].attackParts.filter((p) => p.kind === 'item')).toEqual([{ kind: 'item', label: 'Staff of Ages', value: 3 }])
+  })
+  it('attuning Witch Focus instead of the Pearl brings the DC back to 19', () => {
+    const wf = c.inventory.items.find((i) => i.name === 'Witch Focus')!
+    expect(wf).toMatchObject({ requiresAttunement: true, attuned: false, spellDcBonus: 1, description: '+1 spell save DC while attuned.' })
+    const pearl = c.inventory.items.find((i) => i.name === 'Pearl of Power')!
+    const swapped = setAttunement(setAttunement(c, pearl.id, false).character, wf.id, true)
+    expect(swapped.ok).toBe(true)
+    expect(spellDcView(swapped.character)[0].saveDc).toBe(19)
   })
   it('"Set to 140,000" brings 91 550 up to level 14 and can be undone', () => {
     const up = raiseXpToLevel(c)

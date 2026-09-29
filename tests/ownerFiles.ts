@@ -6,7 +6,7 @@
 import { existsSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-/** Grav's current file: the one the owner imports into the app (Paladin 5 / Sorcerer 9, schema 2). */
+/** Grav's current file: the one the owner imports into the app (Paladin 5 / Sorcerer 9, schema 2). Witch Focus needs attunement and is not attuned (DC 18). */
 export const GRAV_DESKTOP = 'C:/Users/User/Desktop/grav-srashtite-lv14.json'
 /** Itram's copy of the same hero, kept in the Itram repo. */
 export const GRAV_ITRAM = 'F:/Claude/Itram/geroi/grav-srashtite.json'
@@ -48,10 +48,16 @@ export function gravAfterImport(raw: Obj): Obj {
   return { ...copy, schemaVersion: 3 }
 }
 
-/** The warnings the conversion gives on Grav's file: two powers moved, Witch Focus equipped. Nothing else. */
-export function expectGravImportWarnings(warnings: string[]) {
-  expect(warnings).toHaveLength(3)
+/**
+ * The warnings the conversion gives on Grav's file. Nothing else.
+ * Itram's copy still has Witch Focus's old "+1 spell save DC" power: two powers moved, Witch Focus equipped.
+ * The desktop file was fixed by hand on 2026-09-29 (Witch Focus needs attunement; spellDcBonus is already
+ * a field): only the Staff's "+3 spell attack" moves.
+ */
+export function expectGravImportWarnings(warnings: string[], { witchFocusPower }: { witchFocusPower: boolean }) {
+  expect(warnings).toHaveLength(witchFocusPower ? 3 : 1)
   expect(warnings[0]).toMatch(/: the power "\+3 spell attack" is now the item's spellAttackBonus \(3\); its text was added to the item description\.$/)
+  if (!witchFocusPower) return
   expect(warnings[1]).toMatch(/: the power "\+1 spell save DC" is now the item's spellDcBonus \(1\); its text was added to the item description\.$/)
   expect(warnings[2]).toMatch(/: "Witch Focus" is now equipped: /)
 }

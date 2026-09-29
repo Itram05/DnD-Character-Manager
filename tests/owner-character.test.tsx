@@ -25,7 +25,7 @@ describe.skipIf(!ownerFile(OWNER_FILE))("owner's character file", () => {
   const { character: c, warnings } = importCharacterJson(text)
 
   it('imports and loses nothing: every field of the file, except the one listed conversion of the spell bonuses', () => {
-    expectGravImportWarnings(warnings)
+    expectGravImportWarnings(warnings, { witchFocusPower: false })
     // every field written in the file is there with the same value (lists keep their length and order);
     // the importer may only ADD what the hand-edited file lacks: ids, defaults, and schema 3's partySize/xpLog/timers
     expect(JSON.parse(JSON.stringify(c))).toMatchObject({ partySize: 5, xpLog: [], timers: [], ...gravAfterImport(JSON.parse(text)) })
@@ -35,14 +35,13 @@ describe.skipIf(!ownerFile(OWNER_FILE))("owner's character file", () => {
     expect(again.warnings).toEqual([])
     expect(again.character).toEqual(c)
   })
-  it('keeps DC 19 and spell attack +13 after the conversion (Witch Focus +1 equipped, Staff of Ages +3)', () => {
+  it('DC 18 and spell attack +13: Witch Focus needs attunement and is not attuned (3/3 taken), Staff of Ages +3', () => {
     const v = spellDcView(c)
-    expect(v.map((x) => [x.saveDc, x.attack])).toEqual([[19, 13]])
-    expect(v[0].dcParts.filter((p) => p.kind === 'item')).toEqual([{ kind: 'item', label: 'Witch Focus', value: 1 }])
+    expect(v.map((x) => [x.saveDc, x.attack])).toEqual([[18, 13]])
+    expect(v[0].dcParts.filter((p) => p.kind === 'item')).toEqual([])
     expect(v[0].attackParts.filter((p) => p.kind === 'item')).toEqual([{ kind: 'item', label: 'Staff of Ages', value: 3 }])
     expect(passiveChips(c).map((p) => [p.item.name, p.power.name])).toEqual([
       ['Staff of Ages', '+3 spell attack'],
-      ['Witch Focus', '+1 spell save DC'],
       ['Helm of the Constellation', 'Truesight 60 ft'],
     ])
   })
@@ -105,7 +104,7 @@ describe.skipIf(!ownerFile(OWNER_FILE))("owner's character file", () => {
       for (const t of [wide, phone]) {
         expect(t).toContain('Attacks ( 5 )')
         expect(t).not.toContain('Font of Magic')
-        expect(t).toContain('+1 spell save DC · Witch Focus')
+        expect(t).not.toContain('Witch Focus')
         expect(t).toContain('+3 spell attack · Staff of Ages')
       }
     }
@@ -123,7 +122,7 @@ describe.skipIf(!HAVE_GRAV_FILE)("owner's character: attunement on the Play scre
   const { character: c, warnings } = importCharacterJson(text)
 
   it('imports and loses nothing but the listed conversion of the spell bonuses', () => {
-    expectGravImportWarnings(warnings)
+    expectGravImportWarnings(warnings, { witchFocusPower: true })
     // hand-written file: the import only adds defaults, every field written in it survives unchanged
     // except the spell bonus powers that became fields (gravAfterImport lists that change exactly)
     expect(JSON.parse(JSON.stringify(c))).toMatchObject(gravAfterImport(JSON.parse(text)))
