@@ -1,6 +1,6 @@
 // Inventory stage 5 (crafting, counters in Play) against the owner's real hero, read-only: Grav's file must
 // import with no recipes and no counters, nothing lost and no new warning; a recipe and a counter added in the
-// app must survive export and import; the Gear tab must show them. A missing file fails here (ownerFiles.ts).
+// app must survive export and import; the Gear tab must show them. Path from OWNER_GRAV_FILE; skipped without it (ownerFiles.ts).
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { renderToString } from 'react-dom/server'
@@ -11,14 +11,14 @@ import type { Character } from '../src/model/types'
 import { CountersSection } from '../src/ui/CountersSection'
 import { InventoryView } from '../src/ui/InventoryView'
 import type { SheetApi } from '../src/ui/Sheet'
-import { GRAV_DESKTOP, expectGravImportWarnings, gravAfterImport, ownerFile } from './ownerFiles'
+import { GRAV_FILE, expectGravImportWarnings, gravAfterImport, ownerFile } from './ownerFiles'
 
-const HAVE = ownerFile(GRAV_DESKTOP)
+const HAVE = ownerFile(GRAV_FILE)
 const text = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
 const apiFor = (c: Character): SheetApi => ({ c, update: () => {}, toast: () => {}, settings: { theme: 'dark', view: 'list' }, setSettings: () => {}, go: () => {} })
 
 describe.skipIf(!HAVE)('Grav and crafting', () => {
-  const bytes = existsSync(GRAV_DESKTOP) ? readFileSync(GRAV_DESKTOP) : Buffer.from('{}')
+  const bytes = existsSync(GRAV_FILE.path) ? readFileSync(GRAV_FILE.path) : Buffer.from('{}')
   const hash = createHash('sha256').update(bytes).digest('hex')
   const raw = JSON.parse(bytes.toString('utf8'))
   const { character: c, warnings } = importCharacterJson(bytes.toString('utf8'))
@@ -58,6 +58,6 @@ describe.skipIf(!HAVE)('Grav and crafting', () => {
     expect(text(renderToString(<CountersSection api={apiFor(x)} id="play-counters" />))).toContain('Potion of Greater Healing 8')
   })
   it('the file on the desktop was only read', () => {
-    expect(createHash('sha256').update(readFileSync(GRAV_DESKTOP)).digest('hex')).toBe(hash)
+    expect(createHash('sha256').update(readFileSync(GRAV_FILE.path)).digest('hex')).toBe(hash)
   })
 })
