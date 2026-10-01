@@ -11,7 +11,7 @@ A full example: [`examples/sample-character.json`](examples/sample-character.jso
   Every change it makes is listed in the import dialog. Nothing it cannot understand crashes the app: a value of the wrong kind is skipped with a warning.
 - **Unknown fields are kept.** A field the app does not use (`"summary"`, `"rarity"`, your own notes) stays where it is, unchanged, and is exported again. The import dialog lists it ("not a field this app uses; kept unchanged"), so a typo such as `"descripton"` is easy to spot. (Version 1 of the app dropped such fields silently; since version 2 nothing is dropped.)
 - **Fatal errors** (the file is rejected with a message): not valid JSON, not an object, or `schemaVersion` newer than the app.
-- A **version 1** file is converted on import (see [Versioning](#versioning)); the app always exports version 2.
+- An **older version** (1 or 2) is converted on import (see [Versioning](#versioning)); the app always exports the current version (3).
 - `id` fields are generated if missing. Keep them if you re-import the same character (the app then offers to replace it).
 - Everything that is **not in the SRD** (PHB subclasses, feats, items, homebrew) is described completely in the character file.
 
