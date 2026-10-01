@@ -45,22 +45,38 @@ export const itemsIn = (c: Inv, containerId: string) => {
 /**
  * The container this one is inside: the container of its item. None when it is not an item, when its
  * item is equipped (a bag worn at the belt is on you), or when the item is gone.
+ * `stored`: ignore `equipped` and follow where the item is kept. Weight and warnings follow what is worn
+ * now; loop checks must use `stored`, or a worn bag could be put inside a bag inside it, and taking it
+ * off later would make a loop.
  */
-export function parentOf(c: Inv, k: Container): Container | undefined {
+export function parentOf(c: Inv, k: Container, { stored = false } = {}): Container | undefined {
   const item = itemOfContainer(c, k)
-  if (!item || item.equipped) return undefined
+  if (!item || (item.equipped && !stored)) return undefined
   return containerOf(c, item)
 }
 
 /** This container and every container around it, innermost first. Stops at a loop (normalize breaks loops on read). */
-export function chainOf(c: Inv, k: Container): Container[] {
+export function chainOf(c: Inv, k: Container, opts: { stored?: boolean } = {}): Container[] {
   const out: Container[] = []
-  for (let cur: Container | undefined = k; cur && !out.includes(cur); cur = parentOf(c, cur)) out.push(cur)
+  for (let cur: Container | undefined = k; cur && !out.includes(cur); cur = parentOf(c, cur, opts)) out.push(cur)
   return out
 }
 
-/** True when `inner` is `outer` or somewhere inside it. */
-export const isInside = (c: Inv, inner: Container, outer: Container) => chainOf(c, inner).some((x) => x.id === outer.id)
+/** True when `inner` is `outer` or kept somewhere inside it (worn or not: this is for loop checks). */
+export const isInside = (c: Inv, inner: Container, outer: Container) => chainOf(c, inner, { stored: true }).some((x) => x.id === outer.id)
+
+/**
+ * Where the items of a deleted container go: where the container itself is kept, or else the first
+ * container that is not inside it (a pouch inside the deleted bag cannot take the bag's items: the pouch's
+ * own item is one of them). Undefined when every other container is inside it.
+ */
+export function deleteTarget(c: Inv, id: string): Container | undefined {
+  const k = findContainer(c, id)
+  if (!k) return undefined
+  const parent = parentOf(c, k, { stored: true })
+  if (parent && parent.id !== id) return parent
+  return c.inventory.containers.find((x) => x.id !== id && !isInside(c, x, k))
+}
 
 /** Whether the item's weight counts toward what you carry: equipped, or no weightless container around it. */
 export function carried(c: Inv, i: Item): boolean {
@@ -130,7 +146,7 @@ export function moveTargets(c: Inv, itemId: string): Container[] {
 // ----- changes -----
 
 export type Change = { ok: true; character: Character } | { ok: false; character: Character; reason: ChangeRefusal }
-export type ChangeRefusal = 'not-found' | 'last-container' | 'into-itself' | 'bad-amount' | 'is-container' | 'not-same' | 'item-taken'
+export type ChangeRefusal = 'not-found' | 'last-container' | 'no-place' | 'into-itself' | 'bad-amount' | 'is-container' | 'not-same' | 'item-taken'
 
 const refuse = (c: Character, reason: ChangeRefusal): Change => ({ ok: false, character: c, reason })
 const withItems = (c: Character, items: Item[]): Character => ({ ...c, inventory: { ...c.inventory, items } })
@@ -165,12 +181,13 @@ function checkItemLink(c: Character, containerId: string, itemId: string | undef
   if (!item) return 'not-found'
   const other = containerForItem(c, itemId)
   if (other && other.id !== containerId) return 'item-taken'
-  // the bag item must not be inside the bag (directly or through another bag)
+  // the bag item must not be kept inside the bag (directly or through another bag), worn or not.
+  // A new container is empty, so it cannot hold its own item: only an existing one is checked.
   const where = containerOf(c, item)
   const self = findContainer(c, containerId)
-  if (where && self && !item.equipped) {
+  if (where && self) {
     const probe = { ...c, inventory: { ...c.inventory, containers: c.inventory.containers.map((k) => (k.id === containerId ? { ...k, itemId } : k)) } }
-    if (chainOf(probe, where).some((x) => x.id === containerId)) return 'into-itself'
+    if (chainOf(probe, where, { stored: true }).some((x) => x.id === containerId)) return 'into-itself'
   }
   return null
 }
@@ -199,20 +216,23 @@ export function updateContainer(c: Character, id: string, input: ContainerInput)
   if (!findContainer(c, id)) return refuse(c, 'not-found')
   const refused = checkItemLink(c, id, input.itemId)
   if (refused) return refuse(c, refused)
-  return { ok: true, character: withContainers(c, c.inventory.containers.map((k) => (k.id === id ? cleanContainer(id, input) : k))) }
+  // fields this app does not know (from a newer app or a hand-written file) are kept, like everywhere else
+  const known = new Set(['id', 'name', 'icon', 'color', 'capacity', 'weightless', 'extradimensional', 'itemId'])
+  const keepUnknown = (k: Container) => Object.fromEntries(Object.entries(k).filter(([f]) => !known.has(f)))
+  return { ok: true, character: withContainers(c, c.inventory.containers.map((k) => (k.id === id ? { ...keepUnknown(k), ...cleanContainer(id, input) } : k))) }
 }
 
 /**
  * Deletes a container. Its items are NOT deleted: they move to where the container itself was (a Bag of
- * Holding in the Backpack -> into the Backpack), or, for a loose container, to the first other container.
- * The bag's item, if any, stays as a plain item. The last container cannot be deleted.
+ * Holding in the Backpack -> into the Backpack), or, for a loose container, to the first container not
+ * inside it (deleteTarget). The bag's item, if any, stays as a plain item. Refused for the last container,
+ * and when every other container is inside this one (there is nowhere to put its items).
  */
 export function deleteContainer(c: Character, id: string): Change & { movedTo?: Container; moved?: number } {
-  const k = findContainer(c, id)
-  if (!k) return refuse(c, 'not-found')
+  if (!findContainer(c, id)) return refuse(c, 'not-found')
   if (c.inventory.containers.length <= 1) return refuse(c, 'last-container')
-  const parent = parentOf(c, k)
-  const to = parent && parent.id !== id ? parent : c.inventory.containers.find((x) => x.id !== id)!
+  const to = deleteTarget(c, id)
+  if (!to) return refuse(c, 'no-place')
   const inside = new Set(itemsIn(c, id).map((i) => i.id))
   const items = c.inventory.items.map((i) => (inside.has(i.id) ? { ...i, containerId: to.id } : i))
   const containers = c.inventory.containers.filter((x) => x.id !== id)

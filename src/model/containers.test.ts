@@ -215,6 +215,11 @@ describe('weight', () => {
     expect(contentsWeight(c, box(c, 'Bag of Holding').id)).toBe(20 + 1 + 1.5)
     expect(carriedWeight(c)).toBe(40 + 3 + 15)
   })
+  it('editing a container keeps fields this app does not know, and can clear a limit', () => {
+    const c = read({ name: 'N', inventory: { containers: [{ id: 'k', name: 'Sack', capacity: 30, lining: 'silk' }] } }).character
+    const x = ok(updateContainer(c, 'k', { name: 'Big sack' }))
+    expect(x.inventory.containers[0]).toEqual({ id: 'k', name: 'Big sack', lining: 'silk' })
+  })
   it('over the weight limit is a warning, not a block', () => {
     const c = withBag()
     const x = ok(updateContainer(c, box(c, 'Bag of Holding').id, { ...box(c, 'Bag of Holding'), capacity: 10 }))
@@ -253,6 +258,32 @@ describe('Bag of Holding inside a Bag of Holding', () => {
     expect(moveItem(c, 'boh', box(c, 'Second bag').id)).toMatchObject({ ok: false, reason: 'into-itself' })
     expect(moveTargets(c, 'boh').map((k) => k.name)).toEqual(['Backpack'])
   })
+  it('a WORN bag still counts for loops: bag A cannot go into bag B while B is kept in A (taking B off would close a loop)', () => {
+    let c = twoBags()
+    c = ok(moveItem(c, 'boh2', box(c, 'Bag of Holding').id))
+    c = { ...c, inventory: { ...c.inventory, items: c.inventory.items.map((i) => (i.id === 'boh2' ? { ...i, equipped: true } : i)) } }
+    expect(moveItem(c, 'boh', box(c, 'Second bag').id)).toMatchObject({ ok: false, reason: 'into-itself' })
+    // worn, it is on you: no bag-in-bag warning while it is worn
+    expect(inventoryWarnings(c)).toEqual([])
+  })
+  it('a file with such a loop through a worn bag is repaired on read', () => {
+    const r = read({
+      name: 'X',
+      inventory: {
+        items: [
+          { id: 'ia', name: 'Bag A', containerId: 'B' },
+          { id: 'ib', name: 'Bag B', containerId: 'A', equipped: true },
+        ],
+        containers: [
+          { id: 'P', name: 'Backpack' },
+          { id: 'A', name: 'Bag A', itemId: 'ia' },
+          { id: 'B', name: 'Bag B', itemId: 'ib' },
+        ],
+      },
+    })
+    expect(r.warnings).toHaveLength(1)
+    expect(r.character.inventory.containers.filter((k) => k.itemId)).toHaveLength(1)
+  })
   it('linking a container to an item that is inside it is refused; one item cannot be two containers', () => {
     const c = withBag()
     expect(updateContainer(c, box(c, 'Bag of Holding').id, { name: 'Bag of Holding', itemId: 'rope' })).toMatchObject({ ok: false, reason: 'into-itself' })
@@ -286,6 +317,35 @@ describe('deleting', () => {
     const d = deleteContainer(r.character, r.container.id)
     expect(d).toMatchObject({ ok: true, moved: 0 })
     expect(d.character.inventory.containers.map((k) => k.name)).toEqual(['Backpack'])
+  })
+  it('a loose box whose first "other" container is a pouch inside it: its items skip the pouch and go to one outside', () => {
+    const c = read({
+      name: 'X',
+      inventory: {
+        items: [
+          { id: 'pouch', name: 'Pouch', containerId: 'chest' },
+          { id: 'coin', name: 'Coin', containerId: 'chest' },
+        ],
+        containers: [
+          { id: 'chest', name: 'Chest' },
+          { id: 'p', name: 'Pouch', itemId: 'pouch' },
+          { id: 'pack', name: 'Backpack' },
+        ],
+      },
+    }).character
+    const d = deleteContainer(c, 'chest')
+    expect(d).toMatchObject({ ok: true, moved: 2 })
+    expect(d.movedTo!.id).toBe('pack')
+    expect(item(d.character, 'pouch').containerId).toBe('pack')
+  })
+  it('refused when every other container is inside it (nowhere to put its items)', () => {
+    const c = read({
+      name: 'X',
+      inventory: { items: [{ id: 'pouch', name: 'Pouch', containerId: 'chest' }], containers: [{ id: 'chest', name: 'Chest' }, { id: 'p', name: 'Pouch', itemId: 'pouch' }] },
+    }).character
+    expect(deleteContainer(c, 'chest')).toMatchObject({ ok: false, reason: 'no-place' })
+    // the pouch itself can go: its items go to the chest, where it was
+    expect(ok(deleteContainer(c, 'p')).inventory.containers.map((k) => k.id)).toEqual(['chest'])
   })
   it('the last container is refused', () => {
     const c = read(v3()).character

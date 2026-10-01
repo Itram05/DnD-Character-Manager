@@ -288,11 +288,12 @@ export function checkContainerItems(containers: Container[], items: readonly Ite
   })
   const inv = { inventory: { containers, items: items as Item[] } } as Pick<Character, 'inventory'>
   for (let i = 0; i < containers.length; i++) {
-    const chain = chainOf(inv, containers[i])
+    // where things are kept, worn or not: a worn bag in a loop would close it when taken off
+    const chain = chainOf(inv, containers[i], { stored: true })
     const last = chain[chain.length - 1]
     if (!last.itemId) continue
     const item = items.find((x) => x.id === last.itemId)
-    if (!item || item.equipped) continue
+    if (!item) continue
     const where = containers.find((k) => k.id === item.containerId) ?? containers[0]
     if (!chain.includes(where)) continue
     const at = containers.indexOf(last)

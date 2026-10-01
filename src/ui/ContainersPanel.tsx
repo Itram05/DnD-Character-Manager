@@ -13,6 +13,7 @@ import {
   containerOf,
   contentsWeight,
   deleteContainer,
+  deleteTarget,
   findContainer,
   inventoryWarnings,
   itemOfContainer,
@@ -88,6 +89,7 @@ export function ContainersPanel({ api }: { api: SheetApi }) {
 const REFUSAL_KEY: Record<ChangeRefusal, string> = {
   'not-found': 'box.err.notFound',
   'last-container': 'box.err.last',
+  'no-place': 'box.err.noPlace',
   'into-itself': 'box.err.intoItself',
   'bad-amount': 'box.err.amount',
   'is-container': 'box.err.isContainer',
@@ -123,7 +125,7 @@ function ContainerEditor({ api, initial, onClose }: { api: SheetApi; initial: Co
     if (r.moved) api.toast({ title: t('box.deleted', { name: initial!.name }), lines: [t('box.movedTo', { n: r.moved, name: r.movedTo!.name })] })
     onClose()
   }
-  const target = initial && (parentOf(c, initial)?.name ?? c.inventory.containers.find((x) => x.id !== initial.id)?.name)
+  const target = initial && deleteTarget(c, initial.id)?.name
   return (
     <>
       <Modal

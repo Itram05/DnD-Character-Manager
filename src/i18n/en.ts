@@ -643,6 +643,7 @@ export const en: Record<string, string> = {
   'box.addHere': 'Add an item to {name}',
   'box.err.notFound': 'That item or container is no longer there.',
   'box.err.last': 'The last container cannot be deleted: every item needs a place.',
+  'box.err.noPlace': 'Every other container is inside this one, so its items would have nowhere to go. Make or move a container outside it first.',
   'box.err.intoItself': 'A bag cannot go inside itself, or inside a bag that is in it.',
   'box.err.amount': 'Split off at least 1 and fewer than the whole stack.',
   'box.err.isContainer': 'A container item cannot be split.',
