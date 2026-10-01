@@ -6,6 +6,7 @@
 // Spell slots are "mana". Passive features lie on the "battlefield".
 import type { SrdSpell } from '../data/srd'
 import { HEALING_NAME, HEALING_TIERS, healingDescription, healingTier, isHealingPotion, isPotion, isScroll, scrollInfo, type HealingTier } from './consumables'
+import { defaultContainerId } from './containers'
 import { newId } from './normalize'
 import { itemActive, itemInPlay, pactSlots, spellSlots, totalLevel, usesMax } from './rules'
 import { bonusSlotsAt, isSorceryPoints } from './sorcery'
@@ -169,6 +170,7 @@ export function addHealingPotion(c: Character, tier: HealingTier): Character {
     requiresAttunement: false,
     attuned: false,
     description: healingDescription(tier),
+    containerId: defaultContainerId(c),
   }
   return { ...c, inventory: { ...c.inventory, items: [...c.inventory.items, potion] } }
 }

@@ -7,10 +7,17 @@
 // as it is, in the same place, and exported again; the import dialog lists it. That way a file
 // written by a newer app, or by hand with extra notes, survives a round trip through this app.
 import { srdClass } from '../data/srd'
+import { isBuiltinCategory } from './categories'
+import { DEFAULT_CONTAINER, chainOf, withoutItemLink } from './containers'
+import { newId } from './id'
 import {
   ABILITIES,
   ACTIVATIONS,
   CURRENT_SCHEMA_VERSION,
+  DEFAULT_GEAR_PREFS,
+  GEAR_GROUPINGS,
+  GEAR_SHOW_FIELDS,
+  GEAR_VIEWS,
   RECHARGES,
   SKILL_IDS,
   SOURCE_TYPES,
@@ -20,10 +27,13 @@ import {
   type Attack,
   type Character,
   type ClassEntry,
+  type Container,
   type DayTimer,
   type Feature,
   type Formula,
+  type GearPrefs,
   type Item,
+  type ItemCategory,
   type ItemPower,
   type PowerCost,
   type Recharge,
@@ -45,10 +55,7 @@ export interface NormalizeResult {
 type Obj = Record<string, unknown>
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v)
 
-export const newId = () =>
-  typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2) + Date.now().toString(36)
+export { newId }
 
 function makeReader(warnings: string[]) {
   const str = (v: unknown, path: string, def = ''): string => {
@@ -125,7 +132,7 @@ function keepUnknown(raw: Obj, out: object, known: readonly string[], path: stri
 
 // The fields each object has, as read by normalizeCharacter. Anything else is kept by keepUnknown.
 const KNOWN = {
-  top: ['schemaVersion', 'id', 'name', 'player', 'species', 'race', 'background', 'alignment', 'xp', 'partySize', 'xpLog', 'classes', 'abilities', 'proficiencies', 'combat', 'conditions', 'exhaustion', 'heroicInspiration', 'features', 'attacks', 'spellcasting', 'spells', 'inventory', 'items', 'money', 'roleplay', 'sessionNotes', 'timers', 'updatedAt'],
+  top: ['schemaVersion', 'id', 'name', 'player', 'species', 'race', 'background', 'alignment', 'xp', 'partySize', 'xpLog', 'classes', 'abilities', 'proficiencies', 'combat', 'conditions', 'exhaustion', 'heroicInspiration', 'features', 'attacks', 'spellcasting', 'spells', 'inventory', 'items', 'money', 'roleplay', 'sessionNotes', 'timers', 'preferences', 'updatedAt'],
   species: ['name', 'size'],
   abilities: ['str', 'dex', 'con', 'int', 'wis', 'cha', 'strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'],
   class: ['id', 'name', 'level', 'subclass', 'hitDie', 'casterType', 'spellcastingAbility'],
@@ -140,8 +147,13 @@ const KNOWN = {
   spell: ['id', 'name', 'level', 'source', 'prepared', 'alwaysPrepared', 'ritual', 'concentration', 'school', 'castingTime', 'range', 'components', 'duration', 'description', 'freeCasts', 'tags'],
   spellcasting: ['slotsUsed', 'pactSlotsUsed', 'concentration', 'slotsOverride', 'pactOverride', 'bonusSlots'],
   pactOverride: ['slots', 'level'],
-  inventory: ['items', 'money'],
-  item: ['id', 'name', 'quantity', 'equipped', 'requiresAttunement', 'attuned', 'weight', 'armor', 'acBonus', 'saveBonus', 'spellDcBonus', 'spellAttackBonus', 'charges', 'activation', 'description', 'powers', 'tags'],
+  inventory: ['items', 'money', 'containers', 'categories'],
+  item: ['id', 'name', 'quantity', 'equipped', 'requiresAttunement', 'attuned', 'weight', 'armor', 'acBonus', 'saveBonus', 'spellDcBonus', 'spellAttackBonus', 'charges', 'activation', 'description', 'powers', 'tags', 'containerId', 'category'],
+  container: ['id', 'name', 'icon', 'color', 'capacity', 'weightless', 'extradimensional', 'itemId'],
+  category: ['id', 'name', 'icon', 'color'],
+  preferences: ['gear'],
+  gearPrefs: ['view', 'groupBy', 'show'],
+  gearShow: GEAR_SHOW_FIELDS,
   armor: ['base', 'dexCap'],
   power: ['id', 'name', 'activation', 'cost', 'uses', 'description', 'tags'],
   money: ['cp', 'sp', 'ep', 'gp', 'pp'],
@@ -255,6 +267,39 @@ export function linkAttacks(attacks: Attack[], items: readonly Item[], warnings:
       a.itemId = null
     }
   })
+}
+
+/**
+ * Repairs the links between containers and the items they are (Container.itemId), in place:
+ * a link to an item that is gone is removed (the container stays, loose); an item two containers claim
+ * stays with the first; and a loop (a bag inside itself, possibly through another bag) is broken by
+ * removing the link of one bag in it, so every item hangs somewhere. Nothing is deleted.
+ */
+export function checkContainerItems(containers: Container[], items: readonly Item[], warnings: string[]) {
+  const claimed = new Set<string>()
+  containers.forEach((k, i) => {
+    if (!k.itemId) return
+    const item = items.find((x) => x.id === k.itemId)
+    const why = !item ? 'an item that is not in the inventory' : claimed.has(k.itemId) ? `"${item.name}", which another container already is` : null
+    if (why) {
+      warnings.push(`inventory.containers[${i}]: "${k.name}" was linked to ${why}; the link was removed (the container and its items stay).`)
+      containers[i] = withoutItemLink(k)
+    } else claimed.add(k.itemId)
+  })
+  const inv = { inventory: { containers, items: items as Item[] } } as Pick<Character, 'inventory'>
+  for (let i = 0; i < containers.length; i++) {
+    const chain = chainOf(inv, containers[i])
+    const last = chain[chain.length - 1]
+    if (!last.itemId) continue
+    const item = items.find((x) => x.id === last.itemId)
+    if (!item || item.equipped) continue
+    const where = containers.find((k) => k.id === item.containerId) ?? containers[0]
+    if (!chain.includes(where)) continue
+    const at = containers.indexOf(last)
+    warnings.push(`inventory.containers[${at}]: "${last.name}" was inside itself (through its item "${item.name}"); the link to the item was removed so nothing is lost.`)
+    containers[at] = withoutItemLink(last)
+    i = -1 // look again from the start: the array changed
+  }
 }
 
 export function migrate(raw: Obj, from: number, warnings: string[]): Obj {
@@ -542,6 +587,57 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
 
   // ----- inventory -----
   const invRaw = isObj(raw.inventory) ? raw.inventory : {}
+
+  // Containers (since 2026-10-01; added to schema 3, see SCHEMA.md). A file without them gets one
+  // "Backpack" and every item goes in it: nothing moves, nothing is lost, and the next read is silent.
+  // Like the conversions above this runs on every read, so it covers files and browser saves alike.
+  const containers: Container[] = []
+  r.arr(invRaw.containers, 'inventory.containers').forEach((k, i) => {
+    const p = `inventory.containers[${i}]`
+    if (typeof k === 'string') k = { name: k }
+    if (!isObj(k)) return warnings.push(`${p}: expected an object, ignored.`)
+    let id = r.str(k.id, `${p}.id`).trim() || newId()
+    if (containers.some((x) => x.id === id)) {
+      warnings.push(`${p}: the id "${id}" is used by another container; this one got a new id (its items stay in the first one).`)
+      id = newId()
+    }
+    const box: Container = { id, name: r.str(k.name, `${p}.name`).trim() || 'Container' }
+    const icon = r.str(k.icon, `${p}.icon`).trim()
+    if (icon) box.icon = icon
+    const color = r.str(k.color, `${p}.color`).trim()
+    if (color) box.color = color
+    if (k.capacity !== undefined && k.capacity !== null && k.capacity !== '') {
+      const cap = r.num(k.capacity, `${p}.capacity`, 0, 0)
+      if (cap > 0) box.capacity = cap
+    }
+    if (r.bool(k.weightless)) box.weightless = true
+    if (r.bool(k.extradimensional)) box.extradimensional = true
+    const itemId = r.str(k.itemId, `${p}.itemId`).trim()
+    if (itemId) box.itemId = itemId
+    keep(k, box, KNOWN.container, p)
+    containers.push(box)
+  })
+  if (containers.length === 0) containers.push({ ...DEFAULT_CONTAINER })
+
+  // Categories: the player's own and renamed built-in ones. An item's category the list does not have
+  // (a deleted category, a hand-written file) gets an entry with that name, so it is not silently lost.
+  const categories: ItemCategory[] = []
+  r.arr(invRaw.categories, 'inventory.categories').forEach((k, i) => {
+    const p = `inventory.categories[${i}]`
+    if (typeof k === 'string') k = { id: k, name: k }
+    if (!isObj(k)) return warnings.push(`${p}: expected an object, ignored.`)
+    const id = r.str(k.id ?? k.name, `${p}.id`).trim()
+    if (!id) return warnings.push(`${p}: a category without an id or name, ignored.`)
+    if (categories.some((x) => x.id === id)) return warnings.push(`${p}: the category "${id}" is listed twice; the second was ignored.`)
+    const cat: ItemCategory = { id, name: r.str(k.name, `${p}.name`).trim() || id }
+    const icon = r.str(k.icon, `${p}.icon`).trim()
+    if (icon) cat.icon = icon
+    const color = r.str(k.color, `${p}.color`).trim()
+    if (color) cat.color = color
+    keep(k, cat, KNOWN.category, p)
+    categories.push(cat)
+  })
+
   const items: Item[] = []
   r.arr(invRaw.items ?? raw.items, 'inventory.items').forEach((it, i) => {
     const p = `inventory.items[${i}]`
@@ -597,9 +693,22 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     liftSpellBonusPowers(item, p, warnings)
     const tg = r.tags(it.tags, `${p}.tags`)
     if (tg) item.tags = tg
+    const where = r.str(it.containerId, `${p}.containerId`).trim()
+    if (where && !containers.some((k) => k.id === where))
+      warnings.push(`${p}: "${item.name}" was in a container that does not exist; it is now in "${containers[0].name}".`)
+    item.containerId = containers.some((k) => k.id === where) ? where : containers[0].id
+    const cat = r.str(it.category, `${p}.category`).trim()
+    if (cat) {
+      item.category = cat
+      if (!isBuiltinCategory(cat) && !categories.some((k) => k.id === cat)) {
+        categories.push({ id: cat, name: cat })
+        warnings.push(`${p}: the category "${cat}" was not in the list of categories; it was added.`)
+      }
+    }
     keep(it, item, KNOWN.item, p)
     items.push(item)
   })
+  checkContainerItems(containers, items, warnings)
   linkAttacks(attacks, items, warnings)
   const attuned = items.filter((i) => i.attuned)
   if (attuned.length > 3) {
@@ -670,6 +779,20 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     timers.push(timer)
   })
 
+  // ----- preferences (per character; since 2026-10-01) -----
+  const prefRaw = isObj(raw.preferences) ? raw.preferences : {}
+  const gearRaw = isObj(prefRaw.gear) ? prefRaw.gear : {}
+  const showRaw = isObj(gearRaw.show) ? gearRaw.show : {}
+  const gear: GearPrefs = {
+    view: r.oneOf(gearRaw.view, GEAR_VIEWS, 'preferences.gear.view', DEFAULT_GEAR_PREFS.view),
+    groupBy: r.oneOf(gearRaw.groupBy, GEAR_GROUPINGS, 'preferences.gear.groupBy', DEFAULT_GEAR_PREFS.groupBy),
+    show: Object.fromEntries(GEAR_SHOW_FIELDS.map((f) => [f, r.bool(showRaw[f], DEFAULT_GEAR_PREFS.show[f])])) as GearPrefs['show'],
+  }
+  keep(showRaw, gear.show, KNOWN.gearShow, 'preferences.gear.show')
+  keep(gearRaw, gear, KNOWN.gearPrefs, 'preferences.gear')
+  const preferences: Character['preferences'] = { gear }
+  keep(prefRaw, preferences, KNOWN.preferences, 'preferences')
+
   const conditions = r
     .arr(raw.conditions, 'conditions')
     .map((c) => String(c).toLowerCase())
@@ -724,10 +847,11 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     attacks,
     spellcasting,
     spells,
-    inventory: { items, money },
+    inventory: { items, money, containers, categories },
     roleplay,
     sessionNotes,
     timers,
+    preferences,
     updatedAt: r.str(raw.updatedAt, 'updatedAt') || new Date().toISOString(),
   }
   keep(speciesRaw, character.species, KNOWN.species, 'species')

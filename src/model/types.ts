@@ -196,6 +196,69 @@ export interface Item {
   /** Separate abilities of the item, each its own card (or "Always on" chip when passive). */
   powers?: ItemPower[]
   tags?: string[]
+  /**
+   * The container the item is in (Container.id). Always set after reading a file; absent or unknown = the
+   * first container. Where it is kept, not whether it is worn: wearing is `equipped`, and an equipped item
+   * counts as on you whatever its container (its container is where it goes when you take it off).
+   */
+  containerId?: string
+  /** A category id: built-in (BUILTIN_CATEGORIES) or one of `inventory.categories`. Absent = guessed at display time (categories.ts). */
+  category?: string
+}
+
+/**
+ * A place items are kept in, made by the player: Backpack, Bag of Holding, the horse, a chest at home.
+ * The inventory stays one flat list of items; each item names its container (Item.containerId).
+ * Containers nest through items: a container can BE an item (the Bag of Holding item, `itemId`), and that
+ * item is in another container like any item. A container without an item is "loose" (top level).
+ */
+export interface Container {
+  id: string
+  name: string
+  /** A short symbol shown with the name: an emoji or a letter or two. */
+  icon?: string
+  /** A CSS colour, e.g. "#a274e0". */
+  color?: string
+  /** Weight limit of what is inside, in lb (Bag of Holding: 500). Absent = no limit. Over the limit is a warning, not a block. */
+  capacity?: number
+  /** What is inside does not count toward the weight you carry (Bag of Holding, a mount, a chest at home). */
+  weightless?: boolean
+  /** An extradimensional space (Bag of Holding, Handy Haversack, Portable Hole): one inside another is the rules' hazard, the app warns. */
+  extradimensional?: boolean
+  /** The item that is this container (the Bag of Holding item). The container is where that item is. Absent = not an item. */
+  itemId?: string
+}
+
+/** A category of items made by the player, or a built-in one renamed (same id as the built-in). */
+export interface ItemCategory {
+  id: string
+  name: string
+  icon?: string
+  color?: string
+}
+
+export const GEAR_VIEWS = ['hybrid', 'tiles', 'rows'] as const
+export type GearView = (typeof GEAR_VIEWS)[number]
+export const GEAR_GROUPINGS = ['container', 'category', 'none'] as const
+export type GearGrouping = (typeof GEAR_GROUPINGS)[number]
+export const GEAR_SHOW_FIELDS = ['quantity', 'weight', 'category', 'tags', 'charges'] as const
+export type GearShowField = (typeof GEAR_SHOW_FIELDS)[number]
+
+/** How the Gear tab shows this character's items. Per character, saved in the file. */
+export interface GearPrefs {
+  /** Layout (stage 3 of the inventory rework; stored now, used by the new Gear). */
+  view: GearView
+  /** How the item list is grouped. */
+  groupBy: GearGrouping
+  /** Which details a row or tile shows. */
+  show: Record<GearShowField, boolean>
+}
+
+/** A character without preferences gets these. "hybrid" is layout B of the inventory mockups (recommended, not yet chosen). */
+export const DEFAULT_GEAR_PREFS: GearPrefs = {
+  view: 'hybrid',
+  groupBy: 'container',
+  show: { quantity: true, weight: true, category: true, tags: true, charges: true },
 }
 
 export interface Money {
@@ -313,9 +376,18 @@ export interface Character {
     bonusSlots?: number[]
   }
   spells: Spell[]
-  inventory: { items: Item[]; money: Money }
+  inventory: {
+    items: Item[]
+    money: Money
+    /** Never empty: a file without containers gets one "Backpack" with every item in it. The first is where new items go. */
+    containers: Container[]
+    /** The player's own categories, and renamed built-in ones. */
+    categories: ItemCategory[]
+  }
   roleplay: Roleplay
   sessionNotes: SessionNote[]
   timers: DayTimer[]
+  /** The player's choices for how the sheet looks, per character. */
+  preferences: { gear: GearPrefs }
   updatedAt: string
 }

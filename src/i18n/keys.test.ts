@@ -35,6 +35,9 @@ describe('i18n keys', () => {
       'filter.group.': FILTER_GROUPS,
       'strip.shape.': ['sphere', 'cone', 'cube', 'line', 'cylinder', 'emanation', 'radius', 'square'],
       'res.tier.': ['healing', 'greater', 'superior', 'supreme'],
+      'gearPrefs.group.': ['container', 'category', 'none'],
+      'gearPrefs.show.': ['quantity', 'weight', 'category', 'tags', 'charges'],
+      'box.err.': ['notFound', 'last', 'intoItself', 'amount', 'isContainer', 'notSame', 'itemTaken'],
       'rules.': ['turn', 'actions', 'conditions', 'rest', 'concentration', 'dying', 'changes', 'about'],
     }
     const missing = Object.entries(families).flatMap(([p, ks]) => ks.map((k) => p + k).filter((k) => !(k in en)))

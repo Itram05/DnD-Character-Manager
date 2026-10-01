@@ -2318,6 +2318,76 @@ body.untap-step .card:not(.tapped) {
   margin-left: auto;
 }
 
+/* containers (inventory stage 2): a plain, testable UI; stage 3 redesigns the look */
+.box-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.box-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.6rem;
+  padding: 0.35rem 0 0.35rem 0.5rem;
+  border-left: 3px solid var(--line);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+}
+.box-name {
+  font-weight: 600;
+}
+.box-warnings {
+  margin: 0 0 0.5rem;
+  padding: 0.4rem 0.6rem 0.4rem 1.4rem;
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+  color: var(--danger);
+}
+.gear-display,
+.categories-editor {
+  margin-top: 0.5rem;
+}
+.gear-display summary,
+.categories-editor summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.cat-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+.cat-list li {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+.cat-icon {
+  width: 3rem;
+  text-align: center;
+}
+.item-group-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.8rem 0 0.1rem;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+.cat-mark {
+  width: 1.2em;
+  text-align: center;
+}
+.stack-dialog .row,
+.categories-editor .row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
 /* ---------------- story ---------------- */
 
 .story-read .who h2 {
