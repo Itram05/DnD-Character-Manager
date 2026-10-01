@@ -15,8 +15,8 @@ import type { SheetApi } from '../src/ui/Sheet'
 const points = (c: Character) => sorceryPoints(c)!
 
 // The owner's real character (Paladin 4 / Sorcerer 9, 2014 rules with slotsOverride).
-// The file lives outside the repo and is read-only here; the test is skipped where it is missing (CI).
-const OWNER_FILE = 'C:/Users/User/Desktop/character.json'
+// The file lives outside the repo and is read-only here; its path comes from an environment variable, and the test is skipped when it is not set (CI).
+const OWNER_FILE = process.env.OWNER_CHARACTER_FILE ?? ''
 describe.skipIf(!existsSync(OWNER_FILE))("owner's character file", () => {
   const text = existsSync(OWNER_FILE) ? readFileSync(OWNER_FILE, 'utf8') : '{}'
   const { character: c, warnings } = importCharacterJson(text)
@@ -77,7 +77,7 @@ describe.skipIf(!existsSync(OWNER_FILE))("owner's character file", () => {
 })
 
 // The owner's current character file kept by Itram (3 attuned items: Staff of Ages, Silent Amulet, Pearl of Power).
-const GRAV_FILE = 'F:/Claude/Itram/geroi/grav-srashtite.json'
+const GRAV_FILE = process.env.OWNER_GRAV_COPY_FILE ?? ''
 describe.skipIf(!existsSync(GRAV_FILE))("owner's character: attunement on the Play screen", () => {
   const text = existsSync(GRAV_FILE) ? readFileSync(GRAV_FILE, 'utf8') : '{}'
   const { character: c, warnings } = importCharacterJson(text)

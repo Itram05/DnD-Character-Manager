@@ -1,5 +1,5 @@
 // The icon strip on the cards of the owner's character, Grav (Paladin / Sorcerer, level 14, 2014 rules).
-// The file lives outside the repo and is read-only here; the test is skipped where it is missing (CI).
+// The file lives outside the repo and is read-only here; its path comes from an environment variable, and the test is skipped when it is not set (CI).
 import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import srdSpells from '../src/data/srd/spells.json'
@@ -7,7 +7,7 @@ import type { SrdSpell } from '../src/data/srd'
 import { importCharacterJson } from '../src/model/normalize'
 import { playCards } from '../src/model/play'
 
-const GRAV = 'C:/Users/User/Desktop/grav-srashtite-lv14.json'
+const GRAV = process.env.OWNER_GRAV_FILE ?? ''
 const srd = (srdSpells as unknown as { data: SrdSpell[] }).data
 
 describe.skipIf(!existsSync(GRAV))('icon strip on Grav', () => {
