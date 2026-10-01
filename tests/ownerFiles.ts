@@ -1,27 +1,53 @@
-// The owner's real character files live outside the repo (read-only here). On the owner's machine a
-// missing file is a FAILED test with a message, not a silent skip: until 2026-09-29 the main owner test
-// looked for a file that had been renamed and was skipped for days without anyone noticing.
-// In CI (GitHub Actions sets CI=true) the files do not exist and the tests are skipped.
-// To skip them on purpose elsewhere: OWNER_FILES=skip npm test
+// Tests against the owner's real character files. The files are not in the repo, and their paths are not in
+// the code either: each comes from an environment variable. Without it the tests are SKIPPED with a message,
+// so anyone can clone the repo and run `npm test` with nothing to set up.
+// On the owner's machine the variables live in `.env.test.local` (git-ignored, read by vite.config.ts):
+//   OWNER_GRAV_FILE=<path to Grav's current file>
+//   OWNER_GRAV_COPY_FILE=<path to the older copy of Grav>
+// A variable that IS set but points to a missing file is a FAILED test with a message, not a silent skip:
+// until 2026-09-29 the main owner test looked for a file that had been renamed and was skipped for days
+// without anyone noticing.
+// To skip them on purpose even with the variables set: OWNER_FILES=skip npm test
 import { existsSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
+export interface OwnerFile {
+  /** the environment variable that holds the path */
+  env: string
+  /** the path from it, '' when it is not set */
+  path: string
+}
+
+const fromEnv = (env: string): OwnerFile => ({ env, path: process.env[env]?.trim() ?? '' })
+
 /** Grav's current file: the one the owner imports into the app (Paladin 5 / Sorcerer 9, schema 2). Witch Focus needs attunement and is not attuned (DC 18). */
-export const GRAV_DESKTOP = 'C:/Users/User/Desktop/grav-srashtite-lv14.json'
-/** Itram's copy of the same hero, kept in the Itram repo. */
-export const GRAV_ITRAM = 'F:/Claude/Itram/geroi/grav-srashtite.json'
+export const GRAV_FILE = fromEnv('OWNER_GRAV_FILE')
+/** An older copy of the same hero (Witch Focus still has its "+1 spell save DC" power; 3 attuned items). */
+export const GRAV_COPY_FILE = fromEnv('OWNER_GRAV_COPY_FILE')
 
-const skipAll = !!process.env.CI || process.env.OWNER_FILES === 'skip'
+const skipAll = process.env.OWNER_FILES === 'skip'
 
-/** True when the file is there. When it is not, and this is not CI, registers a failing test that says so. */
-export function ownerFile(path: string): boolean {
-  if (existsSync(path)) return true
-  if (!skipAll)
-    describe(`owner file ${path}`, () => {
-      it('exists (moved or renamed? fix the path in tests/ownerFiles.ts; OWNER_FILES=skip to skip on purpose)', () => {
-        throw new Error(`Missing owner file: ${path}`)
-      })
+/**
+ * True when the file is there. Otherwise registers one test that says why the owner tests do not run:
+ * skipped when the variable is not set (or OWNER_FILES=skip), FAILED when it is set and the file is missing.
+ */
+export function ownerFile(f: OwnerFile): boolean {
+  if (skipAll) {
+    describe(`owner file ${f.env}`, () => it.skip('skipped on purpose (OWNER_FILES=skip)'))
+    return false
+  }
+  if (!f.path) {
+    describe(`owner file ${f.env}`, () =>
+      it.skip(`skipped: ${f.env} is not set (the owner's own file; set it in .env.test.local to run these tests)`),
+    )
+    return false
+  }
+  if (existsSync(f.path)) return true
+  describe(`owner file ${f.env}`, () => {
+    it(`exists (moved or renamed? fix ${f.env} in .env.test.local; OWNER_FILES=skip to skip on purpose)`, () => {
+      throw new Error(`Missing owner file: ${f.path} (from ${f.env})`)
     })
+  })
   return false
 }
 
@@ -68,8 +94,8 @@ export const GRAV_ATTACK_ITEMS: Record<string, string | null> = {
 
 /**
  * The warnings the conversions give on Grav's file. Nothing else.
- * Itram's copy still has Witch Focus's old "+1 spell save DC" power: two powers moved, Witch Focus equipped.
- * The desktop file was fixed by hand on 2026-09-29 (Witch Focus needs attunement; spellDcBonus is already
+ * The older copy (OWNER_GRAV_COPY_FILE) still has Witch Focus's old "+1 spell save DC" power: two powers moved,
+ * Witch Focus equipped. The current file (OWNER_GRAV_FILE) was fixed by hand on 2026-09-29 (Witch Focus needs attunement; spellDcBonus is already
  * a field): only the Staff's "+3 spell attack" moves.
  */
 export function expectGravImportWarnings(warnings: string[], { witchFocusPower }: { witchFocusPower: boolean }) {

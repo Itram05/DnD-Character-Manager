@@ -12,15 +12,15 @@ import { CURRENT_SCHEMA_VERSION, type Character } from '../src/model/types'
 import { InventoryView } from '../src/ui/InventoryView'
 import { FlexibleCasting, PlayView } from '../src/ui/PlayView'
 import type { SheetApi } from '../src/ui/Sheet'
-import { GRAV_DESKTOP, GRAV_ITRAM, expectGravImportWarnings, gravAfterImport, ownerFile } from './ownerFiles'
+import { GRAV_COPY_FILE, GRAV_FILE, expectGravImportWarnings, gravAfterImport, ownerFile } from './ownerFiles'
 
 const points = (c: Character) => sorceryPoints(c)!
 
 // The owner's real character as he imports it (Paladin 5 / Sorcerer 9, 2014 rules with slotsOverride).
-// A fixed path, not a search by pattern: the desktop also holds an older v1 copy for the published
-// site, and a pattern could pick that one without anyone noticing. Missing here = a failed test (ownerFiles.ts).
-const OWNER_FILE = GRAV_DESKTOP
-describe.skipIf(!ownerFile(OWNER_FILE))("owner's character file", () => {
+// A fixed path (OWNER_GRAV_FILE), not a search by pattern: the same folder also holds an older v1 copy for the published
+// site, and a pattern could pick that one without anyone noticing. Set but missing = a failed test (ownerFiles.ts).
+const OWNER_FILE = GRAV_FILE.path
+describe.skipIf(!ownerFile(GRAV_FILE))("owner's character file", () => {
   const text = existsSync(OWNER_FILE) ? readFileSync(OWNER_FILE, 'utf8') : '{}'
   const { character: c, warnings } = importCharacterJson(text)
 
@@ -117,11 +117,11 @@ describe.skipIf(!ownerFile(OWNER_FILE))("owner's character file", () => {
   })
 })
 
-// The owner's current character file kept by Itram (3 attuned items: Staff of Ages, Silent Amulet, Pearl of Power).
-const GRAV_FILE = GRAV_ITRAM
-const HAVE_GRAV_FILE = ownerFile(GRAV_FILE)
-describe.skipIf(!HAVE_GRAV_FILE)("owner's character: attunement on the Play screen", () => {
-  const text = existsSync(GRAV_FILE) ? readFileSync(GRAV_FILE, 'utf8') : '{}'
+// The older copy of the owner's character (3 attuned items: Staff of Ages, Silent Amulet, Pearl of Power).
+const COPY_FILE = GRAV_COPY_FILE.path
+const HAVE_COPY_FILE = ownerFile(GRAV_COPY_FILE)
+describe.skipIf(!HAVE_COPY_FILE)("owner's character: attunement on the Play screen", () => {
+  const text = existsSync(COPY_FILE) ? readFileSync(COPY_FILE, 'utf8') : '{}'
   const { character: c, warnings } = importCharacterJson(text)
 
   it('imports and loses nothing but the listed conversion of the spell bonuses', () => {
@@ -155,12 +155,12 @@ describe.skipIf(!HAVE_GRAV_FILE)("owner's character: attunement on the Play scre
 })
 
 // Healing potions as counters next to Concentration, scrolls (and other potions) as their own group under the spells (Grav's real file).
-describe.skipIf(!HAVE_GRAV_FILE)("owner's character: potions and scrolls", async () => {
+describe.skipIf(!HAVE_COPY_FILE)("owner's character: potions and scrolls", async () => {
   const { loadSrdSpells } = await import('../src/data/srd')
   const { scrollInfo, isScroll, isPotion, healingDice } = await import('../src/model/consumables')
   const { GameCard } = await import('../src/ui/GameCard')
   const srd = await loadSrdSpells()
-  const text = existsSync(GRAV_FILE) ? readFileSync(GRAV_FILE, 'utf8') : '{}'
+  const text = existsSync(COPY_FILE) ? readFileSync(COPY_FILE, 'utf8') : '{}'
   const { character: c } = importCharacterJson(text)
   const strip = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
 
@@ -269,7 +269,7 @@ describe.skipIf(!HAVE_GRAV_FILE)("owner's character: potions and scrolls", async
 })
 
 // Wave 2 on Grav's real file: item powers as cards, passive powers apart, tags on his spells.
-describe.skipIf(!HAVE_GRAV_FILE)("owner's character: item powers and tags", async () => {
+describe.skipIf(!HAVE_COPY_FILE)("owner's character: item powers and tags", async () => {
   const { setAttunement } = await import('../src/model/rules')
   const { playPassivePowers, spendPower } = await import('../src/model/play')
   const { CATEGORIES, spellTags } = await import('../src/model/tags')
@@ -278,7 +278,7 @@ describe.skipIf(!HAVE_GRAV_FILE)("owner's character: item powers and tags", asyn
   const { ItemEditor } = await import('../src/ui/editors')
   const { GameCard } = await import('../src/ui/GameCard')
   const { SpellsView } = await import('../src/ui/SpellsView')
-  const text = existsSync(GRAV_FILE) ? readFileSync(GRAV_FILE, 'utf8') : '{}'
+  const text = existsSync(COPY_FILE) ? readFileSync(COPY_FILE, 'utf8') : '{}'
   const { character: c } = importCharacterJson(text)
   const strip = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
   const apiFor = (ch: Character): SheetApi => ({ c: ch, update: () => {}, toast: () => {}, settings: { theme: 'dark', view: 'cards' }, setSettings: () => {}, go: () => {} })

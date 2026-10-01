@@ -13,6 +13,11 @@ npm run build      # static site in dist/ (relative paths, works from a sub-fold
 npm run preview    # serve dist/ at http://localhost:4173
 ```
 
+A few tests in `tests/` check the owner's own character files. Those files are not in the repo, so the tests are
+skipped unless their paths are set: `OWNER_GRAV_FILE` and `OWNER_GRAV_COPY_FILE`, in the environment or in a
+git-ignored `.env.test.local` (one `NAME=path` per line). A path that is set but missing fails the test.
+`OWNER_FILES=skip npm test` skips them on purpose. Details: `tests/ownerFiles.ts`.
+
 ## Where things are
 
 | Path | What |

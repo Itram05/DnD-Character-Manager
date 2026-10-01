@@ -1,6 +1,6 @@
-// Wave 3 against the owner's real hero: the v2 file on the desktop (Grav, Paladin 5 / Sorcerer 9) must
+// Wave 3 against the owner's real hero: the owner's v2 file (Grav, Paladin 5 / Sorcerer 9) must
 // import as schema 3 without losing a field, and XP and the day timers must work on it.
-// Lives outside src/ so the app type-check does not need Node types. A missing file fails here and is skipped in CI (ownerFiles.ts).
+// Lives outside src/ so the app type-check does not need Node types. Path from OWNER_GRAV_FILE; skipped without it (ownerFiles.ts).
 import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { importCharacterJson } from '../src/model/normalize'
@@ -10,11 +10,11 @@ import { setAttunement, spellDcView } from '../src/model/rules'
 import { addSessionXp, correctXp, raiseXpToLevel, undoLastXp, xpProgress } from '../src/model/xp'
 import { itemPanel, itemTiles, playHiddenReason } from '../src/model/itemPanel'
 import { attackInPlay, playCards } from '../src/model/play'
-import { GRAV_DESKTOP, expectGravImportWarnings, gravAfterImport, ownerFile } from './ownerFiles'
+import { GRAV_FILE, expectGravImportWarnings, gravAfterImport, ownerFile } from './ownerFiles'
 
-const GRAV_V2 = GRAV_DESKTOP
-const HAVE_GRAV_V2 = ownerFile(GRAV_V2)
-describe.skipIf(!HAVE_GRAV_V2)('Grav v2 from the desktop, read by schema 3', () => {
+const GRAV_V2 = GRAV_FILE.path
+const HAVE_GRAV_V2 = ownerFile(GRAV_FILE)
+describe.skipIf(!HAVE_GRAV_V2)("Grav v2 (the owner's file), read by schema 3", () => {
   const text = existsSync(GRAV_V2) ? readFileSync(GRAV_V2, 'utf8') : '{}'
   const raw = JSON.parse(text)
   const { character: c, warnings } = importCharacterJson(text)
