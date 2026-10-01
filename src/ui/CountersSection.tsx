@@ -1,5 +1,5 @@
 // Play: the items the player pinned as counters (materials, arrows, rations...), each the total of all its
-// stacks with − and +. Which items, and their order, is chosen in Gear (CraftingPanel.tsx, and ⌖ on a row).
+// stacks with − and +. Which items, and their order, is chosen in Gear (CraftingPanel.tsx, and 📌 on a row).
 import { t } from '../i18n'
 import { bumpCounter, counterViews, nameKey } from '../model/crafting'
 import type { SheetApi } from './Sheet'

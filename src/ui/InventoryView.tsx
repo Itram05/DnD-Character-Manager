@@ -104,7 +104,7 @@ export function InventoryView({ api }: { api: SheetApi }) {
               aria-label={isPinned(c, i.name) ? t('counter.unpin', { name: i.name }) : t('counter.pinItem', { name: i.name })}
               title={isPinned(c, i.name) ? t('counter.unpin', { name: i.name }) : t('counter.pinItem', { name: i.name })}
             >
-              ⌖
+              📌
             </button>
           )}
         </div>

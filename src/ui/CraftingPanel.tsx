@@ -104,7 +104,7 @@ export function CraftingPanel({ api }: { api: SheetApi }) {
   )
 }
 
-/** Which items are counters in Play: their order, unpin, pin by name. Pinning is also on each item row (⌖). */
+/** Which items are counters in Play: their order, unpin, pin by name. Pinning is also on each item row (📌). */
 function CountersAdmin({ api }: { api: SheetApi }) {
   const { c, update } = api
   const [name, setName] = useState('')

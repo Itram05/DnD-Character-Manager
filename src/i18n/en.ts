@@ -714,7 +714,7 @@ export const en: Record<string, string> = {
   'craft.editorHint': 'Time, tool, check and note are only shown: the app does not roll or wait for them.',
   'craft.usedInRecipes': 'Used in recipes: {list}. Renaming the last item of this name renames it there too.',
   'counter.title': 'Counters',
-  'counter.hint': 'Items shown in Play with − and +: the total of every stack of that name. Pin one here or with ⌖ on its row.',
+  'counter.hint': 'Items shown in Play with − and +: the total of every stack of that name. Pin one here or with 📌 on its row.',
   'counter.none': 'Nothing pinned yet.',
   'counter.edit': 'Edit',
   'counter.pin': 'Pin',
