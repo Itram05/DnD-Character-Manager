@@ -9,6 +9,7 @@
 import { srdClass } from '../data/srd'
 import { isBuiltinCategory } from './categories'
 import { DEFAULT_CONTAINER, chainOf, withoutItemLink } from './containers'
+import { nameKey } from './crafting'
 import { newId } from './id'
 import {
   ABILITIES,
@@ -35,8 +36,12 @@ import {
   type Item,
   type ItemCategory,
   type ItemPower,
+  type ItemTemplate,
+  type PlayCounter,
   type PowerCost,
   type Recharge,
+  type Recipe,
+  type RecipePart,
   type SessionNote,
   type SkillProficiency,
   type SourceType,
@@ -132,7 +137,7 @@ function keepUnknown(raw: Obj, out: object, known: readonly string[], path: stri
 
 // The fields each object has, as read by normalizeCharacter. Anything else is kept by keepUnknown.
 const KNOWN = {
-  top: ['schemaVersion', 'id', 'name', 'player', 'species', 'race', 'background', 'alignment', 'xp', 'partySize', 'xpLog', 'classes', 'abilities', 'proficiencies', 'combat', 'conditions', 'exhaustion', 'heroicInspiration', 'features', 'attacks', 'spellcasting', 'spells', 'inventory', 'items', 'money', 'roleplay', 'sessionNotes', 'timers', 'preferences', 'updatedAt'],
+  top: ['schemaVersion', 'id', 'name', 'player', 'species', 'race', 'background', 'alignment', 'xp', 'partySize', 'xpLog', 'classes', 'abilities', 'proficiencies', 'combat', 'conditions', 'exhaustion', 'heroicInspiration', 'features', 'attacks', 'spellcasting', 'spells', 'inventory', 'items', 'money', 'roleplay', 'sessionNotes', 'timers', 'recipes', 'playCounters', 'preferences', 'updatedAt'],
   species: ['name', 'size'],
   abilities: ['str', 'dex', 'con', 'int', 'wis', 'cha', 'strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'],
   class: ['id', 'name', 'level', 'subclass', 'hitDie', 'casterType', 'spellcastingAbility'],
@@ -161,6 +166,10 @@ const KNOWN = {
   sessionNote: ['id', 'date', 'title', 'text'],
   xpEntry: ['id', 'date', 'kind', 'amount', 'groupXp', 'players'],
   timer: ['id', 'name', 'days', 'start', 'note'],
+  recipe: ['id', 'name', 'inputs', 'output', 'time', 'tool', 'dc', 'note', 'containerId'],
+  recipePart: ['name', 'quantity'],
+  recipeOutput: ['name', 'quantity', 'template'],
+  playCounter: ['name'],
 } as const
 
 /**
@@ -639,11 +648,13 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     categories.push(cat)
   })
 
-  const items: Item[] = []
-  r.arr(invRaw.items ?? raw.items, 'inventory.items').forEach((it, i) => {
-    const p = `inventory.items[${i}]`
+  // one item, as in the inventory; also the template of a recipe's output (readTemplate below)
+  const readItem = (it: unknown, p: string): Item | undefined => {
     if (typeof it === 'string') it = { name: it }
-    if (!isObj(it)) return warnings.push(`${p}: expected an object, ignored.`)
+    if (!isObj(it)) {
+      warnings.push(`${p}: expected an object, ignored.`)
+      return undefined
+    }
     const item: Item = {
       id: r.str(it.id, `${p}.id`) || newId(),
       name: r.str(it.name, `${p}.name`, 'Item'),
@@ -707,7 +718,12 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
       }
     }
     keep(it, item, KNOWN.item, p)
-    items.push(item)
+    return item
+  }
+  const items: Item[] = []
+  r.arr(invRaw.items ?? raw.items, 'inventory.items').forEach((it, i) => {
+    const item = readItem(it, `inventory.items[${i}]`)
+    if (item) items.push(item)
   })
   checkContainerItems(containers, items, warnings)
   linkAttacks(attacks, items, warnings)
@@ -778,6 +794,94 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     if (note) timer.note = note
     keep(tm, timer, KNOWN.timer, p)
     timers.push(timer)
+  })
+
+  // ----- recipes and counters in Play (crafting; since 2026-10-01, added to schema 3) -----
+  /** A recipe input or output: an item name and an amount above 0. "Herb" alone = 1 Herb. */
+  const readPart = (v: unknown, p: string): RecipePart | undefined => {
+    if (typeof v === 'string') v = { name: v }
+    if (!isObj(v)) {
+      warnings.push(`${p}: expected an object like { "name": "Moonpetal", "quantity": 2 }, ignored.`)
+      return undefined
+    }
+    const name = r.str(v.name, `${p}.name`).trim()
+    if (!name) {
+      warnings.push(`${p}: no item name, ignored.`)
+      return undefined
+    }
+    let quantity = r.num(v.quantity, `${p}.quantity`, 1, 0)
+    if (!(quantity > 0)) {
+      warnings.push(`${p}.quantity: must be above 0; using 1.`)
+      quantity = 1
+    }
+    return { name, quantity }
+  }
+  /** What a new crafted item looks like: read as an item, without the fields of one stack. */
+  const readTemplate = (v: unknown, p: string): ItemTemplate | undefined => {
+    if (v === undefined || v === null) return undefined
+    if (!isObj(v)) {
+      warnings.push(`${p}: expected an object (the fields of an item), ignored.`)
+      return undefined
+    }
+    const stackOnly = ['id', 'name', 'quantity', 'containerId', 'equipped', 'attuned'] as const
+    const ignored = stackOnly.filter((f) => v[f] !== undefined)
+    if (ignored.length) warnings.push(`${p}: ${ignored.join(', ')} ignored (a template is not one stack: the crafted item gets its own).`)
+    const item = readItem(Object.fromEntries(Object.entries(v).filter(([f]) => !(stackOnly as readonly string[]).includes(f))), p)
+    if (!item) return undefined
+    const tpl: Obj = { ...item }
+    for (const f of stackOnly) delete tpl[f]
+    // the defaults readItem fills in are left out, so a template written by the app reads back the same
+    if (tpl.requiresAttunement === false) delete tpl.requiresAttunement
+    if (tpl.description === '') delete tpl.description
+    return tpl as ItemTemplate
+  }
+  const recipes: Recipe[] = []
+  r.arr(raw.recipes, 'recipes').forEach((x, i) => {
+    const p = `recipes[${i}]`
+    if (!isObj(x)) return warnings.push(`${p}: expected an object, ignored.`)
+    let id = r.str(x.id, `${p}.id`).trim() || newId()
+    if (recipes.some((y) => y.id === id)) {
+      warnings.push(`${p}: the id "${id}" is used by another recipe; this one got a new id.`)
+      id = newId()
+    }
+    const name = r.str(x.name, `${p}.name`).trim()
+    const inputs: RecipePart[] = []
+    r.arr(x.inputs, `${p}.inputs`).forEach((v, j) => {
+      const part = readPart(v, `${p}.inputs[${j}]`)
+      if (!part) return
+      keep(v, part, KNOWN.recipePart, `${p}.inputs[${j}]`)
+      inputs.push(part)
+    })
+    let output: Recipe['output'] | undefined = x.output === undefined ? undefined : readPart(x.output, `${p}.output`)
+    if (!output) {
+      output = { name: name || 'Item', quantity: 1 }
+      warnings.push(`${p}: no output; it makes 1 "${output.name}".`)
+    } else if (isObj(x.output)) {
+      const tpl = readTemplate(x.output.template, `${p}.output.template`)
+      if (tpl) output.template = tpl
+      keep(x.output, output, KNOWN.recipeOutput, `${p}.output`)
+    }
+    const recipe: Recipe = { id, name: name || output.name, inputs, output }
+    for (const f of ['time', 'tool', 'dc', 'note'] as const) {
+      const v = r.str(x[f], `${p}.${f}`).trim()
+      if (v) recipe[f] = v
+    }
+    const where = r.str(x.containerId, `${p}.containerId`).trim()
+    if (where) recipe.containerId = where
+    keep(x, recipe, KNOWN.recipe, p)
+    recipes.push(recipe)
+  })
+  const playCounters: PlayCounter[] = []
+  r.arr(raw.playCounters, 'playCounters').forEach((x, i) => {
+    const p = `playCounters[${i}]`
+    if (typeof x === 'string') x = { name: x }
+    if (!isObj(x)) return warnings.push(`${p}: expected an object, ignored.`)
+    const name = r.str(x.name, `${p}.name`).trim()
+    if (!name) return warnings.push(`${p}: no item name, ignored.`)
+    if (playCounters.some((y) => nameKey(y.name) === nameKey(name))) return warnings.push(`${p}: "${name}" is pinned twice; the second was ignored.`)
+    const pc: PlayCounter = { name }
+    keep(x, pc, KNOWN.playCounter, p)
+    playCounters.push(pc)
   })
 
   // ----- preferences (per character; since 2026-10-01) -----
@@ -852,6 +956,8 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     roleplay,
     sessionNotes,
     timers,
+    recipes,
+    playCounters,
     preferences,
     updatedAt: r.str(raw.updatedAt, 'updatedAt') || new Date().toISOString(),
   }

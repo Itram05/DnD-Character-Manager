@@ -66,6 +66,8 @@ Class table column names = the table header in lowercase with dashes: `rages`, `
 | `roleplay` | [object](#roleplay) | all "" | |
 | `sessionNotes` | list of `{ date, title, text }` | [] | |
 | `timers` | list of [day timers](#timers) | [] | |
+| `recipes` | list of [recipes](#recipes) | [] | Your crafting recipes. None are built in. |
+| `playCounters` | list of `{ "name" }` | [] | Items shown as counters in Play, in this order. See [recipes](#recipes). |
 | `preferences` | `{ gear }` | see [preferences](#preferences) | How the sheet looks for this character. |
 | `updatedAt` | ISO date | now | Set by the app. |
 
@@ -245,6 +247,34 @@ The inventory is one flat list of items; each item names its container. Containe
 
 `categories`: optional list of `{ "id", "name", "icon", "color" }`: your own categories, or a built-in one renamed (same id as the built-in).
 
+## recipes
+
+```json
+"recipes": [
+  {
+    "id": "r1",
+    "name": "Potion of Healing",
+    "inputs": [{ "name": "Moonpetal", "quantity": 2 }, { "name": "Empty vial", "quantity": 1 }],
+    "output": { "name": "Potion of Healing", "quantity": 1, "template": { "category": "potion", "weight": 0.5 } },
+    "time": "1 day", "tool": "Herbalism Kit", "dc": "DC 12", "note": "",
+    "containerId": "backpack"
+  }
+],
+"playCounters": [{ "name": "Moonpetal" }]
+```
+
+Inputs, the output and counters name items **by name**, not by id: case and extra spaces are ignored, and every stack of that name counts, in any container (bags, i.e. items that are a container, never count). So a recipe can be written before you own the material, and keeps working when a stack runs out, is deleted, split or merged. Renaming the last item of a name in the app renames it in recipes and counters too.
+
+| Field | Meaning |
+|---|---|
+| `inputs` | Taken out on every craft. `quantity` above 0 (fractions allowed). A plain string `"Herb"` = 1 Herb. Missing name: ignored with a warning. |
+| `output` | Put in on every craft: added to a stack of that name in the chosen container; else a new item from `template`; else a copy of a stack of that name elsewhere; else a plain item. A string = 1 of it. Missing: 1 of the recipe's name, with a warning. |
+| `output.template` | Optional. Any [item](#items) fields except `id`, `name`, `quantity`, `containerId`, `equipped`, `attuned` (those are ignored with a warning). Read like an item. |
+| `time`, `tool`, `dc`, `note` | Free text, only shown. |
+| `containerId` | Where the output went last time; the Craft dialog starts there. |
+
+**Craft ×N** is refused unless every input is there N times over; it then takes the inputs (unequipped stacks first, inventory order), adds the output and remembers the container, as one change (one Undo). A stack emptied by it is removed when another stack of that name still has some; otherwise one stays at quantity 0. `playCounters`: a name pinned twice keeps the first.
+
 ## preferences
 
 ```json
@@ -365,6 +395,6 @@ Blank lines separate paragraphs.
 |---|---|---|
 | 1 | First format. | |
 | 2 | New optional fields: `tags` (spells, features, items, item powers) and `powers` (items). Unknown fields are kept instead of dropped. | None needed: every version 1 field means the same in version 2, so a version 1 file imports unchanged and is exported as version 2. Item descriptions are **not** split into powers automatically (that would be guessing at rules text); add powers on the Gear tab or in the file. |
-| 3 | New fields: `partySize`, `xpLog` (experience log) and `timers` (day timers). Items: `spellDcBonus`, `spellAttackBonus`. | A version 2 file gets `partySize` 5 and empty `xpLog` and `timers`; `xp` keeps its value. A passive item power named like "+1 spell save DC" / "+3 spell attack" becomes the item's `spellDcBonus` / `spellAttackBonus` (its text goes to the item's `description`); if the item counted before but is not equipped, it is equipped, so the DC and spell attack stay the same. This conversion runs on every import, so version 3 files saved before these fields existed are converted too. Attacks: `itemId` (see attacks); a missing `itemId` is filled in on every import, the same way. Inventory (2026-10-01): `containers`, `categories`, item `containerId` and `category`, top-level `preferences`. A file without containers gets one Backpack with every item in it, on every import. These are optional additions, so the version stayed 3: a version 3 app without containers opens such a file and keeps the new fields unchanged. |
+| 3 | New fields: `partySize`, `xpLog` (experience log) and `timers` (day timers). Items: `spellDcBonus`, `spellAttackBonus`. | A version 2 file gets `partySize` 5 and empty `xpLog` and `timers`; `xp` keeps its value. A passive item power named like "+1 spell save DC" / "+3 spell attack" becomes the item's `spellDcBonus` / `spellAttackBonus` (its text goes to the item's `description`); if the item counted before but is not equipped, it is equipped, so the DC and spell attack stay the same. This conversion runs on every import, so version 3 files saved before these fields existed are converted too. Attacks: `itemId` (see attacks); a missing `itemId` is filled in on every import, the same way. Inventory (2026-10-01): `containers`, `categories`, item `containerId` and `category`, top-level `preferences`; crafting (2026-10-01): top-level `recipes` and `playCounters`. A file without containers gets one Backpack with every item in it, on every import. These are optional additions, so the version stayed 3: a version 3 app without containers opens such a file and keeps the new fields unchanged. |
 
 **Careful with older copies of the app:** an app refuses files of a newer version ("Update the app"): a version 2 app refuses version 3 files. Export from the app you will import into.

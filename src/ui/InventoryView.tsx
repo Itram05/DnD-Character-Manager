@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { t } from '../i18n'
 import { itemCategory } from '../model/categories'
 import { carriedWeight, itemWeight, itemsIn } from '../model/containers'
+import { isPinned, togglePin } from '../model/crafting'
 import { playHiddenReason } from '../model/itemPanel'
 import { MAX_ATTUNED, attunedCount, setAttunement, usesMax } from '../model/rules'
 import type { Item, Money } from '../model/types'
 import { NumberField, Pips } from './common'
 import { ContainersPanel, StackDialog, bagOf, groupItems } from './ContainersPanel'
+import { CraftingPanel } from './CraftingPanel'
 import { ItemEditor, blankItem } from './editors'
 import type { SheetApi } from './Sheet'
 
@@ -94,6 +96,17 @@ export function InventoryView({ api }: { api: SheetApi }) {
           <button className="mini-btn" onClick={() => setStack(i)} aria-label={t('stack.open')} title={t('stack.open')}>
             ⇄
           </button>
+          {!bag && (
+            <button
+              className={`mini-btn pin-btn ${isPinned(c, i.name) ? 'on' : ''}`}
+              onClick={() => update((x) => togglePin(x, i.name))}
+              aria-pressed={isPinned(c, i.name)}
+              aria-label={isPinned(c, i.name) ? t('counter.unpin', { name: i.name }) : t('counter.pinItem', { name: i.name })}
+              title={isPinned(c, i.name) ? t('counter.unpin', { name: i.name }) : t('counter.pinItem', { name: i.name })}
+            >
+              ⌖
+            </button>
+          )}
         </div>
         {show.charges && i.charges && (
           <div className="item-charges">
@@ -182,6 +195,7 @@ export function InventoryView({ api }: { api: SheetApi }) {
         ))}
         <p className="muted">{t('inv.weight', { n: Math.round(carriedWeight(c) * 10) / 10 })}</p>
       </section>
+      <CraftingPanel api={api} />
       {edit && <ItemEditor api={api} initial={edit} onClose={() => setEdit(null)} />}
       {stack && <StackDialog api={api} item={stack} onClose={() => setStack(null)} />}
     </div>

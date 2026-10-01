@@ -317,6 +317,42 @@ export interface DayTimer {
   note?: string
 }
 
+/**
+ * What a recipe makes from or what a counter counts: items by NAME (case and spaces ignored), every stack
+ * of that name together, in any container. A name, not an item id, so a recipe can be written before you
+ * own any of the material, and keeps working when the stack runs out, is deleted, split or merged.
+ */
+export interface RecipePart {
+  name: string
+  /** How many one craft takes (input) or makes (output). Above 0. */
+  quantity: number
+}
+
+/** What a new item made by a recipe looks like, when there is no stack of it to add to: any item field but the ones of one stack. */
+export type ItemTemplate = Partial<Omit<Item, 'id' | 'name' | 'quantity' | 'containerId' | 'equipped' | 'attuned'>>
+
+/** A recipe made by the player: "Craft" takes the inputs out of the inventory and puts the output in. */
+export interface Recipe {
+  id: string
+  name: string
+  /** Taken out on every craft. Empty = nothing is taken (a recipe that only makes something). */
+  inputs: RecipePart[]
+  /** Put in on every craft: added to a stack of that name in the chosen container, or a new item (from `template`). */
+  output: RecipePart & { template?: ItemTemplate }
+  /** Free text, shown only: how long it takes, the tool needed, the check, anything else. The app does not enforce them. */
+  time?: string
+  tool?: string
+  dc?: string
+  note?: string
+  /** The container the output went to last time; the Craft dialog starts there. */
+  containerId?: string
+}
+
+/** An item (by name, all stacks) shown as a counter with − and + in Play: materials, arrows, rations, anything. */
+export interface PlayCounter {
+  name: string
+}
+
 export interface Character {
   schemaVersion: number
   id: string
@@ -387,6 +423,10 @@ export interface Character {
   roleplay: Roleplay
   sessionNotes: SessionNote[]
   timers: DayTimer[]
+  /** The player's crafting recipes (none are built in). */
+  recipes: Recipe[]
+  /** Items pinned as counters in Play, in the order shown. */
+  playCounters: PlayCounter[]
   /** The player's choices for how the sheet looks, per character. */
   preferences: { gear: GearPrefs }
   updatedAt: string

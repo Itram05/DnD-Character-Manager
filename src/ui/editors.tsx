@@ -3,6 +3,7 @@ import { loadSrdSpells, type SrdSpell } from '../data/srd'
 import { t } from '../i18n'
 import { categoryList, guessCategory } from '../model/categories'
 import { defaultContainerId, deleteItem, moveTargets } from '../model/containers'
+import { recipesUsing, renameAcross } from '../model/crafting'
 import { newId } from '../model/normalize'
 import { evalFormula } from '../model/rules'
 import { autoPart, ownTagsIn, spellAutoTags, textTags } from '../model/tags'
@@ -55,7 +56,7 @@ function UsesEditor(props: { api: SheetApi; value?: Uses; onChange: (u?: Uses) =
   )
 }
 
-function EditorFrame(props: { title: string; onClose: () => void; onSave: () => void; onDelete?: () => void; children: React.ReactNode; canSave?: boolean }) {
+export function EditorFrame(props: { title: string; onClose: () => void; onSave: () => void; onDelete?: () => void; children: React.ReactNode; canSave?: boolean }) {
   const [confirm, setConfirm] = useState(false)
   return (
     <>
@@ -229,9 +230,15 @@ export function ItemEditor({ api, initial, onClose }: { api: SheetApi; initial: 
     // a power added and left completely empty is dropped; one with only a description gets a name on the next import
     const powers = it.powers?.filter((p) => p.name.trim() || p.description.trim())
     const out: Item = { ...it, powers: powers?.length ? powers : undefined, containerId: it.containerId ?? defaultContainerId(api.c) }
-    api.update((c) => ({ ...c, inventory: { ...c.inventory, items: exists ? c.inventory.items.map((x) => (x.id === out.id ? out : x)) : [...c.inventory.items, out] } }))
+    const before = api.c.inventory.items.find((x) => x.id === out.id)
+    api.update((c) => {
+      const next = { ...c, inventory: { ...c.inventory, items: exists ? c.inventory.items.map((x) => (x.id === out.id ? out : x)) : [...c.inventory.items, out] } }
+      // the last stack of a name renamed: recipes and counters in Play follow (crafting.ts)
+      return before && before.name !== out.name ? renameAcross(next, before.name, out.name) : next
+    })
     onClose()
   }
+  const usedIn = recipesUsing(api.c, initial.name)
   const isCard = !!it.activation
   // a bag cannot go into itself or into a bag inside it
   const targets = moveTargets(api.c, it.id)
@@ -251,6 +258,7 @@ export function ItemEditor({ api, initial, onClose }: { api: SheetApi; initial: 
       }
     >
       <TextField label={t('common.name')} value={it.name} onChange={(name) => setIt({ ...it, name })} />
+      {exists && usedIn.length > 0 && <p className="hint">{t('craft.usedInRecipes', { list: usedIn.map((r) => r.name).join(', ') })}</p>}
       <div className="grid-3">
         <NumberField label={t('item.quantity')} value={it.quantity} min={0} onChange={(quantity) => setIt({ ...it, quantity: Math.max(0, quantity) })} />
         <NumberField label={t('item.weight')} value={it.weight ?? 0} min={0} step={0.5} onChange={(weight) => setIt({ ...it, weight })} />
