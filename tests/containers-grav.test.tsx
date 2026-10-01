@@ -1,6 +1,6 @@
 // Inventory stage 2 (containers) against the owner's real hero, read-only: Grav's file must import with every
 // item in one Backpack, nothing lost, the same carried weight, and the Gear tab must show and change it.
-// Lives outside src/ so the app type-check does not need Node types. A missing file fails here (ownerFiles.ts).
+// Lives outside src/ so the app type-check does not need Node types. Path from OWNER_GRAV_FILE; skipped without it (ownerFiles.ts).
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { renderToString } from 'react-dom/server'
@@ -10,14 +10,14 @@ import { importCharacterJson } from '../src/model/normalize'
 import type { Character } from '../src/model/types'
 import { InventoryView } from '../src/ui/InventoryView'
 import type { SheetApi } from '../src/ui/Sheet'
-import { GRAV_DESKTOP, expectGravImportWarnings, ownerFile } from './ownerFiles'
+import { GRAV_FILE, expectGravImportWarnings, ownerFile } from './ownerFiles'
 
-const HAVE = ownerFile(GRAV_DESKTOP)
+const HAVE = ownerFile(GRAV_FILE)
 const text = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
 const apiFor = (c: Character): SheetApi => ({ c, update: () => {}, toast: () => {}, settings: { theme: 'dark', view: 'list' }, setSettings: () => {}, go: () => {} })
 
 describe.skipIf(!HAVE)('Grav and containers', () => {
-  const bytes = existsSync(GRAV_DESKTOP) ? readFileSync(GRAV_DESKTOP) : Buffer.from('{}')
+  const bytes = existsSync(GRAV_FILE.path) ? readFileSync(GRAV_FILE.path) : Buffer.from('{}')
   const hash = createHash('sha256').update(bytes).digest('hex')
   const raw = JSON.parse(bytes.toString('utf8'))
   const { character: c, warnings } = importCharacterJson(bytes.toString('utf8'))
@@ -59,6 +59,6 @@ describe.skipIf(!HAVE)('Grav and containers', () => {
     for (const n of ['Staff of Ages', 'Witch Focus', 'Potion of Greater Healing']) expect(gear).toContain(n)
   })
   it('the file on the desktop was only read', () => {
-    expect(createHash('sha256').update(readFileSync(GRAV_DESKTOP)).digest('hex')).toBe(hash)
+    expect(createHash('sha256').update(readFileSync(GRAV_FILE.path)).digest('hex')).toBe(hash)
   })
 })
