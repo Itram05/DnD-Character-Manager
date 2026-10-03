@@ -11,6 +11,7 @@ import {
   type CasterType,
   type Character,
   type ClassEntry,
+  type ExhaustionRules,
   type Formula,
   type Item,
   type SkillId,
@@ -97,9 +98,83 @@ export const passiveScore = (c: Character, s: SkillId) => 10 + skillMod(c, s)
 /** Initiative is a Dexterity check. JoAT does not apply in 2024 (it needs a skill). */
 export const initiative = (c: Character) => abilityMod(c.abilities.dex) + (c.combat.initiativeBonus || 0)
 
-/** Exhaustion (2024): D20 Tests reduced by 2 x level, Speed by 5 x level. */
-export const exhaustionD20Penalty = (c: Character) => 2 * c.exhaustion
-export const effectiveSpeed = (c: Character) => Math.max(0, c.combat.speed - 5 * c.exhaustion)
+// ---------------- exhaustion ----------------
+
+export const exhaustionRules = (c: Pick<Character, 'exhaustionRules'>): ExhaustionRules => (c.exhaustionRules === '2014' ? '2014' : '2024')
+
+/** What the hero's Exhaustion level does right now, by the edition chosen for the hero. */
+export interface ExhaustionEffects {
+  level: number
+  rules: ExhaustionRules
+  /** 2024: subtracted from every D20 Test (2 x level). 2014: 0. */
+  d20Penalty: number
+  /** Speed after Exhaustion. 2024: -5 ft x level. 2014: halved from level 2, 0 from level 5. */
+  speed: number
+  /** Hit Point maximum after Exhaustion. 2014: halved from level 4. */
+  hpMax: number
+  /** 2014, level 1+: Disadvantage on ability checks (skills and Initiative included). */
+  checksDisadvantage: boolean
+  /** 2014, level 3+: Disadvantage on attack rolls and saving throws. */
+  attacksSavesDisadvantage: boolean
+  /** Level 6 in both editions. */
+  dead: boolean
+}
+
+export function exhaustionEffects(c: Character): ExhaustionEffects {
+  const level = Math.max(0, Math.min(6, Math.floor(c.exhaustion || 0)))
+  const rules = exhaustionRules(c)
+  const { speed } = c.combat
+  const hpMax = c.combat.hp.max
+  if (rules === '2014') {
+    return {
+      level,
+      rules,
+      d20Penalty: 0,
+      speed: level >= 5 ? 0 : level >= 2 ? Math.floor(speed / 2) : speed,
+      hpMax: level >= 4 ? Math.max(1, Math.floor(hpMax / 2)) : hpMax,
+      checksDisadvantage: level >= 1,
+      attacksSavesDisadvantage: level >= 3,
+      dead: level >= 6,
+    }
+  }
+  return {
+    level,
+    rules,
+    d20Penalty: 2 * level,
+    speed: Math.max(0, speed - 5 * level),
+    hpMax,
+    checksDisadvantage: false,
+    attacksSavesDisadvantage: false,
+    dead: level >= 6,
+  }
+}
+
+/** The effects in force, one short line each, for the chip in the head and the Conditions panel. */
+export function exhaustionLines(c: Character): string[] {
+  const e = exhaustionEffects(c)
+  if (e.level === 0) return []
+  const out: string[] = []
+  if (e.rules === '2014') {
+    if (e.checksDisadvantage) out.push('Disadvantage on ability checks')
+    if (e.level >= 5) out.push('Speed 0')
+    else if (e.level >= 2) out.push(`Speed halved (${e.speed} ft)`)
+    if (e.attacksSavesDisadvantage) out.push('Disadvantage on attack rolls and saving throws')
+    if (e.level >= 4) out.push(`Hit Point maximum halved (${e.hpMax})`)
+  } else {
+    out.push(`−${e.d20Penalty} to every d20 roll`)
+    out.push(`Speed −${5 * e.level} ft (${e.speed} ft)`)
+  }
+  if (e.dead) out.push('Death')
+  return out
+}
+
+/** Subtracted from every D20 Test (2024 Exhaustion); 0 under the 2014 rules. */
+export const exhaustionD20Penalty = (c: Character) => exhaustionEffects(c).d20Penalty
+export const effectiveSpeed = (c: Character) => exhaustionEffects(c).speed
+/** The Hit Point maximum that counts now: `combat.hp.max`, halved by 2014 Exhaustion 4+. */
+export const effectiveHpMax = (c: Character) => exhaustionEffects(c).hpMax
+/** Current HP as shown: never above the maximum that counts now. */
+export const effectiveHpCurrent = (c: Character) => Math.min(c.combat.hp.current, effectiveHpMax(c))
 
 // ---------------- armor class ----------------
 
@@ -381,7 +456,8 @@ export function applyDamage(c: Character, amount: number, critical = false): Dam
   const events: string[] = []
   amount = Math.max(0, Math.floor(amount))
   if (!amount) return { character: c, events }
-  const hp = { ...c.combat.hp }
+  // damage comes off the HP that count now (2014 Exhaustion 4+ halves the maximum)
+  const hp = { ...c.combat.hp, current: effectiveHpCurrent(c), max: effectiveHpMax(c) }
   const ds = { ...c.combat.deathSaves }
   const wasAtZero = hp.current <= 0
   const fromTemp = Math.min(hp.temp, amount)
@@ -401,14 +477,14 @@ export function applyDamage(c: Character, amount: number, critical = false): Dam
     } else hp.current = newHp
   }
   if (ds.failures >= 3) events.push('dead')
-  return { character: { ...c, combat: { ...c.combat, hp, deathSaves: ds } }, events }
+  return { character: { ...c, combat: { ...c.combat, hp: { ...hp, max: c.combat.hp.max }, deathSaves: ds } }, events }
 }
 
 /** Healing restores HP up to the maximum and resets death saves. It never restores Temporary HP. */
 export function applyHealing(c: Character, amount: number): Character {
   amount = Math.max(0, Math.floor(amount))
   if (!amount) return c
-  const hp = { ...c.combat.hp, current: Math.min(c.combat.hp.max, Math.max(0, c.combat.hp.current) + amount) }
+  const hp = { ...c.combat.hp, current: Math.min(effectiveHpMax(c), Math.max(0, c.combat.hp.current) + amount) }
   return { ...c, combat: { ...c.combat, hp, deathSaves: { successes: 0, failures: 0 } } }
 }
 

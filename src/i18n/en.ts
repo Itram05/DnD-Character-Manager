@@ -223,8 +223,10 @@ export const en: Record<string, string> = {
   // conditions
   'cond.title': 'Conditions',
   'cond.exhaustion': 'Exhaustion',
-  'cond.exhaustionChip': 'Exhaustion {n} (−{p} to d20)',
-  'cond.exhaustionEffect': '−{p} to every d20 roll, −{s} ft Speed',
+  'cond.exhaustionChip': 'Exhaustion {n} ({rules}): {effects}',
+  'cond.exhaustionRules': 'Rules',
+  'cond.disTitle': 'Roll with Disadvantage (Exhaustion)',
+  'cond.reducedFrom': 'Reduced by Exhaustion (normally {n})',
   'cond.exhaustionDeath': 'Exhaustion 6: the creature dies.',
   'cond.none': 'None',
   'cond.rulesText': 'Rules text',
@@ -445,7 +447,9 @@ export const en: Record<string, string> = {
   'stats.proficiencies': 'Proficiencies',
   'stats.attacks': 'Attacks',
   'stats.noAttacks': 'No attacks yet. Add your weapons and attack cantrips; they show up as cards in the Action hand.',
-  'stats.exhaustionBanner': 'Exhaustion: subtract {p} from every d20 roll (not included in the numbers below).',
+  'stats.exhaustionBanner': 'Exhaustion: −{p} is already taken off the saving throws, skills, attacks and spell attacks below. Passive scores and other d20 rolls: subtract it yourself.',
+  'stats.exhaustionDisChecks': 'Exhaustion {n} (2014): Disadvantage on every ability check (marked DIS).',
+  'stats.exhaustionDisAll': 'Exhaustion {n} (2014): Disadvantage on ability checks, attack rolls and saving throws (marked DIS).',
 
   // attacks
   'attack.add': 'Add attack',

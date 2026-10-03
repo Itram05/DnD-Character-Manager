@@ -23,12 +23,12 @@ import {
   type Zone,
 } from '../model/play'
 import { MAX_CREATED_SLOT_LEVEL, SLOT_COST, canPointsToSlot, canSlotToPoints, pointsToSlot, slotToPoints, slotsLeftAt, sorceryFeature, sorceryPoints } from '../model/sorcery'
-import { attackStats } from '../model/rules'
+import { attackStats, exhaustionEffects } from '../model/rules'
 import { HEALING_DICE, HEALING_NAME, healingDice, isScroll, potionLabel, readScroll, scrollInfo, type HealingTier } from '../model/consumables'
 import { attackTags } from '../model/tags'
 import { filterOptions, matchesFilter, selectedKinds, selectedZones } from '../model/filter'
 import type { Character, Item } from '../model/types'
-import { InHead, Modal, Pips, RichText, fmtMod, useMediaQuery } from './common'
+import { Dis, InHead, Modal, Pips, RichText, fmtMod, useMediaQuery } from './common'
 import { FeatureEditor, ItemEditor, SpellEditor } from './editors'
 import { FRAME_GLYPH, GameCard, POTION_GLYPH, SCROLL_GLYPH, type CardFace } from './GameCard'
 import type { SheetApi } from './Sheet'
@@ -42,6 +42,7 @@ import { groupTitle, playHands, playSections, sectionId } from './playSections'
 
 // an attack made with an item that is not in play (not equipped, or not attuned) is hidden with the item
 function attackFaces(c: Character): CardFace[] {
+  const exh = exhaustionEffects(c)
   return c.attacks.filter((a) => attackInPlay(c, a)).map((a) => {
     const s = attackStats(c, a)
     const dmg = a.damage ? `${a.damage}${s.dmgMod ? (s.dmgMod > 0 ? `+${s.dmgMod}` : s.dmgMod) : ''}` : ''
@@ -59,7 +60,7 @@ function attackFaces(c: Character): CardFace[] {
       tags: attackTags(a),
       stat: (
         <>
-          <b>{fmtMod(s.toHit)}</b> {t('card.toHit')} · <b>{dmg}</b>
+          <b>{fmtMod(s.toHit - exh.d20Penalty)}</b> {t('card.toHit')} <Dis on={exh.attacksSavesDisadvantage} /> · <b>{dmg}</b>
         </>
       ),
     }

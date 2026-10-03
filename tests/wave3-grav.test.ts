@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { importCharacterJson } from '../src/model/normalize'
 import { longRest } from '../src/model/rest'
 import { addTimer } from '../src/model/timers'
-import { armorClass, setAttunement, spellDcView } from '../src/model/rules'
+import { armorClass, effectiveHpMax, effectiveSpeed, exhaustionEffects, exhaustionLines, setAttunement, spellDcView } from '../src/model/rules'
 import { addSessionXp, correctXp, raiseXpToLevel, undoLastXp, xpProgress } from '../src/model/xp'
 import { itemPanel, itemTiles, playHiddenReason } from '../src/model/itemPanel'
 import { attackInPlay, playCards } from '../src/model/play'
@@ -136,5 +136,22 @@ describe.skipIf(!HAVE_GRAV_V2)('Grav v2: Mukluks of Nimbleness and Dragon Scale 
     expect(ac.warnings).toEqual([])
     expect(ac.parts[0]).toEqual({ label: 'Half Plate', value: 15 })
     expect(spellDcView(c)[0]).toMatchObject({ saveDc: 18, attack: 13 })
+  })
+})
+
+// 2026-10-03: his table plays 2014 Exhaustion, and he is at level 2
+describe.skipIf(!HAVE_GRAV_V2)('Grav v2: Exhaustion 2 by the 2014 rules', () => {
+  const { character: c } = importCharacterJson(existsSync(GRAV_V2) ? readFileSync(GRAV_V2, 'utf8') : '{}')
+  it('Disadvantage on ability checks and Speed 15; nothing off the d20, HP maximum, AC or DC', () => {
+    expect([c.exhaustion, c.exhaustionRules]).toEqual([2, '2014'])
+    expect(exhaustionEffects(c)).toEqual({ level: 2, rules: '2014', d20Penalty: 0, speed: 15, hpMax: 98, checksDisadvantage: true, attacksSavesDisadvantage: false, dead: false })
+    expect(exhaustionLines(c)).toEqual(['Disadvantage on ability checks', 'Speed halved (15 ft)'])
+    expect([c.combat.speed, effectiveSpeed(c), effectiveHpMax(c)]).toEqual([30, 15, 98])
+    expect(armorClass(c).total).toBe(21)
+    expect(spellDcView(c)[0]).toMatchObject({ saveDc: 18, attack: 13 })
+  })
+  it('a Long Rest takes it to 1: Speed 30 again, still Disadvantage on ability checks', () => {
+    const r = longRest(c).character
+    expect(exhaustionEffects(r)).toMatchObject({ level: 1, speed: 30, checksDisadvantage: true })
   })
 })

@@ -317,6 +317,15 @@ export function useMediaQuery(q: string) {
   return match
 }
 
+/** A clear "roll with Disadvantage" mark next to a number (2014 Exhaustion). */
+export function Dis({ on }: { on: boolean }) {
+  return on ? (
+    <span className="dis-mark" title={t('cond.disTitle')} aria-label={t('cond.disTitle')}>
+      DIS
+    </span>
+  ) : null
+}
+
 export const fmtMod = (n: number) => (Number.isNaN(n) ? '?' : n >= 0 ? `+${n}` : `−${Math.abs(n)}`)
 
 // ---------------- the sheet's sticky head ----------------

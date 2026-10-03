@@ -125,7 +125,7 @@ function keepUnknown(raw: Obj, out: object, known: readonly string[], path: stri
 
 // The fields each object has, as read by normalizeCharacter. Anything else is kept by keepUnknown.
 const KNOWN = {
-  top: ['schemaVersion', 'id', 'name', 'player', 'species', 'race', 'background', 'alignment', 'xp', 'partySize', 'xpLog', 'classes', 'abilities', 'proficiencies', 'combat', 'conditions', 'exhaustion', 'heroicInspiration', 'features', 'attacks', 'spellcasting', 'spells', 'inventory', 'items', 'money', 'roleplay', 'sessionNotes', 'timers', 'updatedAt'],
+  top: ['schemaVersion', 'id', 'name', 'player', 'species', 'race', 'background', 'alignment', 'xp', 'partySize', 'xpLog', 'classes', 'abilities', 'proficiencies', 'combat', 'conditions', 'exhaustion', 'exhaustionRules', 'heroicInspiration', 'features', 'attacks', 'spellcasting', 'spells', 'inventory', 'items', 'money', 'roleplay', 'sessionNotes', 'timers', 'updatedAt'],
   species: ['name', 'size'],
   abilities: ['str', 'dex', 'con', 'int', 'wis', 'cha', 'strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'],
   class: ['id', 'name', 'level', 'subclass', 'hitDie', 'casterType', 'spellcastingAbility'],
@@ -719,6 +719,8 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     },
     conditions: [...new Set(conditions)],
     exhaustion: Math.round(r.num(raw.exhaustion, 'exhaustion', 0, 0, 6)),
+    // optional: only the 2014 choice is written; absent means the app's own rules (2024)
+    ...(String(raw.exhaustionRules ?? '') === '2014' ? { exhaustionRules: '2014' as const } : {}),
     heroicInspiration: r.bool(raw.heroicInspiration, false),
     features,
     attacks,

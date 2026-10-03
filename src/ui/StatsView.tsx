@@ -4,14 +4,14 @@ import {
   abilityMod,
   attackStats,
   castingStats,
-  exhaustionD20Penalty,
+  exhaustionEffects,
   passiveScore,
   savingThrow,
   savingThrowProficiencies,
   skillMod,
 } from '../model/rules'
 import { ABILITIES, SKILL_IDS, SKILLS, type Ability, type Attack, type SkillProficiency } from '../model/types'
-import { fmtMod } from './common'
+import { Dis, fmtMod } from './common'
 import { AttackEditor, blankAttack } from './editors'
 import type { SheetApi } from './Sheet'
 
@@ -21,7 +21,8 @@ export function StatsView({ api }: { api: SheetApi }) {
   const { c, update } = api
   const [editAttack, setEditAttack] = useState<Attack | null>(null)
   const saveProfs = savingThrowProficiencies(c)
-  const exh = exhaustionD20Penalty(c)
+  const exhaustion = exhaustionEffects(c)
+  const exh = exhaustion.d20Penalty
 
   const cycleSkill = (s: (typeof SKILL_IDS)[number]) =>
     update((x) => ({ ...x, proficiencies: { ...x.proficiencies, skills: { ...x.proficiencies.skills, [s]: NEXT[x.proficiencies.skills[s] ?? 'none'] } } }))
@@ -35,6 +36,9 @@ export function StatsView({ api }: { api: SheetApi }) {
   return (
     <div className="stats">
       {exh > 0 && <p className="warn banner">{t('stats.exhaustionBanner', { p: exh })}</p>}
+      {exhaustion.checksDisadvantage && (
+        <p className="warn banner">{t(exhaustion.attacksSavesDisadvantage ? 'stats.exhaustionDisAll' : 'stats.exhaustionDisChecks', { n: exhaustion.level })}</p>
+      )}
 
       <section className="panel abilities">
         <h3>{t('stats.abilities')}</h3>
@@ -59,7 +63,8 @@ export function StatsView({ api }: { api: SheetApi }) {
                 <li key={a}>
                   <button className={`prof-dot ${saveProfs.includes(a) ? 'prof' : ''}`} onClick={() => toggleSave(a)} aria-label={t('stats.toggleProf')} />
                   <span className="li-name">{t(`ability.long.${a}`)}</span>
-                  <b>{fmtMod(s.mod)}</b>
+                  <Dis on={exhaustion.attacksSavesDisadvantage} />
+                  <b>{fmtMod(s.mod - exh)}</b>
                 </li>
               )
             })}
@@ -78,7 +83,8 @@ export function StatsView({ api }: { api: SheetApi }) {
                   <span className="li-name">
                     {t(`skill.${s}`)} <small className="muted">{t(`ability.${SKILLS[s]}`)}</small>
                   </span>
-                  <b>{fmtMod(skillMod(c, s))}</b>
+                  <Dis on={exhaustion.checksDisadvantage} />
+                  <b>{fmtMod(skillMod(c, s) - exh)}</b>
                 </li>
               )
             })}
@@ -120,7 +126,8 @@ export function StatsView({ api }: { api: SheetApi }) {
                         <b>{s.saveDc}</b>
                       </td>
                       <td>
-                        <b>{fmtMod(s.attack)}</b>
+                        <Dis on={exhaustion.attacksSavesDisadvantage} />
+                        <b>{fmtMod(s.attack - exh)}</b>
                       </td>
                     </tr>
                   ))}
@@ -179,7 +186,8 @@ export function StatsView({ api }: { api: SheetApi }) {
                       {a.mastery && <small className="muted"> · {a.mastery}</small>}
                     </td>
                     <td>
-                      <b>{fmtMod(s.toHit)}</b>
+                      <Dis on={exhaustion.attacksSavesDisadvantage} />
+                      <b>{fmtMod(s.toHit - exh)}</b>
                     </td>
                     <td>
                       {a.damage}

@@ -254,6 +254,8 @@ export interface DayTimer {
   note?: string
 }
 
+export type ExhaustionRules = '2014' | '2024'
+
 export interface Character {
   schemaVersion: number
   id: string
@@ -293,8 +295,10 @@ export interface Character {
     deathSaves: { successes: number; failures: number }
   }
   conditions: string[]
-  /** 0-6, 2024 rules. */
+  /** 0-6. What a level does depends on `exhaustionRules` (see exhaustionEffects in rules.ts). */
   exhaustion: number
+  /** Which edition's Exhaustion applies. Absent = '2024' (the app's rules); '2014' for a table that plays the old one. */
+  exhaustionRules?: ExhaustionRules
   heroicInspiration: boolean
   features: Feature[]
   attacks: Attack[]
