@@ -8,8 +8,12 @@ import {
   applyHealing,
   applyTempHp,
   armorClass,
+  effectiveHpCurrent,
+  effectiveHpMax,
   effectiveSpeed,
-  exhaustionD20Penalty,
+  exhaustionEffects,
+  exhaustionLines,
+  exhaustionRules,
   hitDicePool,
   initiative,
   proficiencyBonus,
@@ -18,7 +22,7 @@ import {
   type CastingPart,
 } from '../model/rules'
 import type { Character } from '../model/types'
-import { Check, Modal, Pips, RichText, fmtMod } from './common'
+import { Check, Dis, Modal, Pips, RichText, fmtMod } from './common'
 import type { SheetApi } from './Sheet'
 import { daysText, levelReadyShort, levelReadyText, timerLines } from './progressText'
 
@@ -30,9 +34,11 @@ export function classLine(c: Character) {
 export function TopBar({ api, onBack, onUndo, children }: { api: SheetApi; onBack: () => void; onUndo?: () => void; children?: ReactNode }) {
   const { c, update } = api
   const [modal, setModal] = useState<null | 'hp' | 'short' | 'long' | 'conditions' | 'ac' | 'dc'>(null)
-  const hp = c.combat.hp
+  // the numbers that count now: 2014 Exhaustion 4+ halves the maximum
+  const hp = { ...c.combat.hp, max: effectiveHpMax(c), current: effectiveHpCurrent(c) }
   const pct = Math.max(0, Math.min(100, (hp.current / Math.max(1, hp.max)) * 100))
   const ac = armorClass(c)
+  const exh = exhaustionEffects(c)
   const condCount = c.conditions.length + (c.exhaustion > 0 ? 1 : 0)
   const bloodied = hp.current > 0 && hp.current <= hp.max / 2
   const ready = levelReadyText(c)
@@ -82,9 +88,10 @@ export function TopBar({ api, onBack, onUndo, children }: { api: SheetApi; onBac
           </button>
           <div className="stat-chip">
             <span className="chip-label">{t('vitals.init')}</span>
-            <b>{fmtMod(initiative(c))}</b>
+            <b>{fmtMod(initiative(c) - exh.d20Penalty)}</b>
+            <Dis on={exh.checksDisadvantage} />
           </div>
-          <div className="stat-chip">
+          <div className={`stat-chip ${effectiveSpeed(c) < c.combat.speed ? 'reduced' : ''}`} title={effectiveSpeed(c) < c.combat.speed ? t('cond.reducedFrom', { n: c.combat.speed }) : undefined}>
             <span className="chip-label">{t('vitals.speed')}</span>
             <b>{effectiveSpeed(c)}</b>
           </div>
@@ -134,7 +141,7 @@ export function TopBar({ api, onBack, onUndo, children }: { api: SheetApi; onBac
         <div className="cond-strip">
           {c.exhaustion > 0 && (
             <button className="cond-chip exh" onClick={() => setModal('conditions')}>
-              {t('cond.exhaustionChip', { n: c.exhaustion, p: exhaustionD20Penalty(c) })}
+              {t('cond.exhaustionChip', { n: c.exhaustion, rules: exh.rules, effects: exhaustionLines(c).join(' · ') })}
             </button>
           )}
           {c.conditions.map((id) => (
@@ -233,7 +240,8 @@ function HpModal({ api, onClose }: { api: SheetApi; onClose: () => void }) {
   const [amount, setAmount] = useState('')
   const [crit, setCrit] = useState(false)
   const n = Math.max(0, Math.floor(Number(amount) || 0))
-  const hp = c.combat.hp
+  // the numbers that count now: 2014 Exhaustion 4+ halves the maximum
+  const hp = { ...c.combat.hp, max: effectiveHpMax(c), current: effectiveHpCurrent(c) }
   const ds = c.combat.deathSaves
 
   const damage = () => {
@@ -397,7 +405,7 @@ function RestModal({ api, kind, onClose }: { api: SheetApi; kind: 'short' | 'lon
         <>
           <p className="hint">{t('rest.shortExplain')}</p>
           <p>
-            {t('hp.hp')}: <b>{c.combat.hp.current}</b>/{c.combat.hp.max}
+            {t('hp.hp')}: <b>{effectiveHpCurrent(c)}</b>/{effectiveHpMax(c)}
           </p>
           {Object.entries(avail).map(([die, left]) => (
             <div className="hd-spend" key={die}>
@@ -476,8 +484,33 @@ function ConditionsModal({ api, onClose }: { api: SheetApi; onClose: () => void 
           <button className="btn" onClick={() => update((x) => ({ ...x, exhaustion: Math.min(6, x.exhaustion + 1) }))} disabled={c.exhaustion === 6}>
             +
           </button>
-          <span className="muted">{c.exhaustion > 0 ? t('cond.exhaustionEffect', { p: 2 * c.exhaustion, s: 5 * c.exhaustion }) : t('cond.none')}</span>
+          <label className="exh-rules">
+            <span className="muted">{t('cond.exhaustionRules')}</span>
+            <select
+              value={exhaustionRules(c)}
+              onChange={(e) =>
+                update((x) => {
+                  // only the 2014 choice is stored; absent = 2024
+                  const { exhaustionRules: _old, ...rest } = x
+                  void _old
+                  return e.target.value === '2014' ? { ...rest, exhaustionRules: '2014' as const } : rest
+                })
+              }
+            >
+              <option value="2024">2024</option>
+              <option value="2014">2014</option>
+            </select>
+          </label>
         </div>
+        {c.exhaustion > 0 ? (
+          <ul className="exh-effects">
+            {exhaustionLines(c).map((l) => (
+              <li key={l}>{l}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted">{t('cond.none')}</p>
+        )}
         {c.exhaustion >= 6 && <p className="warn">{t('cond.exhaustionDeath')}</p>}
         <details>
           <summary>{t('cond.rulesText')}</summary>
