@@ -35,6 +35,38 @@ skipped unless their paths are set: `OWNER_GRAV_FILE` and `OWNER_GRAV_COPY_FILE`
 git-ignored `.env.test.local` (one `NAME=path` per line). A path that is set but missing fails the test.
 `OWNER_FILES=skip npm test` skips them on purpose. Details: `tests/ownerFiles.ts`.
 
+## Offline use and updates
+
+The built app can be installed on a phone's home screen (`public/manifest.webmanifest`, icons in `public/icons/`) and
+opens with no network: a service worker (`pwa/sw.js`, written to `dist/sw.js` by `pwa/plugin.ts` at the end of the
+build) keeps every file of the build in the browser, the rules and spell data included. `npm run dev` has no service
+worker and caches nothing.
+
+Characters (localStorage) and pictures (IndexedDB) are not part of it: no version of the worker reads or clears them.
+
+**A new version** (a push to `master`) reaches a player like this:
+
+1. The browser re-checks `sw.js` when the app is opened, and again when it comes back to the front after an hour or
+   more. A changed `sw.js` downloads the whole new build in the background. Every file is checked against the hash
+   the build wrote into `sw.js`; a build that cannot be downloaded whole is dropped and tried again next time.
+2. The new build waits. The page in use keeps the version it started with, so nothing changes under a game in
+   progress. A small "New version ready · Reload" row appears in the corner; ✕ hides it.
+3. It is applied by **Reload** on that row, or by itself the next time the app is opened.
+
+Each build has its own cache (`hero-deck-<version>`, the version being a hash of the build's files); the old one is
+deleted when the new one takes over.
+
+**The way back**, if the worker ever misbehaves: set `OFFLINE = false` in `vite.config.ts` and publish. The build
+then writes a `sw.js` that deletes the caches and unregisters itself in every browser that has it, and the page stops
+registering one. Leave it like that for a few weeks before removing the code, since a browser only gets the off
+switch when it next opens the site with a network.
+
+For one browser only: its site settings → clear site data removes the worker **and the characters**, so export first.
+In Chrome on a computer, DevTools → Application → Service workers → Unregister removes the worker alone.
+
+Checked by `tests/offline.test.tsx` (the worker against a fake browser) and by hand in Chrome: reload with the
+server stopped, a second build while the first is open, Reload, the off switch.
+
 ## Where things are
 
 | Path | What |
@@ -46,6 +78,7 @@ git-ignored `.env.test.local` (one `NAME=path` per line). A path that is set but
 | `src/content/rulesHelp.en.ts` | Hand-written rules summaries (turn, 2014 → 2024). |
 | `src/data/srd/*.json` | Rules data generated from SRD 5.2.1 by `scripts/build-srd-data.mjs`. |
 | `src/data/srdPresets.ts` | Hand-checked uses/activation for SRD class features. |
+| `pwa/`, `src/pwa.ts`, `src/ui/UpdateBar.tsx` | Offline use: the service worker and the build step that fills it in; the page's side (registration, when an update is applied); the "New version ready" row. |
 | `SCHEMA.md`, `examples/` | Character file format and a full example. |
 | `AI-GUIDE.md` | The same format explained to a player's AI assistant, which sees nothing else: how to interview the player, every field, the traps, and a full example (`examples/ai-guide-example.json`). `tests/aiGuide.test.ts` fails when the guide and the importer drift apart; a new field goes into `types.ts`, `normalize.ts`, `SCHEMA.md` and the guide together. |
 

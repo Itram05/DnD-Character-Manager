@@ -7,6 +7,12 @@ export const en: Record<string, string> = {
   'app.toggleTheme': 'Switch light / dark theme',
   'app.notFound': 'This character was not found in this browser.',
 
+  // a newer build is downloaded and waiting (installed app / offline use)
+  'update.ready': 'New version ready',
+  'update.reload': 'Reload',
+  'update.later': 'Later: it is applied the next time you open the app',
+  'update.hint': 'A newer version of the app has been downloaded. Reload switches to it now; your characters stay as they are.',
+
   // navigation
   'nav.sections': 'Sheet sections',
   'nav.allCharacters': 'All characters',

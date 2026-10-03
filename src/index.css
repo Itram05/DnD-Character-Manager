@@ -2029,6 +2029,36 @@ body.untap-step .card:not(.tapped) {
   padding: 0 0 0.4rem 1.8rem;
 }
 
+/* "New version ready" (UpdateBar): a small pill in the corner, above the phone's tab bar, under the toasts */
+.update-bar {
+  position: fixed;
+  z-index: 35;
+  right: 0.6rem;
+  bottom: calc(64px + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.3rem 0.3rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 50%, var(--line));
+  border-radius: 999px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  font-size: 0.88rem;
+}
+.update-later {
+  min-width: 32px;
+  min-height: 32px;
+  border: none;
+  background: none;
+  color: var(--muted);
+}
+@media (min-width: 900px) {
+  .update-bar {
+    right: 1rem;
+    bottom: 1rem;
+  }
+}
+
 /* toasts */
 .toasts {
   position: fixed;
