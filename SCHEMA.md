@@ -3,6 +3,9 @@
 A character is one JSON object. The app exports it with **Export JSON** and reads it with **Import JSON**.
 A full example: [`examples/sample-character.json`](examples/sample-character.json) (Paladin 3 / Sorcerer 3 / Warlock 1).
 
+For a player's AI assistant that should write such a file there is [`AI-GUIDE.md`](AI-GUIDE.md): the same format, with the
+behaviour of the app spelled out for a reader who cannot see it. A change to the format goes into both documents.
+
 ## Rules for hand-written files
 
 - **Almost everything is optional.** A missing field gets a sensible default. `{}` is a valid (empty) character.

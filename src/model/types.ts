@@ -1,6 +1,11 @@
 // The character data model. This is what lives in localStorage and in exported JSON files.
 // Every field is described in SCHEMA.md. When you change a shape here, bump
 // CURRENT_SCHEMA_VERSION and add a migration in normalize.ts.
+//
+// AI-GUIDE.md (repo root) describes this format to the players' AI assistants, who write character
+// files by hand. A new or changed field must be described there too, and its example
+// (examples/ai-guide-example.json, copied into the guide) kept current. tests/aiGuide.test.ts fails when
+// a field the importer reads (KNOWN in normalize.ts) or one of the fixed word lists is missing from the guide.
 
 export const CURRENT_SCHEMA_VERSION = 3
 

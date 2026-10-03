@@ -146,7 +146,8 @@ function keepUnknown(raw: Obj, out: object, known: readonly string[], path: stri
 }
 
 // The fields each object has, as read by normalizeCharacter. Anything else is kept by keepUnknown.
-const KNOWN = {
+// Exported for tests/aiGuide.test.ts: every field here must be described in AI-GUIDE.md.
+export const KNOWN = {
   top: ['schemaVersion', 'id', 'name', 'player', 'species', 'race', 'background', 'alignment', 'xp', 'partySize', 'xpLog', 'classes', 'abilities', 'proficiencies', 'combat', 'conditions', 'exhaustion', 'exhaustionRules', 'heroicInspiration', 'features', 'attacks', 'spellcasting', 'spells', 'inventory', 'items', 'money', 'roleplay', 'sessionNotes', 'timers', 'images', 'recipes', 'playCounters', 'preferences', 'updatedAt'],
   species: ['name', 'size'],
   abilities: ['str', 'dex', 'con', 'int', 'wis', 'cha', 'strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'],
