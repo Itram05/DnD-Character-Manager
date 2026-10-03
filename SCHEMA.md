@@ -56,7 +56,8 @@ Class table column names = the table header in lowercase with dashes: `rages`, `
 | `proficiencies` | [object](#proficiencies) | | |
 | `combat` | [object](#combat) | | |
 | `conditions` | list of text | [] | Ids: `blinded charmed deafened frightened grappled incapacitated invisible paralyzed petrified poisoned prone restrained stunned unconscious`. |
-| `exhaustion` | 0–6 | 0 | 2024 rules: −2 per level to d20 tests, −5 ft Speed per level. |
+| `exhaustion` | 0–6 | 0 | Applied automatically, by `exhaustionRules`. |
+| `exhaustionRules` | `"2014"` or `"2024"` | absent = `"2024"` | Optional. 2024: −2 per level to d20 tests, −5 ft Speed per level. 2014: 1 Disadvantage on ability checks; 2 Speed halved; 3 Disadvantage on attacks and saves; 4 HP maximum halved; 5 Speed 0. 6 is death in both. Only `"2014"` is written on export. |
 | `heroicInspiration` | true/false | false | |
 | `features` | list of [feature](#features) | [] | |
 | `attacks` | list of [attack](#attacks) | [] | |

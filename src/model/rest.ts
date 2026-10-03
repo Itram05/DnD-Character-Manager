@@ -10,7 +10,7 @@
 //   Temporary HP end ("last until depleted or you finish a Long Rest").
 //   Concentration ends because you sleep (Unconscious -> Incapacitated ends Concentration).
 //   A day passes: every running day timer loses 1 (timers.ts). The app's own rule, not the SRD's.
-import { abilityMod, evalFormula, hitDicePool, usesMax } from './rules'
+import { abilityMod, effectiveHpMax, evalFormula, hitDicePool, usesMax } from './rules'
 import { clearBonusSlots } from './sorcery'
 import { passDays, type TimerChange } from './timers'
 import type { Character, Uses } from './types'
@@ -85,7 +85,7 @@ export function longRest(c: Character, opts: { dawn?: boolean } = { dawn: true }
   const out: RestResult = { character: c, restored: [], reminders: [], timers: [] }
   if (c.combat.hp.current < 1) out.reminders.push('Rules: you need at least 1 HP to start a Long Rest.')
   let next = restoreAll(c, 'long', opts.dawn !== false, out)
-  if (c.combat.hp.current < c.combat.hp.max) out.restored.push('All Hit Points')
+  if (c.combat.hp.current < effectiveHpMax({ ...c, exhaustion: Math.max(0, c.exhaustion - 1) })) out.restored.push('All Hit Points')
   if (Object.values(c.combat.hitDiceUsed).some((n) => n > 0)) out.restored.push('All Hit Point Dice')
   if (c.spellcasting.slotsUsed.some((n) => n > 0)) out.restored.push('All spell slots')
   if (c.spellcasting.pactSlotsUsed > 0) out.restored.push('Pact Magic slots')
@@ -97,15 +97,17 @@ export function longRest(c: Character, opts: { dawn?: boolean } = { dawn: true }
   const days = passDays(next, 1)
   next = days.character
   out.timers = days.changes
+  const exhaustion = Math.max(0, c.exhaustion - 1)
   next = {
     ...next,
     combat: {
       ...next.combat,
-      hp: { ...next.combat.hp, current: next.combat.hp.max, temp: 0 },
+      // all HP, up to the maximum that counts at the new Exhaustion level (2014: halved at 4+)
+      hp: { ...next.combat.hp, current: effectiveHpMax({ ...next, exhaustion }), temp: 0 },
       hitDiceUsed: {},
       deathSaves: { successes: 0, failures: 0 },
     },
-    exhaustion: Math.max(0, c.exhaustion - 1),
+    exhaustion,
     spellcasting: { ...next.spellcasting, slotsUsed: [0, 0, 0, 0, 0, 0, 0, 0, 0], pactSlotsUsed: 0, concentration: '' },
     updatedAt: new Date().toISOString(),
   }
@@ -127,7 +129,7 @@ export function spendHitDie(c: Character, die: string, roll: number): { characte
   const sides = Number(die.slice(1))
   const r = Math.min(sides, Math.max(1, Math.floor(roll)))
   const healed = Math.max(1, r + abilityMod(c.abilities.con))
-  const current = Math.min(c.combat.hp.max, Math.max(0, c.combat.hp.current) + healed)
+  const current = Math.min(effectiveHpMax(c), Math.max(0, c.combat.hp.current) + healed)
   return {
     healed,
     character: {
