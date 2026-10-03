@@ -3,6 +3,23 @@
 A character tracker for fifth edition (2024 rules / SRD 5.2.1). Static web app: no server, no accounts.
 Characters live in the browser's localStorage; Export/Import JSON moves them between devices.
 
+## Let your AI assistant write your hero
+
+You do not have to type a whole character into the app. Give the guide to the AI assistant you already use
+(ChatGPT, Claude, Gemini...) and it will ask you about your hero and write the file for you.
+
+1. Get the guide: **[AI-GUIDE.md](https://raw.githubusercontent.com/Itram05/DnD-Character-Manager/master/AI-GUIDE.md)**
+   (the link opens the plain text: save the page, or select all and copy).
+2. Start a new chat with your assistant. Attach the file, or paste the text, and write something like:
+   *"Read this guide and help me make my character."* Write in your own language; the assistant will answer in it.
+   If you have your sheet as a PDF or a photo, send it in the same message: you will be asked far fewer questions.
+3. Answer its questions. At the end you get a `.json` file (or the text of one, to save as `your-hero.json`).
+4. Open the app, press **Import JSON** and choose the file. The dialog should say "The file is clean".
+   If it lists adjustments instead, copy them back to the assistant and it will fix the file.
+
+To change the hero later the same way: press **Export JSON** in the app and give the assistant that fresh file together
+with the guide. The app runs on the 2024 rules; if your table plays the 2014 rules, tell the assistant at the start.
+
 ## Run
 
 ```bash
@@ -29,6 +46,7 @@ git-ignored `.env.test.local` (one `NAME=path` per line). A path that is set but
 | `src/data/srd/*.json` | Rules data generated from SRD 5.2.1 by `scripts/build-srd-data.mjs`. |
 | `src/data/srdPresets.ts` | Hand-checked uses/activation for SRD class features. |
 | `SCHEMA.md`, `examples/` | Character file format and a full example. |
+| `AI-GUIDE.md` | The same format explained to a player's AI assistant, which sees nothing else: how to interview the player, every field, the traps, and a full example (`examples/ai-guide-example.json`). `tests/aiGuide.test.ts` fails when the guide and the importer drift apart; a new field goes into `types.ts`, `normalize.ts`, `SCHEMA.md` and the guide together. |
 
 ## The play screen
 
