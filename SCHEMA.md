@@ -315,6 +315,38 @@ Countdowns in days: `{ "name": "King's wedding", "days": 12, "start": 12, "note"
 
 A Long Rest takes 1 day off every timer above 0. "Days pass" on the Story tab takes several off at once.
 
+## images
+
+Maps of the campaign and other pictures (the Images tab), in the order shown. Optional: a character without images has no `images` field.
+
+```json
+"images": [
+  { "id": "world", "name": "World map", "width": 1616, "height": 904, "bytes": 412345,
+    "thumb": "data:image/jpeg;base64,...", "data": "data:image/jpeg;base64,..." }
+]
+```
+
+| Field | Notes |
+|---|---|
+| `id` | Text, unique among the images. Made up when missing. |
+| `name` | Shown under the thumbnail and in the viewer. |
+| `width`, `height` | Size of the picture in pixels. Read from the picture on import when missing. |
+| `bytes` | Size of the picture in bytes. Computed from `data` on import. |
+| `thumb` | A small preview (data URL, about 320 px) for the grid. Made on import when missing. |
+| `data` | **Only in exported files:** the picture itself, as a data URL of a JPEG, PNG, WebP or GIF (`data:image/jpeg;base64,...`). |
+
+Where the pictures live: the character in the browser (localStorage, about 5 MB for everything) keeps only the list above
+without `data`; the pictures are in the browser's IndexedDB. **Export** puts each picture into its entry as `data`,
+so the file carries them to another device; **import** takes `data` out again and stores it. A file with images is large
+(the pictures plus about a third: base64); "Export without images" on the Images tab writes a small file with no `images` field.
+
+Importing over an existing character ("Replace existing"): a file **without** an `images` field says nothing about images,
+so the images already in the browser stay. A file **with** the field (even `[]`) replaces the list. An entry without `data`
+keeps the picture the browser already has under the same `id`; if it has none, the tile says "not on this device".
+
+New images added in the app are stored with the long side at most 2400 px (a choice on the tab: 1600 / 2400 / 3200 / the original file),
+as JPEG; a picture that needs no shrinking and whose original file is smaller than the JPEG is kept as it is.
+
 ## roleplay
 
 All text: `appearance`, `personality`, `ideals`, `bonds`, `flaws`, `voice`, `mannerisms`, `goals`, `backstory`, `allies`, `notes`.
@@ -331,4 +363,8 @@ Blank lines separate paragraphs.
 | 2 | New optional fields: `tags` (spells, features, items, item powers) and `powers` (items). Unknown fields are kept instead of dropped. | None needed: every version 1 field means the same in version 2, so a version 1 file imports unchanged and is exported as version 2. Item descriptions are **not** split into powers automatically (that would be guessing at rules text); add powers on the Gear tab or in the file. |
 | 3 | New fields: `partySize`, `xpLog` (experience log) and `timers` (day timers). Items: `spellDcBonus`, `spellAttackBonus`. | A version 2 file gets `partySize` 5 and empty `xpLog` and `timers`; `xp` keeps its value. A passive item power named like "+1 spell save DC" / "+3 spell attack" becomes the item's `spellDcBonus` / `spellAttackBonus` (its text goes to the item's `description`); if the item counted before but is not equipped, it is equipped, so the DC and spell attack stay the same. This conversion runs on every import, so version 3 files saved before these fields existed are converted too. Attacks: `itemId` (see attacks); a missing `itemId` is filled in on every import, the same way. |
 
-**Careful with older copies of the app:** an app refuses files of a newer version ("Update the app"): a version 2 app refuses version 3 files. Export from the app you will import into.
+Added without a new version (optional fields, older files read the same): `exhaustionRules`, `images`.
+
+**Careful with older copies of the app:** a copy from before the Images tab keeps `images` as an unknown field, pictures included, and then
+cannot save the character (the browser's localStorage is too small); give it a file exported without images.
+Also: an app refuses files of a newer version ("Update the app"): a version 2 app refuses version 3 files. Export from the app you will import into.
