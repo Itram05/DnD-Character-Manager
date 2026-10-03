@@ -445,7 +445,8 @@
         ],
         "tags": [
           "bow"
-        ]
+        ],
+        "containerId": "backpack"
       },
       {
         "id": "item-shortsword",
@@ -455,7 +456,8 @@
         "requiresAttunement": false,
         "attuned": false,
         "description": "Martial melee weapon. Finesse, Light. Mastery: Vex.",
-        "weight": 2
+        "weight": 2,
+        "containerId": "backpack"
       },
       {
         "id": "item-studded-leather-armor",
@@ -469,7 +471,8 @@
         "armor": {
           "base": 12,
           "dexCap": null
-        }
+        },
+        "containerId": "backpack"
       },
       {
         "id": "item-cloak-of-protection",
@@ -481,7 +484,8 @@
         "description": "You gain a +1 bonus to Armor Class and saving throws while you wear this cloak.",
         "weight": 1,
         "acBonus": 1,
-        "saveBonus": 1
+        "saveBonus": 1,
+        "containerId": "backpack"
       },
       {
         "id": "item-potion-of-healing",
@@ -491,7 +495,8 @@
         "requiresAttunement": false,
         "attuned": false,
         "description": "You regain 2d4 + 2 Hit Points when you drink this potion. Drinking it or giving it to another creature takes a Bonus Action.",
-        "weight": 0.5
+        "weight": 0.5,
+        "containerId": "backpack"
       },
       {
         "id": "item-spell-scroll-fog-cloud",
@@ -500,7 +505,8 @@
         "equipped": false,
         "requiresAttunement": false,
         "attuned": false,
-        "description": "Level 1 spell scroll. Spell save DC 13, attack bonus +5."
+        "description": "Level 1 spell scroll. Spell save DC 13, attack bonus +5.",
+        "containerId": "backpack"
       },
       {
         "id": "item-alchemist-s-fire",
@@ -511,7 +517,8 @@
         "attuned": false,
         "description": "When you take the Attack action, you can replace one of your attacks with throwing a flask of Alchemist's Fire. Target one creature or object you can see within 20 feet of yourself. The target must succeed on a Dexterity saving throw (DC 8 plus your Dexterity modifier and Proficiency Bonus) or take 1d4 Fire damage and start burning.",
         "weight": 1,
-        "activation": "action"
+        "activation": "action",
+        "containerId": "backpack"
       },
       {
         "id": "item-arrows",
@@ -521,7 +528,8 @@
         "requiresAttunement": false,
         "attuned": false,
         "description": "",
-        "weight": 0.05
+        "weight": 0.05,
+        "containerId": "backpack"
       },
       {
         "id": "item-thieves-tools",
@@ -531,7 +539,8 @@
         "requiresAttunement": false,
         "attuned": false,
         "description": "",
-        "weight": 1
+        "weight": 1,
+        "containerId": "backpack"
       },
       {
         "id": "item-explorer-s-pack",
@@ -541,7 +550,8 @@
         "requiresAttunement": false,
         "attuned": false,
         "description": "Backpack, bedroll, 2 flasks of oil, 10 days of rations, rope, tinderbox, 10 torches, waterskin.",
-        "weight": 55
+        "weight": 55,
+        "containerId": "backpack"
       }
     ],
     "money": {
@@ -550,7 +560,15 @@
       "ep": 0,
       "gp": 43,
       "pp": 0
-    }
+    },
+    "containers": [
+      {
+        "id": "backpack",
+        "name": "Backpack",
+        "icon": "🎒"
+      }
+    ],
+    "categories": []
   },
   "roleplay": {
     "appearance": "Tall and wiry for an orc, grey-green skin, a burn scar across the left forearm. Keeps her hair in a single long braid.",
@@ -582,5 +600,20 @@
       "note": "200 GP to the Saltmarsh crew"
     }
   ],
+  "recipes": [],
+  "playCounters": [],
+  "preferences": {
+    "gear": {
+      "view": "hybrid",
+      "groupBy": "container",
+      "show": {
+        "quantity": true,
+        "weight": true,
+        "category": true,
+        "tags": true,
+        "charges": true
+      }
+    }
+  },
   "updatedAt": "2026-10-03T12:00:00.000Z"
 }

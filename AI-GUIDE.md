@@ -10,8 +10,8 @@ You have not seen the app and you cannot see its code. Everything you need is in
 
 **Read sections 1 to 9 before you write anything.** They end with a checklist. The long JSON example (section 10)
 comes after them, so a reader that is cut off part-way through the example has still seen every rule. After the
-example there are three short sections for special cases only: the 2014 rules (11), the journal, XP log and timers
-(12), and changing a file the app exported (13).
+example there are three short sections for special cases only: the 2014 rules (11), the lists the app writes itself
+(12: journal, XP log, timers, recipes, images), and changing a file the app exported (13).
 
 ## 1. Ground rules
 
@@ -86,7 +86,7 @@ missing (a shield, a Fighting Style, a magic item). Find it and fix the **data**
 ## 3. What the app is
 
 Hero Deck is a tracker for the table, not a rules engine or a character builder. Its heart is the **Play** tab
-(the others: Stats, Spells, Gear, Features, Story, Level Up, Edit, Rules). Everything the hero can *do* is a **card**, sorted into four **hands** by what it costs:
+(the others: Stats, Spells, Gear, Features, Story, Images, Level Up, Edit, Rules). Everything the hero can *do* is a **card**, sorted into four **hands** by what it costs:
 Action, Bonus Action, Reaction, and Free / Other. A card with limited uses shows them as pips; using the last one
 "taps" the card. Short Rest and Long Rest buttons give back what they restore. Spell slots, Concentration and the
 healing potions have their own panels. Passive features are small chips on an **Always on** strip.
@@ -252,9 +252,11 @@ is not in Latin letters) plus a few random characters, `"hero-vessa-thornhide-7k
 | `attacks` | list | always | [] | See [attacks](#attacks). |
 | `spellcasting` | object | casters | all 0 | See [spellcasting](#spellcasting). |
 | `spells` | list | casters | [] | See [spells](#spells). |
-| `inventory` | `{ items, money }` | always | empty | See [items](#items) and [money](#money). |
+| `inventory` | `{ items, money, containers, categories }` | always | empty | See [items](#items), [containers](#containers) and [money](#money). |
 | `roleplay` | object | optional | all "" | See [roleplay](#roleplay). |
-| `xpLog`, `sessionNotes`, `timers` | lists | `[]` in a new file | [] | The app's XP history, the player's journal, day countdowns. Section 12. |
+| `xpLog`, `sessionNotes`, `timers`, `recipes`, `playCounters` | lists | `[]` in a new file | [] | The app's XP history, the player's journal, day countdowns, crafting recipes, items pinned as counters. Section 12. |
+| `preferences` | object | as in the example | defaults | How the Gear tab is laid out. Section 12. |
+| `images` | list | **never** | absent | Maps and pictures the player added in the app. You do not write them, and you never drop them from an exported file. Section 12. |
 | `updatedAt` | ISO date-time text | optional | now | `"2026-10-03T12:00:00.000Z"`. The hero list is sorted by it. |
 
 **XP.** The app offers a level-up when `xp` reaches the next threshold. If the table levels by milestones, or the
@@ -478,6 +480,8 @@ A list. Every spell the hero can cast, or has in a spellbook.
 | `activation` | as for features | if it applies | absent | Makes the item itself a card that spends `quantity`. Consumables only; see the table below. |
 | `powers` | list | if it applies | absent | The item's separate abilities. See [item powers](#item-powers). |
 | `tags` | list of text | optional | absent | See [Tags](#tags). They also apply to every power of the item. |
+| `containerId` | text | always | the first container | The `id` of the [container](#containers) the item is kept in. Where it is stored, not whether it is worn: `equipped` decides that. |
+| `category` | text | leave out | guessed | The app sorts items into `weapon`, `armor`, `magic`, `scroll`, `potion`, `material`, `valuable`, `gear` by itself. Write one only where the guess would be wrong (a gem: `valuable`; a crafting material: `material`). |
 
 **The Play rule.** An item is **active** when it is `equipped`, and `attuned` too if it `requiresAttunement`. Only an
 active item is on the Play screen (its card, powers, chips, the attacks linked to it, the features whose `source`
@@ -502,6 +506,23 @@ Which shape to give an item:
 | An item that **sets or raises an ability score** (Amulet of Health, Gauntlets of Ogre Power, a Belt of Giant Strength) | The app cannot do this from an item. While the item is active, write the **resulting** score in `abilities` (and a Hit Point maximum that includes a new Constitution modifier), and say so in the item's `description`: "Constitution is 19 while worn (already in the scores; without it: 16)." While it is not active, write the hero's own score and note what to change by hand on the Edit tab. |
 | A consumable thrown or used up (Alchemist's Fire, Holy Water, caltrops) | `activation`, `quantity`, **no** `charges`. The card has − and + for the quantity. Never put a bare `activation` on a reusable item (Boots of Speed): using its card would lower `quantity`. A reusable ability goes in `powers`, even if it is the only one. |
 | A potion or a scroll | The right name and a `quantity`. See [Names the app reads](#names-the-app-reads). |
+
+### containers
+
+`inventory.containers` is the list of places items are kept; every item names one with `containerId`. A new file
+needs exactly one, `{ "id": "backpack", "name": "Backpack", "icon": "🎒" }`, and `"containerId": "backpack"` on every
+item (worn items too). Add another only if the player has one that matters: a Bag of Holding, a mount, a chest at home.
+
+| Field | Type | Write | Default | What it does |
+|---|---|---|---|---|
+| `id`, `name` | text | always | | |
+| `icon`, `color` | text | optional | absent | A symbol (emoji) and a CSS colour. |
+| `capacity` | number | optional | absent | Weight limit in pounds. Going over is a warning, not a block. |
+| `weightless` | true/false | if it applies | absent | What is inside does not count toward the carried weight (Bag of Holding, a mount). |
+| `extradimensional` | true/false | if it applies | absent | Bag of Holding, Handy Haversack, Portable Hole: one inside another is flagged. |
+| `itemId` | text | if it applies | absent | The item this container *is* (the Bag of Holding item). The container is then wherever that item is. |
+
+`inventory.categories` is the player's own item categories, each `{ id, name, icon, color }`. Write `[]`.
 
 ### item powers
 
@@ -590,8 +611,7 @@ lowercase conditions, and the lists for `activation`, `recharge` and `source.typ
 **Fields.** A field the app does not use is kept untouched and listed in the import dialog as "not a field this app uses"; the
 information is shown nowhere. So do not invent fields (`"rarity"`, `"resistances"`,
 `"notes"` on an item, `"hp"` at the top level), and mind the spelling (`"descripton"` leaves the real field empty).
-Put the information in a `description`, a feature, or `roleplay.notes`. If you know the app from a later version
-(images, containers, crafting), do not use those fields here.
+Put the information in a `description`, a feature, or `roleplay.notes`.
 
 ### Numbers out of range
 
@@ -714,6 +734,7 @@ Things to notice:
 - **Cloak of Protection** gives `acBonus` and `saveBonus`, and counts because it is equipped and attuned.
 - **Potion of Healing** and **Spell Scroll (Fog Cloud)** are recognized by name. **Alchemist's Fire** is a
   quantity-spent consumable: `activation`, no `charges`.
+- One container, **Backpack**; every item, worn or not, has `"containerId": "backpack"`.
 - **Goodberry** has `prepared: false`: on the Spells tab, not on Play.
 - The state is mid-session: 31 of 44 Hit Points, one slot of each level spent, one Hit Point Die spent, one charge
   gone, concentrating on Hunter's Mark.
@@ -1167,7 +1188,8 @@ Things to notice:
         ],
         "tags": [
           "bow"
-        ]
+        ],
+        "containerId": "backpack"
       },
       {
         "id": "item-shortsword",
@@ -1177,7 +1199,8 @@ Things to notice:
         "requiresAttunement": false,
         "attuned": false,
         "description": "Martial melee weapon. Finesse, Light. Mastery: Vex.",
-        "weight": 2
+        "weight": 2,
+        "containerId": "backpack"
       },
       {
         "id": "item-studded-leather-armor",
@@ -1191,7 +1214,8 @@ Things to notice:
         "armor": {
           "base": 12,
           "dexCap": null
-        }
+        },
+        "containerId": "backpack"
       },
       {
         "id": "item-cloak-of-protection",
@@ -1203,7 +1227,8 @@ Things to notice:
         "description": "You gain a +1 bonus to Armor Class and saving throws while you wear this cloak.",
         "weight": 1,
         "acBonus": 1,
-        "saveBonus": 1
+        "saveBonus": 1,
+        "containerId": "backpack"
       },
       {
         "id": "item-potion-of-healing",
@@ -1213,7 +1238,8 @@ Things to notice:
         "requiresAttunement": false,
         "attuned": false,
         "description": "You regain 2d4 + 2 Hit Points when you drink this potion. Drinking it or giving it to another creature takes a Bonus Action.",
-        "weight": 0.5
+        "weight": 0.5,
+        "containerId": "backpack"
       },
       {
         "id": "item-spell-scroll-fog-cloud",
@@ -1222,7 +1248,8 @@ Things to notice:
         "equipped": false,
         "requiresAttunement": false,
         "attuned": false,
-        "description": "Level 1 spell scroll. Spell save DC 13, attack bonus +5."
+        "description": "Level 1 spell scroll. Spell save DC 13, attack bonus +5.",
+        "containerId": "backpack"
       },
       {
         "id": "item-alchemist-s-fire",
@@ -1233,7 +1260,8 @@ Things to notice:
         "attuned": false,
         "description": "When you take the Attack action, you can replace one of your attacks with throwing a flask of Alchemist's Fire. Target one creature or object you can see within 20 feet of yourself. The target must succeed on a Dexterity saving throw (DC 8 plus your Dexterity modifier and Proficiency Bonus) or take 1d4 Fire damage and start burning.",
         "weight": 1,
-        "activation": "action"
+        "activation": "action",
+        "containerId": "backpack"
       },
       {
         "id": "item-arrows",
@@ -1243,7 +1271,8 @@ Things to notice:
         "requiresAttunement": false,
         "attuned": false,
         "description": "",
-        "weight": 0.05
+        "weight": 0.05,
+        "containerId": "backpack"
       },
       {
         "id": "item-thieves-tools",
@@ -1253,7 +1282,8 @@ Things to notice:
         "requiresAttunement": false,
         "attuned": false,
         "description": "",
-        "weight": 1
+        "weight": 1,
+        "containerId": "backpack"
       },
       {
         "id": "item-explorer-s-pack",
@@ -1263,7 +1293,8 @@ Things to notice:
         "requiresAttunement": false,
         "attuned": false,
         "description": "Backpack, bedroll, 2 flasks of oil, 10 days of rations, rope, tinderbox, 10 torches, waterskin.",
-        "weight": 55
+        "weight": 55,
+        "containerId": "backpack"
       }
     ],
     "money": {
@@ -1272,7 +1303,15 @@ Things to notice:
       "ep": 0,
       "gp": 43,
       "pp": 0
-    }
+    },
+    "containers": [
+      {
+        "id": "backpack",
+        "name": "Backpack",
+        "icon": "🎒"
+      }
+    ],
+    "categories": []
   },
   "roleplay": {
     "appearance": "Tall and wiry for an orc, grey-green skin, a burn scar across the left forearm. Keeps her hair in a single long braid.",
@@ -1304,6 +1343,21 @@ Things to notice:
       "note": "200 GP to the Saltmarsh crew"
     }
   ],
+  "recipes": [],
+  "playCounters": [],
+  "preferences": {
+    "gear": {
+      "view": "hybrid",
+      "groupBy": "container",
+      "show": {
+        "quantity": true,
+        "weight": true,
+        "category": true,
+        "tags": true,
+        "charges": true
+      }
+    }
+  },
   "updatedAt": "2026-10-03T12:00:00.000Z"
 }
 ```
@@ -1327,9 +1381,10 @@ works, with these differences:
 Tell the player what the app still does the 2024 way: a Long Rest gives back **all** Hit Point Dice, the Level Up tab
 suggests 2024 features, and the limits on the Spells tab are the 2024 ones. None of that damages the file.
 
-## 12. Journal, XP log and timers
+## 12. Journal, XP log, timers, recipes, preferences, images
 
-Three top-level lists that a new file leaves as `[]`. When you edit an exported file, keep them as they are.
+What the app writes itself. A new file has `[]` for the five lists, the `preferences` of the example, and no `images`.
+When you edit an exported file, keep all of it as it is.
 
 ### sessionNotes
 
@@ -1346,6 +1401,30 @@ Countdowns in days: `{ "id": "timer-rent", "name": "Rent due", "days": 9, "start
 how many are left (0 = ended), `start` what the timer was set to (default: `days`), `note` optional. A Long Rest
 takes one day off each.
 
+### recipes
+
+The player's crafting recipes, made on the Gear tab; none are built in. Each is `{ id, name, inputs, output, time, tool,
+dc, note, containerId }`: `inputs` is a list of `{ name, quantity }`, `output` is `{ name, quantity, template }`
+(`template`: item fields for a new item), the rest is free text. Recipes name items **by name**, not by id.
+`playCounters` is a list of `{ name }`: items shown as counters on Play. Write a recipe only if the player asks for one.
+
+### preferences
+
+`{ "gear": { "view": "hybrid", "groupBy": "container", "show": { "quantity": true, "weight": true, "category": true, "tags": true, "charges": true } } }`.
+`view`: `hybrid`, `tiles` or `rows`. `groupBy`: `container`, `category` or `none`. These are the defaults; write them as they are.
+
+### images
+
+Maps and pictures the player added on the Images tab. An exported file carries each as `{ id, name, width, height,
+bytes, thumb, data }`, where `thumb` and `data` are the picture itself as very long `data:image/...;base64,` texts.
+
+- **You never write images**, and a new file has no `images` field at all.
+- **Editing an exported file: copy every entry character for character.** A shortened or re-typed `data` is a
+  destroyed picture. An `images` field that is present replaces the hero's pictures, even when it is `[]`.
+- If the file is too large for you to return whole, do not cut it. Ask the player for **Export without images** (on
+  the Images tab) instead: that file has no `images` field, and importing it with **Replace existing** keeps the
+  pictures already in the browser.
+
 ## 13. Changing a hero later
 
 When the player comes back to add an item, fix a feature or level up through you:
@@ -1353,7 +1432,7 @@ When the player comes back to add an item, fix a feature or level up through you
 1. They press **Export JSON** in the app and give you that file with this guide. Work from the fresh export, never
    from the file you wrote earlier: the app has since changed Hit Points, slots, charges and notes.
 2. Change only what was asked. Keep everything else exactly as it is: every `id` (above all the hero's own), every
-   counter's `used`, the lists of section 12, and any field you do not recognize. A field that is not in this guide
+   counter's `used`, everything in section 12 (above all `images`), and any field you do not recognize. A field that is not in this guide
    was most likely written by a newer version of the app; removing it loses the player's data.
 3. If the export's `schemaVersion` is higher than 3, this guide is out of date. Say so and ask for the current guide.
    Never lower the number.
