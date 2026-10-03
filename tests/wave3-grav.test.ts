@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { importCharacterJson } from '../src/model/normalize'
 import { longRest } from '../src/model/rest'
 import { addTimer } from '../src/model/timers'
-import { setAttunement, spellDcView } from '../src/model/rules'
+import { armorClass, setAttunement, spellDcView } from '../src/model/rules'
 import { addSessionXp, correctXp, raiseXpToLevel, undoLastXp, xpProgress } from '../src/model/xp'
 import { itemPanel, itemTiles, playHiddenReason } from '../src/model/itemPanel'
 import { attackInPlay, playCards } from '../src/model/play'
@@ -110,5 +110,31 @@ describe.skipIf(!HAVE_GRAV_V2)('Grav v2: items in Play', () => {
     const p = itemPanel(c, staff)
     expect([...p.cards.map((x) => x.name), ...p.attacks.map((a) => a.name)]).toEqual(['Temporal Echo', 'Hourglass Ward', 'Echo of Ages', 'Staff of Ages (+3)'])
     expect(p.chips.map((x) => x.name)).toEqual(['+3 spell attack'])
+  })
+})
+
+// 2026-10-03: two new items in his file, neither in use yet, so nothing he rolls with moves
+describe.skipIf(!HAVE_GRAV_V2)('Grav v2: Mukluks of Nimbleness and Dragon Scale Mail (added 2026-10-03)', () => {
+  const { character: c } = importCharacterJson(existsSync(GRAV_V2) ? readFileSync(GRAV_V2, 'utf8') : '{}')
+  const item = (name: string) => c.inventory.items.find((i) => i.name === name)!
+  it('the Mukluks need attunement and are not attuned (his 3 slots are taken); once a day, a Bonus Action', () => {
+    expect(item('Mukluks of Nimbleness')).toMatchObject({
+      equipped: false,
+      requiresAttunement: true,
+      attuned: false,
+      activation: 'bonus',
+      charges: { max: 1, used: 0, recharge: 'dawn' },
+    })
+    expect(c.inventory.items.filter((i) => i.attuned)).toHaveLength(3)
+  })
+  it('Dragon Scale Mail is scale mail +1 (15 + Dex up to 2), no attunement, not worn', () => {
+    expect(item('Dragon Scale Mail')).toMatchObject({ equipped: false, requiresAttunement: false, armor: { base: 15, dexCap: 2 } })
+  })
+  it('he still wears Half Plate: AC 21 with no warnings, DC 18, spell attack +13', () => {
+    const ac = armorClass(c)
+    expect(ac.total).toBe(21)
+    expect(ac.warnings).toEqual([])
+    expect(ac.parts[0]).toEqual({ label: 'Half Plate', value: 15 })
+    expect(spellDcView(c)[0]).toMatchObject({ saveDc: 18, attack: 13 })
   })
 })
