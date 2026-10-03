@@ -19,6 +19,16 @@ describe('card title size', () => {
     expect(sizes[2]).toBeGreaterThan(TITLE_MIN_REM)
     expect(titleRem('x'.repeat(200))).toBe(TITLE_MIN_REM)
   })
+  it('a name in capitals is wider than its count: it gets smaller sooner, a name written Like This does not', () => {
+    const shout = '„ТОВА Е СИНЯ ПРЪЧКА!“' // 21 characters, under the 22 that fit at the normal size
+    expect(shout.length).toBeLessThan(22)
+    expect(titleRem(shout)).toBeLessThan(TITLE_REM)
+    expect(titleRem(shout)).toBeGreaterThan(TITLE_MIN_REM)
+    expect(titleRem(shout.toLowerCase())).toBe(TITLE_REM)
+    expect(titleRem('„НЯМА ДА ПИПАШ ПРЪЧКАТА!“')).toBe(TITLE_MIN_REM)
+    expect(titleRem('Hand Of Doom And Gloom')).toBe(TITLE_REM) // one capital a word is the ordinary case
+    expect(titleRem('HAND OF DOOM')).toBeLessThanOrEqual(TITLE_REM)
+  })
   it('spaces around the name do not count', () => {
     expect(titleRem(`  ${'a'.repeat(22)}  `)).toBe(TITLE_REM)
   })

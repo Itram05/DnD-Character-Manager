@@ -1441,6 +1441,8 @@ tr.clickable:hover {
   display: flex;
   align-items: flex-start;
   gap: 0.35rem;
+  /* the same room for the title on every card, two lines at the normal size, so the cards in a row match */
+  min-height: calc(2 * 1.2 * 0.98rem);
 }
 .card-name {
   flex: 1;
@@ -1451,9 +1453,8 @@ tr.clickable:hover {
   font-weight: 700;
   font-size: 0.98rem; /* a long name gets a smaller size inline (cardTitle.ts, TITLE_REM) */
   line-height: 1.2;
-  /* the same room on every card, two lines at the normal size, so the cards in a row match;
-     what still does not fit ends in "…" on the second line */
-  height: calc(2 * 1.2 * 0.98rem);
+  /* no height of its own (.card-head keeps the room): at a smaller size the box is exactly its two lines,
+     so what does not fit ends in "…" on the second line and no third line shows under it */
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
