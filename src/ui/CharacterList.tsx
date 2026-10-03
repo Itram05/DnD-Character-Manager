@@ -2,11 +2,14 @@ import { useRef, useState } from 'react'
 import sampleJson from '../../examples/sample-character.json?raw'
 import { SRD_ATTRIBUTION } from '../data/srd'
 import { t } from '../i18n'
+import { formatBytes, imagesBytes, imagesOf, keepImages } from '../model/images'
+import { dropAll, imageStore, storeImported } from '../model/imageStore'
 import { ImportError, importCharacterJson, newId } from '../model/normalize'
 import { totalLevel } from '../model/rules'
 import { deleteCharacter, listCharacters, saveCharacter, type Settings } from '../model/storage'
 import type { Character } from '../model/types'
 import { Confirm, Modal } from './common'
+import { fillPreviews } from './imageCodec'
 import { downloadJson } from './Sheet'
 import { classLine } from './vitals'
 
@@ -15,6 +18,9 @@ interface Pending {
   warnings: string[]
   fileName: string
   clash: boolean
+  /** The pictures the file carried, by image id (data URLs): stored in the image store on import. */
+  imageData: Record<string, string>
+  imagesInFile: boolean
 }
 
 export function CharacterList(props: { onOpen: (id: string) => void; onNew: () => void; settings: Settings; setSettings: (s: Settings) => void; onRules: () => void }) {
@@ -22,6 +28,7 @@ export function CharacterList(props: { onOpen: (id: string) => void; onNew: () =
   const [del, setDel] = useState<Character | null>(null)
   const [pending, setPending] = useState<Pending[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const refresh = () => setData(listCharacters())
 
@@ -47,8 +54,26 @@ export function CharacterList(props: { onOpen: (id: string) => void; onNew: () =
     if (fileRef.current) fileRef.current.value = ''
   }
 
-  const commit = (p: Pending, asCopy: boolean) => {
-    const c = asCopy ? { ...p.character, id: newId(), name: `${p.character.name} (${t('list.copy')})` } : p.character
+  const exportFile = (c: Character) =>
+    void downloadJson(c)
+      .then((missing) => missing.length && setError(`${t('images.exportMissing')}: ${missing.join(', ')}`))
+      .catch((e) => setError(`${t('images.exportFailed')}: ${String((e as Error).message ?? e)}`))
+
+  const commit = async (p: Pending, asCopy: boolean) => {
+    // a file without an `images` field says nothing about images: the ones this browser has for the character stay
+    let c = keepImages(p.character, p.imagesInFile, characters.find((x) => x.id === p.character.id))
+    if (asCopy) c = { ...c, id: newId(), name: `${c.name} (${t('list.copy')})` }
+    if (imagesOf(c).length) {
+      setBusy(true)
+      try {
+        // the pictures first, then the character that lists them
+        await storeImported(c, p.imageData, imageStore(), asCopy ? p.character.id : undefined)
+        c = await fillPreviews(c, p.imageData)
+      } catch (e) {
+        setError(`${t('images.importFailed')}: ${String((e as Error).message ?? e)}`)
+      }
+      setBusy(false)
+    }
     const st = saveCharacter(c)
     if (!st.ok) setError(st.error ?? '')
     setPending((all) => all.slice(1))
@@ -105,7 +130,7 @@ export function CharacterList(props: { onOpen: (id: string) => void; onNew: () =
               </span>
             </button>
             <div className="hero-actions">
-              <button className="btn btn-small" onClick={() => downloadJson(c)}>
+              <button className="btn btn-small" onClick={() => exportFile(c)}>
                 {t('list.export')}
               </button>
               <button className="btn btn-small btn-danger" onClick={() => setDel(c)}>
@@ -136,6 +161,7 @@ export function CharacterList(props: { onOpen: (id: string) => void; onNew: () =
           onCancel={() => setDel(null)}
           onConfirm={() => {
             deleteCharacter(del.id)
+            void dropAll(del.id, imageStore()).catch(() => undefined)
             setDel(null)
             refresh()
           }}
@@ -152,11 +178,11 @@ export function CharacterList(props: { onOpen: (id: string) => void; onNew: () =
                 {t('common.cancel')}
               </button>
               {current.clash && (
-                <button className="btn" onClick={() => commit(current, true)}>
+                <button className="btn" disabled={busy} onClick={() => void commit(current, true)}>
                   {t('list.importCopy')}
                 </button>
               )}
-              <button className="btn btn-primary" onClick={() => commit(current, false)}>
+              <button className="btn btn-primary" disabled={busy} onClick={() => void commit(current, false)}>
                 {current.clash ? t('list.importReplace') : t('list.importOk')}
               </button>
             </>
@@ -167,6 +193,10 @@ export function CharacterList(props: { onOpen: (id: string) => void; onNew: () =
             {classLine(current.character)} · {t('vitals.level', { n: totalLevel(current.character) })}
           </p>
           {current.clash && <p className="warn">{t('list.clash')}</p>}
+          {imagesOf(current.character).length > 0 && <p>{t('images.importCount', { n: imagesOf(current.character).length, size: formatBytes(imagesBytes(current.character)) })}</p>}
+          {current.clash && !current.imagesInFile && imagesOf(characters.find((x) => x.id === current.character.id) ?? current.character).length > 0 && (
+            <p className="good">{t('images.importKept', { n: imagesOf(characters.find((x) => x.id === current.character.id)!).length })}</p>
+          )}
           {current.warnings.length > 0 ? (
             <>
               <p>{t('list.importWarnings', { n: current.warnings.length })}</p>

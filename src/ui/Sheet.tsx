@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { t } from '../i18n'
-import { characterToJson, fileNameFor, saveCharacter, type Settings } from '../model/storage'
+import { dropUnlisted, exportWithImages, imageStore } from '../model/imageStore'
+import { fileNameFor, saveCharacter, type Settings } from '../model/storage'
 import type { Character } from '../model/types'
 import { Toasts, useMediaQuery, type HeadSlots, type ToastMsg } from './common'
 import { EditView } from './EditView'
 import { FeaturesView } from './FeaturesView'
+import { ImagesView } from './ImagesView'
 import { InventoryView } from './InventoryView'
 import { LevelUpView } from './LevelUpView'
 import { PlayView } from './PlayView'
@@ -13,8 +15,8 @@ import { StatsView } from './StatsView'
 import { StoryView } from './StoryView'
 import { TopBar } from './vitals'
 
-export type Tab = 'play' | 'stats' | 'spells' | 'gear' | 'features' | 'story' | 'level' | 'edit'
-const TABS: Tab[] = ['play', 'stats', 'spells', 'gear', 'features', 'story', 'level', 'edit']
+export type Tab = 'play' | 'stats' | 'spells' | 'gear' | 'features' | 'story' | 'images' | 'level' | 'edit'
+const TABS: Tab[] = ['play', 'stats', 'spells', 'gear', 'features', 'story', 'images', 'level', 'edit']
 const MOBILE_MAIN: Tab[] = ['play', 'stats', 'spells', 'gear']
 
 export interface SheetApi {
@@ -29,16 +31,27 @@ export interface SheetApi {
   head?: HeadSlots
 }
 
-export function downloadJson(c: Character) {
-  const blob = new Blob([characterToJson(c)], { type: 'application/json' })
+export function downloadText(text: string, fileName: string) {
+  const blob = new Blob([text], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = fileNameFor(c)
+  a.download = fileName
   document.body.appendChild(a)
   a.click()
   a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+/**
+ * Exports the character as a JSON file, its images inside (read from the browser's image store).
+ * Resolves to the names of the images whose picture this browser does not have: they are in the file
+ * as entries without a picture, and the caller should say so.
+ */
+export async function downloadJson(c: Character): Promise<string[]> {
+  const { json, missing } = await exportWithImages(c, imageStore())
+  downloadText(json, fileNameFor(c))
+  return missing
 }
 
 export function Sheet(props: { initial: Character; tab: Tab; onTab: (t: Tab) => void; onBack: () => void; settings: Settings; setSettings: (s: Settings) => void; onRules: () => void }) {
@@ -81,6 +94,18 @@ export function Sheet(props: { initial: Character; tab: Tab; onTab: (t: Tab) => 
 
   // flush the pending save when leaving the sheet (the debounce above would drop it)
   useEffect(() => () => void saveCharacter(cRef.current), [])
+
+  // once, on opening: delete the stored pictures of images removed earlier. Not at the moment of removal,
+  // so Undo can bring a removed image back for as long as the sheet stays open.
+  useEffect(() => {
+    void dropUnlisted(props.initial, imageStore()).catch(() => [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const exportFile = () =>
+    void downloadJson(cRef.current)
+      .then((missing) => missing.length && toast({ title: t('images.exportMissing'), lines: missing, tone: 'bad' }))
+      .catch((e) => toast({ title: t('images.exportFailed'), lines: [String((e as Error).message ?? e)], tone: 'bad' }))
 
   const doUndo = () => {
     if (!undo.length) return
@@ -139,6 +164,7 @@ export function Sheet(props: { initial: Character; tab: Tab; onTab: (t: Tab) => 
         {tab === 'gear' && <InventoryView api={api} />}
         {tab === 'features' && <FeaturesView api={api} />}
         {tab === 'story' && <StoryView api={api} />}
+        {tab === 'images' && <ImagesView api={api} />}
         {tab === 'level' && <LevelUpView api={api} />}
         {tab === 'edit' && <EditView api={api} />}
       </main>
@@ -164,7 +190,7 @@ export function Sheet(props: { initial: Character; tab: Tab; onTab: (t: Tab) => 
       {!wide && moreOpen && (
         <div className="more-sheet" onClick={() => setMoreOpen(false)}>
           <div className="more-panel" onClick={(e) => e.stopPropagation()}>
-            {(['features', 'story', 'level', 'edit'] as Tab[]).map((x) => (
+            {(['features', 'story', 'images', 'level', 'edit'] as Tab[]).map((x) => (
               <button
                 key={x}
                 className="btn btn-block"
@@ -179,7 +205,7 @@ export function Sheet(props: { initial: Character; tab: Tab; onTab: (t: Tab) => 
             <button className="btn btn-block" onClick={props.onRules}>
               {t('tab.rules')}
             </button>
-            <button className="btn btn-block" onClick={() => downloadJson(c)}>
+            <button className="btn btn-block" onClick={exportFile}>
               {t('list.export')}
             </button>
             <button className="btn btn-block" onClick={props.onBack}>
@@ -200,6 +226,7 @@ const TAB_ICON: Record<Tab, string> = {
   gear: '⚒',
   features: '❖',
   story: '✎',
+  images: '▦',
   level: '⇪',
   edit: '⚙',
 }

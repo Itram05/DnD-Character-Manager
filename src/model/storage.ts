@@ -158,3 +158,15 @@ export function loadItemsOpen(): boolean {
 }
 
 export const saveItemsOpen = (open: boolean) => safeSet(ITEMS_OPEN_KEY, open ? '1' : '0')
+
+const IMAGE_MAX_SIDE_KEY = `${PREFIX}.imageMaxSide`
+const IMAGE_MAX_SIDES = [1600, 2400, 3200, 0] as const
+
+/** The long side new images are stored at, in pixels (Images tab); 0 = keep the file as it is. Default 2400. */
+export function loadImageMaxSide(): (typeof IMAGE_MAX_SIDES)[number] {
+  const raw = safeGet(IMAGE_MAX_SIDE_KEY)
+  const n = raw === null ? NaN : Number(raw)
+  return IMAGE_MAX_SIDES.find((x) => x === n) ?? 2400
+}
+
+export const saveImageMaxSide = (n: number) => safeSet(IMAGE_MAX_SIDE_KEY, String(n))

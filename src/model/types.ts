@@ -254,6 +254,23 @@ export interface DayTimer {
   note?: string
 }
 
+/**
+ * A picture kept with the character (a map of the campaign, a family tree). Only this entry is part of
+ * the character in the browser; the picture itself is in IndexedDB (imageStore.ts). In an exported file
+ * each entry also has `data`: the picture as a data URL, taken out again on import.
+ */
+export interface CharacterImage {
+  id: string
+  name: string
+  /** Size of the stored picture in pixels (0 when unknown). */
+  width: number
+  height: number
+  /** Size of the stored picture in bytes. */
+  bytes?: number
+  /** A small preview (data URL, about 320 px) for the grid, so the grid needs no picture loaded. */
+  thumb?: string
+}
+
 export type ExhaustionRules = '2014' | '2024'
 
 export interface Character {
@@ -321,5 +338,7 @@ export interface Character {
   roleplay: Roleplay
   sessionNotes: SessionNote[]
   timers: DayTimer[]
+  /** Maps and other pictures, in the order shown. Absent when there are none. See CharacterImage. */
+  images?: CharacterImage[]
   updatedAt: string
 }

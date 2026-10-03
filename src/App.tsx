@@ -13,7 +13,7 @@ import { Sheet, type Tab } from './ui/Sheet'
 //   #/new                new character (quick creation)
 type Route = { page: 'list' } | { page: 'sheet'; id: string; tab: Tab } | { page: 'rules' } | { page: 'new' }
 
-const TABS: Tab[] = ['play', 'stats', 'spells', 'gear', 'features', 'story', 'level', 'edit']
+const TABS: Tab[] = ['play', 'stats', 'spells', 'gear', 'features', 'story', 'images', 'level', 'edit']
 
 function parseHash(): Route {
   const parts = window.location.hash.replace(/^#\/?/, '').split('/')

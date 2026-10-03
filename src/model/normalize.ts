@@ -7,6 +7,7 @@
 // as it is, in the same place, and exported again; the import dialog lists it. That way a file
 // written by a newer app, or by hand with extra notes, survives a round trip through this app.
 import { srdClass } from '../data/srd'
+import { base64Bytes, parseImageDataUrl } from './images'
 import {
   ABILITIES,
   ACTIVATIONS,
@@ -19,6 +20,7 @@ import {
   type Activation,
   type Attack,
   type Character,
+  type CharacterImage,
   type ClassEntry,
   type DayTimer,
   type Feature,
@@ -40,6 +42,14 @@ export class ImportError extends Error {}
 export interface NormalizeResult {
   character: Character
   warnings: string[]
+  /**
+   * The pictures an exported file carried, by image id, as data URLs. They are NOT part of the
+   * character: whoever imports stores them in the image store (imageStore.ts). Empty for a character
+   * read from the browser, and for a file without pictures.
+   */
+  imageData: Record<string, string>
+  /** Whether the input had an `images` field at all. A file without one says nothing about images: on "Replace existing" the browser's images are kept. */
+  imagesInFile: boolean
 }
 
 type Obj = Record<string, unknown>
@@ -125,7 +135,7 @@ function keepUnknown(raw: Obj, out: object, known: readonly string[], path: stri
 
 // The fields each object has, as read by normalizeCharacter. Anything else is kept by keepUnknown.
 const KNOWN = {
-  top: ['schemaVersion', 'id', 'name', 'player', 'species', 'race', 'background', 'alignment', 'xp', 'partySize', 'xpLog', 'classes', 'abilities', 'proficiencies', 'combat', 'conditions', 'exhaustion', 'exhaustionRules', 'heroicInspiration', 'features', 'attacks', 'spellcasting', 'spells', 'inventory', 'items', 'money', 'roleplay', 'sessionNotes', 'timers', 'updatedAt'],
+  top: ['schemaVersion', 'id', 'name', 'player', 'species', 'race', 'background', 'alignment', 'xp', 'partySize', 'xpLog', 'classes', 'abilities', 'proficiencies', 'combat', 'conditions', 'exhaustion', 'exhaustionRules', 'heroicInspiration', 'features', 'attacks', 'spellcasting', 'spells', 'inventory', 'items', 'money', 'roleplay', 'sessionNotes', 'timers', 'images', 'updatedAt'],
   species: ['name', 'size'],
   abilities: ['str', 'dex', 'con', 'int', 'wis', 'cha', 'strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'],
   class: ['id', 'name', 'level', 'subclass', 'hitDie', 'casterType', 'spellcastingAbility'],
@@ -149,6 +159,7 @@ const KNOWN = {
   sessionNote: ['id', 'date', 'title', 'text'],
   xpEntry: ['id', 'date', 'kind', 'amount', 'groupXp', 'players'],
   timer: ['id', 'name', 'days', 'start', 'note'],
+  image: ['id', 'name', 'width', 'height', 'bytes', 'thumb', 'data'],
 } as const
 
 /**
@@ -670,6 +681,39 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     timers.push(timer)
   })
 
+  // ----- images (maps): the list stays on the character, the pictures themselves (`data`) go to the caller -----
+  const images: CharacterImage[] = []
+  const imageData: Record<string, string> = {}
+  r.arr(raw.images, 'images').forEach((im, i) => {
+    const p = `images[${i}]`
+    if (!isObj(im)) return warnings.push(`${p}: expected an object, ignored.`)
+    let id = r.str(im.id, `${p}.id`) || newId()
+    if (images.some((x) => x.id === id)) {
+      warnings.push(`${p}: the id "${id}" is used twice; this image got a new one.`)
+      id = newId()
+    }
+    const image: CharacterImage = {
+      id,
+      name: r.str(im.name, `${p}.name`) || `Image ${i + 1}`,
+      width: Math.round(r.num(im.width, `${p}.width`, 0, 0)),
+      height: Math.round(r.num(im.height, `${p}.height`, 0, 0)),
+    }
+    if (im.bytes !== undefined) image.bytes = Math.round(r.num(im.bytes, `${p}.bytes`, 0, 0))
+    if (im.data !== undefined && im.data !== null) {
+      const d = parseImageDataUrl(im.data)
+      if (d) {
+        imageData[id] = im.data as string
+        image.bytes = base64Bytes(d.base64)
+      } else warnings.push(`${p}.data: not a picture the app can show (expected a data URL of a JPEG, PNG, WebP or GIF); "${image.name}" has no picture.`)
+    }
+    if (im.thumb !== undefined && im.thumb !== null) {
+      if (parseImageDataUrl(im.thumb)) image.thumb = im.thumb as string
+      else warnings.push(`${p}.thumb: not an image data URL, ignored.`)
+    }
+    keep(im, image, KNOWN.image, p)
+    images.push(image)
+  })
+
   const conditions = r
     .arr(raw.conditions, 'conditions')
     .map((c) => String(c).toLowerCase())
@@ -730,6 +774,8 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     roleplay,
     sessionNotes,
     timers,
+    // optional: written only when there are images, so a file without them is unchanged
+    ...(images.length ? { images } : {}),
     updatedAt: r.str(raw.updatedAt, 'updatedAt') || new Date().toISOString(),
   }
   keep(speciesRaw, character.species, KNOWN.species, 'species')
@@ -739,7 +785,7 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
   keep(dsRaw, character.combat.deathSaves, KNOWN.deathSaves, 'combat.deathSaves')
   keep(invRaw, character.inventory, KNOWN.inventory, 'inventory')
   keep(raw, character, KNOWN.top, '')
-  return { character, warnings }
+  return { character, warnings, imageData, imagesInFile: raw.images !== undefined }
 }
 
 /** Parses a JSON string (e.g. an imported file). Throws ImportError with a readable message. */
