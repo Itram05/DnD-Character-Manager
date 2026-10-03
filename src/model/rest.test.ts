@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { normalizeCharacter } from './normalize'
-import { hitDiceAvailable, longRest, shortRest, spendHitDie } from './rest'
+import { adjustHitDice, hitDiceAvailable, longRest, shortRest, spendHitDie } from './rest'
 
 const hero = () =>
   normalizeCharacter({
@@ -103,5 +103,29 @@ describe('Hit Point Dice', () => {
     expect(hitDiceAvailable(r.character).d8).toBe(1)
     const weak = normalizeCharacter({ classes: [{ id: 'wizard', level: 1 }], abilities: { con: 6 }, combat: { hp: { max: 8, current: 1 } } }).character
     expect(spendHitDie(weak, 'd6', 1)!.healed).toBe(1)
+  })
+  it('correcting the count by hand: one spent or one back, no healing, each die apart', () => {
+    const c = hero() // d10 0/3 left, d8 2/3 left
+    const spent = adjustHitDice(c, 'd8', 1)
+    expect(hitDiceAvailable(spent)).toEqual({ d10: 0, d8: 1 })
+    expect(spent.combat.hp).toEqual(c.combat.hp)
+    expect(spent.combat.deathSaves).toEqual(c.combat.deathSaves)
+    const back = adjustHitDice(c, 'd10', -1)
+    expect(hitDiceAvailable(back)).toEqual({ d10: 1, d8: 2 })
+    expect(back.combat.hp).toEqual(c.combat.hp)
+  })
+  it('the count stays inside the pool, and nothing spent leaves no key', () => {
+    const c = hero()
+    expect(adjustHitDice(c, 'd10', 1)).toBe(c) // all three are spent already
+    expect(adjustHitDice(c, 'd12', 1)).toBe(c) // no such die in the pool
+    const full = adjustHitDice(c, 'd8', -1)
+    expect(full.combat.hitDiceUsed).toEqual({ d10: 3 })
+    expect(adjustHitDice(full, 'd8', -1)).toBe(full)
+    // a file that says more spent than the pool holds: one back counts from the pool
+    const over = { ...c, combat: { ...c.combat, hitDiceUsed: { d10: 9 } } }
+    expect(adjustHitDice(over, 'd10', -1).combat.hitDiceUsed).toEqual({ d10: 2 })
+  })
+  it('a Long Rest after a correction still gives every die back', () => {
+    expect(longRest(adjustHitDice(hero(), 'd8', 1)).character.combat.hitDiceUsed).toEqual({})
   })
 })

@@ -144,6 +144,21 @@ export function spendHitDie(c: Character, die: string, roll: number): { characte
   }
 }
 
+/**
+ * Correct the count of spent Hit Point Dice by hand: +1 marks one spent, -1 gives one back.
+ * No healing and nothing else moves (that is `spendHitDie`). Clamped to the pool of that die.
+ */
+export function adjustHitDice(c: Character, die: string, delta: number): Character {
+  const max = hitDicePool(c)[die] ?? 0
+  const used = Math.min(max, Math.max(0, c.combat.hitDiceUsed[die] ?? 0))
+  const next = Math.min(max, Math.max(0, used + delta))
+  if (next === (c.combat.hitDiceUsed[die] ?? 0)) return c
+  const { [die]: _old, ...rest } = c.combat.hitDiceUsed
+  void _old
+  // nothing spent is no key at all, which is what a Long Rest writes
+  return { ...c, combat: { ...c.combat, hitDiceUsed: next > 0 ? { ...rest, [die]: next } : rest } }
+}
+
 /** Uses left for a counter, clamped (max may be a formula). */
 export function usesLeft(c: Character, u: Uses): { left: number; max: number } {
   const max = usesMax(c, u.max)

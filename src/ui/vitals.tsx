@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { SRD_CONDITIONS } from '../data/srd'
 import { t } from '../i18n'
-import { hitDiceAvailable, longRest, shortRest, spendHitDie } from '../model/rest'
+import { adjustHitDice, hitDiceAvailable, longRest, shortRest, spendHitDie } from '../model/rest'
 import {
   abilityMod,
   applyDamage,
@@ -338,23 +338,85 @@ function HpModal({ api, onClose }: { api: SheetApi; onClose: () => void }) {
   )
 }
 
-function HitDiceBlock({ api }: { api: SheetApi }) {
-  const { c } = api
+/** Above this many, `Pips` draws a number with + and − instead of circles, and tells the count itself. */
+const PIPS_AS_CIRCLES = 12
+
+/**
+ * Hit Point Dice in the HP window, one row per die: the pips correct the count (no healing),
+ * the roll field spends a die and heals, the same as in the Short Rest window.
+ */
+export function HitDiceBlock({ api }: { api: SheetApi }) {
+  const { c, update, toast } = api
   const pool = hitDicePool(c)
   const avail = hitDiceAvailable(c)
   return (
     <section className="hit-dice">
       <h3>{t('hp.hitDice')}</h3>
-      {Object.entries(pool).map(([d, max]) => (
-        <div key={d} className="hd-row">
-          <span className="hd-die">{d}</span>
-          <Pips max={max} left={avail[d] ?? 0} size="sm" />
-          <span className="muted">
-            {avail[d] ?? 0}/{max}
-          </span>
-        </div>
-      ))}
+      <p className="hint">{t('hp.hitDiceHint')}</p>
+      {Object.entries(pool).map(([d, max]) => {
+        const left = avail[d] ?? 0
+        return (
+          <HitDieSpend key={d} api={api} die={d} left={left} onSpent={(line) => toast({ title: line, tone: 'good' })}>
+            <span className="hd-left">
+              <Pips
+                max={max}
+                left={left}
+                size="sm"
+                onSpend={() => update((x) => adjustHitDice(x, d, 1))}
+                onRestore={() => update((x) => adjustHitDice(x, d, -1))}
+                label={t('hp.hitDiceLeft', { die: d, left, max })}
+              />
+              {max <= PIPS_AS_CIRCLES && (
+                <span className="muted">
+                  {left}/{max}
+                </span>
+              )}
+            </span>
+          </HitDieSpend>
+        )
+      })}
     </section>
+  )
+}
+
+/**
+ * One die's row for spending it to heal: your roll + Spend, or Roll for me. Shared by the HP window and the
+ * Short Rest window. `children` replaces the plain "n left" (the HP window puts the pips there).
+ */
+function HitDieSpend({ api, die, left, onSpent, children }: { api: SheetApi; die: string; left: number; onSpent: (line: string) => void; children?: ReactNode }) {
+  const { c, update } = api
+  const [roll, setRoll] = useState('')
+  const con = abilityMod(c.abilities.con)
+  const spend = (n: number) => {
+    const r = spendHitDie(c, die, n)
+    if (!r) return
+    update(() => r.character)
+    // the die is clamped to its faces, so the line tells the number that counted
+    const counted = Math.min(Number(die.slice(1)), Math.max(1, Math.floor(n)))
+    onSpent(t('rest.hitDieLog', { die, roll: counted, con: fmtMod(con), healed: r.healed }))
+    setRoll('')
+  }
+  return (
+    <div className={`hd-spend${children ? ' hd-with-pips' : ''}`}>
+      <span className="hd-die">{die}</span>
+      {children ?? <span className="muted hd-left">{t('rest.left', { n: left })}</span>}
+      <input
+        type="number"
+        inputMode="numeric"
+        placeholder={t('rest.yourRoll')}
+        value={roll}
+        onChange={(e) => setRoll(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && Number(roll) > 0 && spend(Number(roll))}
+        disabled={left === 0}
+        aria-label={t('rest.yourRollFor', { die })}
+      />
+      <button className="btn" disabled={left === 0 || !(Number(roll) > 0)} onClick={() => spend(Number(roll))}>
+        {t('rest.spend')}
+      </button>
+      <button className="btn" disabled={left === 0} onClick={() => spend(1 + Math.floor(Math.random() * Number(die.slice(1))))}>
+        {t('rest.rollForMe')}
+      </button>
+    </div>
   )
 }
 
@@ -363,18 +425,8 @@ function HitDiceBlock({ api }: { api: SheetApi }) {
 function RestModal({ api, kind, onClose }: { api: SheetApi; kind: 'short' | 'long'; onClose: () => void }) {
   const { c, update, toast } = api
   const [dawn, setDawn] = useState(kind === 'long')
-  const [rolls, setRolls] = useState<Record<string, string>>({})
   const [healedLog, setHealedLog] = useState<string[]>([])
   const avail = hitDiceAvailable(c)
-  const con = abilityMod(c.abilities.con)
-
-  const spend = (die: string, roll: number) => {
-    const r = spendHitDie(c, die, roll)
-    if (!r) return
-    update(() => r.character)
-    setHealedLog((l) => [...l, t('rest.hitDieLog', { die, roll, con: fmtMod(con), healed: r.healed })])
-    setRolls((x) => ({ ...x, [die]: '' }))
-  }
 
   const finish = () => {
     const r = kind === 'short' ? shortRest(c, { dawn }) : longRest(c, { dawn })
@@ -413,25 +465,7 @@ function RestModal({ api, kind, onClose }: { api: SheetApi; kind: 'short' | 'lon
             {t('hp.hp')}: <b>{effectiveHpCurrent(c)}</b>/{effectiveHpMax(c)}
           </p>
           {Object.entries(avail).map(([die, left]) => (
-            <div className="hd-spend" key={die}>
-              <span className="hd-die">{die}</span>
-              <span className="muted">{t('rest.left', { n: left })}</span>
-              <input
-                type="number"
-                inputMode="numeric"
-                placeholder={t('rest.yourRoll')}
-                value={rolls[die] ?? ''}
-                onChange={(e) => setRolls((x) => ({ ...x, [die]: e.target.value }))}
-                disabled={left === 0}
-                aria-label={t('rest.yourRoll')}
-              />
-              <button className="btn" disabled={left === 0 || !Number(rolls[die])} onClick={() => spend(die, Number(rolls[die]))}>
-                {t('rest.spend')}
-              </button>
-              <button className="btn" disabled={left === 0} onClick={() => spend(die, 1 + Math.floor(Math.random() * Number(die.slice(1))))}>
-                {t('rest.rollForMe')}
-              </button>
-            </div>
+            <HitDieSpend key={die} api={api} die={die} left={left} onSpent={(line) => setHealedLog((l) => [...l, line])} />
           ))}
           {healedLog.length > 0 && (
             <ul className="log">
