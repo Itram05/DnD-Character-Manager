@@ -404,7 +404,7 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
   const version = r.num(input.schemaVersion, 'schemaVersion', 1)
   if (version > CURRENT_SCHEMA_VERSION)
     throw new ImportError(
-      `This file uses schema version ${version}, but this app only knows version ${CURRENT_SCHEMA_VERSION}. Update the app.`,
+      `This file uses schema version ${version}, but this app only knows version ${CURRENT_SCHEMA_VERSION}. Update the app: open it while online, press Reload on the "New version ready" row (or close the app and open it again), then import the file again.`,
     )
   const raw = migrate(input, version, warnings)
   const keep = (src: unknown, out: object, known: readonly string[], path: string) => {
