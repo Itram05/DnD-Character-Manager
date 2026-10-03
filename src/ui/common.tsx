@@ -224,13 +224,16 @@ export function RichText({ text, className }: { text: string; className?: string
       {blocks.map((b, bi) => {
         const lines = b.split('\n')
         if (lines.every((l) => l.trim().startsWith('|'))) {
-          const rows = lines.map((l) =>
-            l
-              .trim()
-              .replace(/^\||\|$/g, '')
-              .split('|')
-              .map((x) => x.trim()),
-          )
+          const rows = lines
+            .map((l) =>
+              l
+                .trim()
+                .replace(/^\||\|$/g, '')
+                .split('|')
+                .map((x) => x.trim()),
+            )
+            // a Markdown separator line (|---|:--:|) is not a row: people and assistants write it out of habit
+            .filter((r, ri) => ri === 0 || !r.every((x) => /^:?-{3,}:?$/.test(x)))
           return (
             <div className="table-wrap" key={bi}>
               <table>

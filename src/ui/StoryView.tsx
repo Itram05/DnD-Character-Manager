@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { t } from '../i18n'
 import { newId } from '../model/normalize'
 import type { Roleplay, SessionNote } from '../model/types'
-import { Confirm, TextArea, TextField } from './common'
+import { Confirm, RichText, TextArea, TextField } from './common'
 import type { SheetApi } from './Sheet'
 import { TimersPanel } from './TimersPanel'
 
@@ -42,9 +42,8 @@ export function StoryView({ api }: { api: SheetApi }) {
           {filled.map((k) => (
             <div key={k} className={`story-block story-${k}`}>
               <h3>{t(`story.${k}`)}</h3>
-              {c.roleplay[k].split(/\n{2,}/).map((p, i) => (
-                <p key={i}>{p}</p>
-              ))}
+              {/* the same formatting as a card's description: **bold**, _italic_, lists, tables; a line break stays a line break */}
+              <RichText text={c.roleplay[k]} />
             </div>
           ))}
         </section>

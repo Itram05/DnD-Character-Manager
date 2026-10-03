@@ -243,7 +243,8 @@ Every `description` is plain text with a little formatting. Inside a JSON string
 - A blank line (`\n\n`) starts a new paragraph. `**bold**` and `_italic_` work; italic is the convention for a
   sub-heading: `_Using a Higher-Level Spell Slot._`
 - A block whose lines all start with `• ` or `- ` is a bullet list. A block whose lines all start with `|` is a
-  table (`| Level | Damage |\n| 5 | 2d8 |`); do **not** add a Markdown separator line (`|---|---|`).
+  table (`| Level | Damage |\n| 5 | 2d8 |`); the first line is the head. Leave out the Markdown separator line
+  (`|---|---|`); if one is there it is skipped.
 - Nothing else: no `#` headings, no links, no HTML.
 - **Lead with the rule.** A card's face shows only the first 140 characters or so. Flavour and remarks go last.
 - **Use the game's own wording.** The app reads the text to highlight it, to put small icons on spell and item-power
@@ -610,6 +611,10 @@ number ≥ 0.
 All text, default "": `appearance`, `personality`, `ideals`, `bonds`, `flaws`, `voice`, `mannerisms`, `goals`,
 `backstory`, `allies`, `notes`. Write all eleven keys, with `""` for what the player did not give. `notes` is the home
 for anything that fits no other field, and for your list of open points.
+
+These texts are drawn on the Story tab with the same formatting as a `description` (see [Text fields](#text-fields)):
+paragraphs, `**bold**`, `_italic_`, bullet lists and tables; a single `\n` is a line break. So the open points in
+`notes` can be a `**heading**` and a `- ` list, with a blank line (`\n\n`) before and after the list.
 
 ### Tags
 

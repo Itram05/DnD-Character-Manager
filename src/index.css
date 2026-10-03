@@ -2503,7 +2503,8 @@ body.untap-step .card:not(.tapped) {
   letter-spacing: 0.06em;
   margin-bottom: 0.2rem;
 }
-.story-block p {
+.story-block p,
+.story-block li {
   font-family: var(--font-display);
   font-size: 1.02rem;
   line-height: 1.55;
