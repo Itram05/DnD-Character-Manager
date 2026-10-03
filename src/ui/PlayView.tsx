@@ -30,7 +30,7 @@ import { attackTags } from '../model/tags'
 import { filterOptions, matchesFilter, selectedKinds, selectedZones } from '../model/filter'
 import type { Character, Item } from '../model/types'
 import { Dis, InHead, Modal, Pips, RichText, fmtMod, useMediaQuery } from './common'
-import { FeatureEditor, ItemEditor, SpellEditor } from './editors'
+import { AttackEditor, FeatureEditor, ItemEditor, SpellEditor } from './editors'
 import { FRAME_GLYPH, GameCard, POTION_GLYPH, SCROLL_GLYPH, type CardFace } from './GameCard'
 import type { SheetApi } from './Sheet'
 import { ActiveFilters, FilterButton } from './filter'
@@ -489,9 +489,9 @@ function paymentLabel(p: Payment) {
   }
 }
 
-function CardZoom({ api, face, onClose, onUse, srd }: { api: SheetApi; face: CardFace; onClose: () => void; onUse: (f: CardFace, d?: number) => void; srd?: readonly SrdSpell[] }) {
+export function CardZoom({ api, face, onClose, onUse, srd, initiallyEditing }: { api: SheetApi; face: CardFace; onClose: () => void; onUse: (f: CardFace, d?: number) => void; srd?: readonly SrdSpell[]; /** For tests. */ initiallyEditing?: boolean }) {
   const { c, update, toast } = api
-  const [editing, setEditing] = useState(false)
+  const [editing, setEditing] = useState(!!initiallyEditing)
   const feature = face.kind === 'feature' ? c.features.find((f) => f.id === face.id) : undefined
   const spell = face.kind === 'spell' ? c.spells.find((s) => s.id === face.id) : undefined
   const item = face.kind === 'item' || face.kind === 'scroll' || face.kind === 'potion' ? c.inventory.items.find((i) => i.id === face.id) : undefined
@@ -506,6 +506,8 @@ function CardZoom({ api, face, onClose, onUse, srd }: { api: SheetApi; face: Car
     if (spell) return <SpellEditor api={api} initial={spell} onClose={onClose} />
     if (item) return <ItemEditor api={api} initial={item} onClose={onClose} />
     if (power) return <ItemEditor api={api} initial={power.item} onClose={onClose} />
+    // the same editor the Stats tab opens; you stay in Play
+    if (attack) return <AttackEditor api={api} initial={attack} onClose={onClose} />
   }
 
   const cast = (p: Payment) => {
@@ -632,13 +634,8 @@ function CardZoom({ api, face, onClose, onUse, srd }: { api: SheetApi; face: Car
             </button>
           </>
         )}
-        {(feature || spell || item || power) && (
+        {(feature || spell || item || power || attack) && (
           <button className="btn" onClick={() => setEditing(true)}>
-            {t('common.edit')}
-          </button>
-        )}
-        {attack && (
-          <button className="btn" onClick={() => api.go('stats')}>
             {t('common.edit')}
           </button>
         )}

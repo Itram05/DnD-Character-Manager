@@ -1,11 +1,13 @@
 // Edit from the Play screen (feedback of 2026-10-03): the window of an "Always on" chip has an Edit button
-// that opens the editor of what the chip comes from. Server render, no browser.
+// that opens the editor of what the chip comes from, and Edit on an attack card opens the attack editor.
+// Server render, no browser.
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { normalizeCharacter } from '../model/normalize'
 import { passiveSource, playPassivePowers, playPassives } from '../model/play'
 import type { Character } from '../model/types'
-import { PassiveZoom, type PassiveChip } from './PlayView'
+import type { CardFace } from './GameCard'
+import { CardZoom, PassiveZoom, type PassiveChip } from './PlayView'
 import type { SheetApi } from './Sheet'
 
 const strip = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
@@ -47,6 +49,28 @@ describe('where an "Always on" chip is edited', () => {
   })
   it('something that is gone: nothing', () => {
     expect(passiveSource(c, 'nope')).toBeUndefined()
+  })
+})
+
+describe('Edit on an attack card', () => {
+  const hero = normalizeCharacter({
+    schemaVersion: 3,
+    name: 'Test',
+    classes: [{ id: 'fighter', level: 3 }],
+    attacks: [{ id: 'ls', name: 'Longsword', ability: 'str', damage: '1d8', damageType: 'slashing', notes: 'Versatile (1d10).' }],
+  }).character
+  const face: CardFace = { key: 'attack:ls', kind: 'attack', id: 'ls', name: 'Longsword', frame: 'attack', sourceLabel: 'Attack', zone: 'action', cost: 'A', text: '', tapped: false }
+  it('the zoomed card has one Edit button', () => {
+    const html = renderToString(<CardZoom api={api(hero)} face={face} onClose={() => {}} onUse={() => {}} />)
+    expect(html.match(/>Edit<\/button>/g)).toHaveLength(1)
+  })
+  it('it opens the attack editor in place (it used to only switch to the Stats tab)', () => {
+    let went = ''
+    const html = renderToString(<CardZoom api={{ ...api(hero), go: (tab) => (went = tab) }} face={face} onClose={() => {}} onUse={() => {}} initiallyEditing />)
+    expect(strip(html)).toContain('Edit attack')
+    expect(html).toContain('value="Longsword"')
+    expect(html).toContain('value="1d8"')
+    expect(went).toBe('')
   })
 })
 
