@@ -1,0 +1,586 @@
+{
+  "schemaVersion": 3,
+  "id": "hero-vessa-thornhide-7k2q9d",
+  "name": "Vessa Thornhide",
+  "player": "Example",
+  "species": {
+    "name": "Orc",
+    "size": "Medium"
+  },
+  "background": "Criminal",
+  "alignment": "Chaotic Good",
+  "xp": 7200,
+  "partySize": 4,
+  "xpLog": [],
+  "classes": [
+    {
+      "id": "ranger",
+      "name": "Ranger",
+      "level": 5,
+      "subclass": "Hunter"
+    }
+  ],
+  "abilities": {
+    "str": 10,
+    "dex": 18,
+    "con": 14,
+    "int": 12,
+    "wis": 15,
+    "cha": 8
+  },
+  "proficiencies": {
+    "savingThrows": [
+      "str",
+      "dex"
+    ],
+    "skills": {
+      "stealth": "expertise",
+      "sleightOfHand": "proficient",
+      "perception": "proficient",
+      "survival": "proficient",
+      "athletics": "proficient"
+    },
+    "jackOfAllTrades": false,
+    "armor": "Light and Medium armor, Shields",
+    "weapons": "Simple and Martial weapons",
+    "tools": "Thieves' Tools",
+    "languages": "Common, Orc, Dwarvish, Goblin, Sylvan",
+    "weaponMasteries": [
+      "Longbow (Slow)",
+      "Shortsword (Vex)"
+    ]
+  },
+  "combat": {
+    "unarmoredAc": "10 + dex",
+    "acBonus": 0,
+    "initiativeBonus": 3,
+    "speed": 30,
+    "hp": {
+      "max": 44,
+      "current": 31,
+      "temp": 0
+    },
+    "hitDiceUsed": {
+      "d10": 1
+    },
+    "deathSaves": {
+      "successes": 0,
+      "failures": 0
+    }
+  },
+  "conditions": [],
+  "exhaustion": 0,
+  "heroicInspiration": true,
+  "features": [
+    {
+      "id": "feat-favored-enemy",
+      "name": "Favored Enemy",
+      "source": {
+        "type": "class",
+        "name": "Ranger 1"
+      },
+      "activation": "passive",
+      "description": "You always have the _Hunter's Mark_ spell prepared. You can cast it without expending a spell slot a number of times shown in the Favored Enemy column of the Ranger table (3 at Ranger level 5), and you regain all expended uses when you finish a Long Rest.\n\nThe free casts are counted on the Hunter's Mark spell itself."
+    },
+    {
+      "id": "feat-weapon-mastery",
+      "name": "Weapon Mastery",
+      "source": {
+        "type": "class",
+        "name": "Ranger 1"
+      },
+      "activation": "passive",
+      "description": "You can use the mastery properties of two kinds of weapons you are proficient with: Longbow (Slow) and Shortsword (Vex). Whenever you finish a Long Rest, you can change the kinds of weapons you chose."
+    },
+    {
+      "id": "feat-deft-explorer",
+      "name": "Deft Explorer",
+      "source": {
+        "type": "class",
+        "name": "Ranger 2"
+      },
+      "activation": "passive",
+      "description": "_Expertise._ You have Expertise in Stealth.\n\n_Languages._ You know two extra languages: Goblin and Sylvan."
+    },
+    {
+      "id": "feat-fighting-style-archery",
+      "name": "Fighting Style: Archery",
+      "source": {
+        "type": "feat",
+        "name": "Ranger 2"
+      },
+      "activation": "passive",
+      "description": "You gain a +2 bonus to attack rolls you make with Ranged weapons.\n\nAlready counted in the Emberwood Longbow attack's bonus."
+    },
+    {
+      "id": "feat-hunter-s-lore",
+      "name": "Hunter's Lore",
+      "source": {
+        "type": "subclass",
+        "name": "Hunter 3"
+      },
+      "activation": "passive",
+      "description": "While a creature is marked by your _Hunter's Mark_, you know whether that creature has any Immunities, Resistances, or Vulnerabilities, and if the creature has any, you know what they are."
+    },
+    {
+      "id": "feat-hunter-s-prey-colossus-slayer",
+      "name": "Hunter's Prey: Colossus Slayer",
+      "source": {
+        "type": "subclass",
+        "name": "Hunter 3"
+      },
+      "activation": "free",
+      "description": "When you hit a creature with a weapon, the weapon deals an extra 1d8 damage to the target if it's missing any of its Hit Points. You can deal this extra damage only once per turn.\n\nWhenever you finish a Short or Long Rest, you can replace this option with Horde Breaker."
+    },
+    {
+      "id": "feat-extra-attack",
+      "name": "Extra Attack",
+      "source": {
+        "type": "class",
+        "name": "Ranger 5"
+      },
+      "activation": "passive",
+      "description": "You can attack twice instead of once whenever you take the Attack action on your turn."
+    },
+    {
+      "id": "feat-adrenaline-rush",
+      "name": "Adrenaline Rush",
+      "source": {
+        "type": "species",
+        "name": "Orc"
+      },
+      "activation": "bonus",
+      "description": "You can take the Dash action as a Bonus Action. When you do so, you gain a number of Temporary Hit Points equal to your Proficiency Bonus.\n\nYou can use this trait a number of times equal to your Proficiency Bonus, and you regain all expended uses when you finish a Short or Long Rest.",
+      "uses": {
+        "max": "pb",
+        "used": 1,
+        "recharge": "short"
+      }
+    },
+    {
+      "id": "feat-relentless-endurance",
+      "name": "Relentless Endurance",
+      "source": {
+        "type": "species",
+        "name": "Orc"
+      },
+      "activation": "special",
+      "description": "When you are reduced to 0 Hit Points but not killed outright, you can drop to 1 Hit Point instead. Once you use this trait, you can't do so again until you finish a Long Rest.",
+      "uses": {
+        "max": 1,
+        "used": 0,
+        "recharge": "long"
+      }
+    },
+    {
+      "id": "feat-darkvision",
+      "name": "Darkvision",
+      "source": {
+        "type": "species",
+        "name": "Orc"
+      },
+      "activation": "passive",
+      "description": "You have Darkvision with a range of 120 feet."
+    },
+    {
+      "id": "feat-alert",
+      "name": "Alert",
+      "source": {
+        "type": "feat",
+        "name": "Criminal background"
+      },
+      "activation": "passive",
+      "description": "_Initiative Proficiency._ When you roll Initiative, you can add your Proficiency Bonus to the roll. Already counted in the Initiative on the sheet.\n\n_Initiative Swap._ Immediately after you roll Initiative, you can swap your Initiative with the Initiative of one willing ally in the same combat. You can't make this swap if you or the ally has the Incapacitated condition."
+    }
+  ],
+  "attacks": [
+    {
+      "id": "atk-emberwood-longbow",
+      "name": "Emberwood Longbow",
+      "ability": "dex",
+      "proficient": true,
+      "bonus": 3,
+      "damage": "1d8",
+      "damageType": "Piercing",
+      "addAbilityToDamage": true,
+      "damageBonus": 1,
+      "mastery": "Slow",
+      "notes": "Range 150/600 ft. Bonus: +1 magic weapon, +2 Archery.",
+      "itemId": "item-emberwood-longbow"
+    },
+    {
+      "id": "atk-shortsword",
+      "name": "Shortsword",
+      "ability": "finesse",
+      "proficient": true,
+      "bonus": 0,
+      "damage": "1d6",
+      "damageType": "Piercing",
+      "addAbilityToDamage": true,
+      "damageBonus": 0,
+      "mastery": "Vex",
+      "notes": "Finesse, Light.",
+      "itemId": "item-shortsword"
+    },
+    {
+      "id": "atk-unarmed-strike",
+      "name": "Unarmed Strike",
+      "ability": "str",
+      "proficient": true,
+      "bonus": 0,
+      "damage": "1",
+      "damageType": "Bludgeoning",
+      "addAbilityToDamage": true,
+      "damageBonus": 0,
+      "mastery": "",
+      "notes": "",
+      "itemId": null
+    }
+  ],
+  "spellcasting": {
+    "slotsUsed": [
+      1,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "pactSlotsUsed": 0,
+    "concentration": "Hunter's Mark"
+  },
+  "spells": [
+    {
+      "id": "spell-hunter-s-mark",
+      "name": "Hunter's Mark",
+      "level": 1,
+      "source": "ranger",
+      "prepared": true,
+      "alwaysPrepared": true,
+      "ritual": false,
+      "concentration": true,
+      "school": "Divination",
+      "castingTime": "Bonus Action",
+      "range": "90 feet",
+      "components": "V",
+      "duration": "up to 1 hour",
+      "description": "You magically mark one creature you can see within range as your quarry. Until the spell ends, you deal an extra 1d6 Force damage to the target whenever you hit it with an attack roll. You also have Advantage on any Wisdom (Perception or Survival) check you make to find it.\n\nIf the target drops to 0 Hit Points before this spell ends, you can take a Bonus Action to move the mark to a new creature you can see within range.\n\n_Using a Higher-Level Spell Slot._ Your Concentration can last longer with a spell slot of level 3–4 (up to 8 hours) or 5+ (up to 24 hours).",
+      "freeCasts": {
+        "max": "ranger.favored-enemy",
+        "used": 1,
+        "recharge": "long"
+      }
+    },
+    {
+      "id": "spell-cure-wounds",
+      "name": "Cure Wounds",
+      "level": 1,
+      "source": "ranger",
+      "prepared": true,
+      "alwaysPrepared": false,
+      "ritual": false,
+      "concentration": false,
+      "school": "Abjuration",
+      "castingTime": "Action",
+      "range": "Touch",
+      "components": "V, S",
+      "duration": "Instantaneous",
+      "description": "A creature you touch regains a number of Hit Points equal to 2d8 plus your spellcasting ability modifier.\n\n_Using a Higher-Level Spell Slot._ The healing increases by 2d8 for each spell slot level above 1."
+    },
+    {
+      "id": "spell-ensnaring-strike",
+      "name": "Ensnaring Strike",
+      "level": 1,
+      "source": "ranger",
+      "prepared": true,
+      "alwaysPrepared": false,
+      "ritual": false,
+      "concentration": true,
+      "school": "Conjuration",
+      "castingTime": "Bonus Action, which you take immediately after hitting a creature with a weapon",
+      "range": "Self",
+      "components": "V",
+      "duration": "up to 1 minute",
+      "description": "As you hit the target, grasping vines appear on it, and it makes a Strength saving throw. A Large or larger creature has Advantage on this save. On a failed save, the target has the Restrained condition until the spell ends. On a successful save, the vines shrivel away, and the spell ends.\n\nWhile Restrained, the target takes 1d6 Piercing damage at the start of each of its turns. The target or a creature within reach of it can take an action to make a Strength (Athletics) check against your spell save DC. On a success, the spell ends.\n\n_Using a Higher-Level Spell Slot._ The damage increases by 1d6 for each spell slot level above 1."
+    },
+    {
+      "id": "spell-speak-with-animals",
+      "name": "Speak with Animals",
+      "level": 1,
+      "source": "ranger",
+      "prepared": true,
+      "alwaysPrepared": false,
+      "ritual": true,
+      "concentration": false,
+      "school": "Divination",
+      "castingTime": "Action",
+      "range": "Self",
+      "components": "V, S",
+      "duration": "10 minutes",
+      "description": "For the duration, you can comprehend and verbally communicate with Beasts, and you can use any of the Influence action's skill options with them.\n\nMost Beasts have little to say about topics that don't pertain to survival or companionship, but at minimum, a Beast can give you information about nearby locations and monsters, including whatever it has perceived within the past day."
+    },
+    {
+      "id": "spell-lesser-restoration",
+      "name": "Lesser Restoration",
+      "level": 2,
+      "source": "ranger",
+      "prepared": true,
+      "alwaysPrepared": false,
+      "ritual": false,
+      "concentration": false,
+      "school": "Abjuration",
+      "castingTime": "Bonus Action",
+      "range": "Touch",
+      "components": "V, S",
+      "duration": "Instantaneous",
+      "description": "You touch a creature and end one condition on it: Blinded, Deafened, Paralyzed, or Poisoned."
+    },
+    {
+      "id": "spell-silence",
+      "name": "Silence",
+      "level": 2,
+      "source": "ranger",
+      "prepared": true,
+      "alwaysPrepared": false,
+      "ritual": true,
+      "concentration": true,
+      "school": "Illusion",
+      "castingTime": "Action",
+      "range": "120 feet",
+      "components": "V, S",
+      "duration": "up to 10 minutes",
+      "description": "For the duration, no sound can be created within or pass through a 20-foot-radius Sphere centered on a point you choose within range. Any creature or object entirely inside the Sphere has Immunity to Thunder damage, and creatures have the Deafened condition while entirely inside it. Casting a spell that includes a Verbal component is impossible there."
+    },
+    {
+      "id": "spell-spike-growth",
+      "name": "Spike Growth",
+      "level": 2,
+      "source": "ranger",
+      "prepared": true,
+      "alwaysPrepared": false,
+      "ritual": false,
+      "concentration": true,
+      "school": "Transmutation",
+      "castingTime": "Action",
+      "range": "150 feet",
+      "components": "V, S, M (seven thorns)",
+      "duration": "up to 10 minutes",
+      "description": "The ground in a 20-foot-radius Sphere centered on a point within range sprouts hard spikes and thorns. The area becomes Difficult Terrain for the duration. When a creature moves into or within the area, it takes 2d4 Piercing damage for every 5 feet it travels.\n\nThe transformation of the ground is camouflaged to look natural. Any creature that can't see the area when the spell is cast must take a Search action and succeed on a Wisdom (Perception or Survival) check against your spell save DC to recognize the terrain as hazardous before entering it.",
+      "tags": [
+        "control"
+      ]
+    },
+    {
+      "id": "spell-goodberry",
+      "name": "Goodberry",
+      "level": 1,
+      "source": "ranger",
+      "prepared": false,
+      "alwaysPrepared": false,
+      "ritual": false,
+      "concentration": false,
+      "school": "Conjuration",
+      "castingTime": "Action",
+      "range": "Self",
+      "components": "V, S, M (a sprig of mistletoe)",
+      "duration": "24 hours",
+      "description": "Ten berries appear in your hand and are infused with magic for the duration. A creature can take a Bonus Action to eat one berry. Eating a berry restores 1 Hit Point, and the berry provides enough nourishment to sustain a creature for one day.\n\nUneaten berries disappear when the spell ends."
+    }
+  ],
+  "inventory": {
+    "items": [
+      {
+        "id": "item-emberwood-longbow",
+        "name": "Emberwood Longbow",
+        "quantity": 1,
+        "equipped": true,
+        "requiresAttunement": true,
+        "attuned": true,
+        "description": "You have a +1 bonus to attack and damage rolls made with this magic weapon (already counted in the Emberwood Longbow attack).\n\nThe bow has 3 charges and regains 1d3 expended charges daily at dawn.\n\n_Weapon (Longbow), rare (requires attunement). Homebrew: the app has no data for it, so everything it does is written here and in its powers._",
+        "weight": 2,
+        "charges": {
+          "max": 3,
+          "used": 1,
+          "recharge": "dawn",
+          "regain": "1d3"
+        },
+        "powers": [
+          {
+            "id": "power-ember-arrow",
+            "name": "Ember Arrow",
+            "activation": "free",
+            "description": "When you hit a creature with an arrow from this bow, you can expend 1 charge to deal an extra 2d6 Fire damage to the target.",
+            "cost": 1
+          },
+          {
+            "id": "power-flare-shot",
+            "name": "Flare Shot",
+            "activation": "action",
+            "description": "You loose an arrow at a point within 120 feet, where it bursts in a 20-foot-radius Sphere. Each creature in the Sphere makes a Dexterity saving throw (DC 13), taking 3d6 Fire damage on a failed save or half as much on a successful one.",
+            "cost": 2
+          },
+          {
+            "id": "power-cinder-step",
+            "name": "Cinder Step",
+            "activation": "reaction",
+            "description": "When a creature hits you with a melee attack, you can teleport up to 15 feet to an unoccupied space you can see. Once per Long Rest; this costs no charges.",
+            "uses": {
+              "max": 1,
+              "used": 0,
+              "recharge": "long"
+            },
+            "tags": [
+              "mobility"
+            ]
+          },
+          {
+            "id": "power-hearthlight",
+            "name": "Hearthlight",
+            "activation": "passive",
+            "description": "While you hold the bow, you can make it shed Bright Light in a 10-foot radius and Dim Light for an additional 10 feet, or put the light out (no action required)."
+          }
+        ],
+        "tags": [
+          "bow"
+        ]
+      },
+      {
+        "id": "item-shortsword",
+        "name": "Shortsword",
+        "quantity": 1,
+        "equipped": true,
+        "requiresAttunement": false,
+        "attuned": false,
+        "description": "Martial melee weapon. Finesse, Light. Mastery: Vex.",
+        "weight": 2
+      },
+      {
+        "id": "item-studded-leather-armor",
+        "name": "Studded Leather Armor",
+        "quantity": 1,
+        "equipped": true,
+        "requiresAttunement": false,
+        "attuned": false,
+        "description": "Light armor: AC 12 + Dexterity modifier.",
+        "weight": 13,
+        "armor": {
+          "base": 12,
+          "dexCap": null
+        }
+      },
+      {
+        "id": "item-cloak-of-protection",
+        "name": "Cloak of Protection",
+        "quantity": 1,
+        "equipped": true,
+        "requiresAttunement": true,
+        "attuned": true,
+        "description": "You gain a +1 bonus to Armor Class and saving throws while you wear this cloak.",
+        "weight": 1,
+        "acBonus": 1,
+        "saveBonus": 1
+      },
+      {
+        "id": "item-potion-of-healing",
+        "name": "Potion of Healing",
+        "quantity": 2,
+        "equipped": false,
+        "requiresAttunement": false,
+        "attuned": false,
+        "description": "You regain 2d4 + 2 Hit Points when you drink this potion. Drinking it or giving it to another creature takes a Bonus Action.",
+        "weight": 0.5
+      },
+      {
+        "id": "item-spell-scroll-fog-cloud",
+        "name": "Spell Scroll (Fog Cloud)",
+        "quantity": 1,
+        "equipped": false,
+        "requiresAttunement": false,
+        "attuned": false,
+        "description": "Level 1 spell scroll. Spell save DC 13, attack bonus +5."
+      },
+      {
+        "id": "item-alchemist-s-fire",
+        "name": "Alchemist's Fire",
+        "quantity": 2,
+        "equipped": false,
+        "requiresAttunement": false,
+        "attuned": false,
+        "description": "When you take the Attack action, you can replace one of your attacks with throwing a flask of Alchemist's Fire. Target one creature or object you can see within 20 feet of yourself. The target must succeed on a Dexterity saving throw (DC 8 plus your Dexterity modifier and Proficiency Bonus) or take 1d4 Fire damage and start burning.",
+        "weight": 1,
+        "activation": "action"
+      },
+      {
+        "id": "item-arrows",
+        "name": "Arrows",
+        "quantity": 37,
+        "equipped": false,
+        "requiresAttunement": false,
+        "attuned": false,
+        "description": "",
+        "weight": 0.05
+      },
+      {
+        "id": "item-thieves-tools",
+        "name": "Thieves' Tools",
+        "quantity": 1,
+        "equipped": false,
+        "requiresAttunement": false,
+        "attuned": false,
+        "description": "",
+        "weight": 1
+      },
+      {
+        "id": "item-explorer-s-pack",
+        "name": "Explorer's Pack",
+        "quantity": 1,
+        "equipped": false,
+        "requiresAttunement": false,
+        "attuned": false,
+        "description": "Backpack, bedroll, 2 flasks of oil, 10 days of rations, rope, tinderbox, 10 torches, waterskin.",
+        "weight": 55
+      }
+    ],
+    "money": {
+      "cp": 0,
+      "sp": 14,
+      "ep": 0,
+      "gp": 43,
+      "pp": 0
+    }
+  },
+  "roleplay": {
+    "appearance": "Tall and wiry for an orc, grey-green skin, a burn scar across the left forearm. Keeps her hair in a single long braid.",
+    "personality": "Patient and dry-humoured. Counts exits before she counts friends.",
+    "ideals": "Nobody should be hunted for what they owe.",
+    "bonds": "Her old crew in Saltmarsh still holds a debt over her.",
+    "flaws": "Cannot leave a lock unpicked.",
+    "voice": "",
+    "mannerisms": "",
+    "goals": "Find who forged the Emberwood Longbow, and why it was left for her.",
+    "backstory": "A smuggler who took to the woods when a job went wrong.\n\nThe forest turned out to suit her better than the docks ever did.",
+    "allies": "",
+    "notes": ""
+  },
+  "sessionNotes": [
+    {
+      "id": "note-1",
+      "date": "2026-09-27",
+      "title": "The toll bridge",
+      "text": "Paid the troll with a riddle. Owe the ferryman a favour."
+    }
+  ],
+  "timers": [
+    {
+      "id": "timer-guild-debt",
+      "name": "Guild debt due",
+      "days": 9,
+      "start": 14,
+      "note": "200 GP to the Saltmarsh crew"
+    }
+  ],
+  "updatedAt": "2026-10-03T12:00:00.000Z"
+}
