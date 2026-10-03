@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { t } from '../i18n'
 import { dropUnlisted, exportWithImages, imageStore } from '../model/imageStore'
-import { fileNameFor, saveCharacter, type Settings } from '../model/storage'
+import { characterSession, fileNameFor, loadCharacter, type Elsewhere, type Settings } from '../model/storage'
 import type { Character } from '../model/types'
 import { Toasts, useMediaQuery, type HeadSlots, type ToastMsg } from './common'
 import { EditView } from './EditView'
@@ -71,40 +71,90 @@ export function Sheet(props: { initial: Character; tab: Tab; onTab: (t: Tab) => 
   // The ref always holds the latest character, so several updates in one event chain correctly
   // and the undo stack is pushed outside of a state updater (updaters run twice in StrictMode).
   const cRef = useRef(c)
+  // whether the sheet holds a change that is not in storage yet; only then is anything written
+  const dirty = useRef(false)
   const update = useCallback((fn: (c: Character) => Character) => {
     const prev = cRef.current
     const next = fn(prev)
     if (next === prev) return
     const stamped = { ...next, updatedAt: new Date().toISOString() }
     cRef.current = stamped
+    dirty.current = true
     setUndo((u) => [...u.slice(-29), prev])
     setC(stamped)
   }, [])
+
+  // The same character can be open in a second tab or window, or be replaced (import) or deleted from the
+  // list there. This sheet must never write its older copy over that. The session (storage.ts) lets a save
+  // through only while storage still holds what this sheet last read or wrote; when it holds something
+  // else, STORAGE WINS: the sheet shows that version, with a toast. A change of this sheet that was not
+  // written yet is then dropped, and the toast says so. That is at most what was done in the last quarter
+  // second (the autosave delay), unless saving had already failed. Undo is emptied: its steps are states
+  // of the older version, and stepping back would put that version over the other tab's.
+  const [session] = useState(() => characterSession(props.initial.id))
+  const [gone, setGone] = useState(false)
+  const takeOver = useCallback(
+    (found: Elsewhere) => {
+      if (found.kind === 'same') return
+      const unsaved = dirty.current
+      dirty.current = false
+      if (found.kind === 'gone') return setGone(true)
+      cRef.current = found.character
+      setC(found.character)
+      setUndo([])
+      toast(unsaved ? { title: t('sync.replacedUnsaved'), lines: [t('sync.replacedUnsavedHint')], tone: 'bad' } : { title: t('sync.replaced') })
+    },
+    [toast],
+  )
+  const save = useCallback(() => {
+    if (!dirty.current) return
+    const r = session.save(cRef.current)
+    if (r.kind === 'saved') dirty.current = false
+    else if (r.kind === 'failed') toast({ title: t('storage.saveFailed'), lines: [r.error], tone: 'bad' })
+    else takeOver(r)
+  }, [session, takeOver, toast])
 
   // autosave (debounced)
   const saveTimer = useRef<number | undefined>(undefined)
   useEffect(() => {
     window.clearTimeout(saveTimer.current)
-    saveTimer.current = window.setTimeout(() => {
-      const st = saveCharacter(c)
-      if (!st.ok) toast({ title: t('storage.saveFailed'), lines: [st.error ?? ''], tone: 'bad' })
-    }, 250)
+    saveTimer.current = window.setTimeout(save, 250)
     return () => window.clearTimeout(saveTimer.current)
-  }, [c, toast])
+  }, [c, save])
 
   // flush the pending save when leaving the sheet (the debounce above would drop it)
-  useEffect(() => () => void saveCharacter(cRef.current), [])
+  useEffect(() => () => save(), [save])
   // and when the page itself goes away (tab closed, app sent to the background, Reload for a new version)
   useEffect(() => {
-    const flush = () => void saveCharacter(cRef.current)
-    window.addEventListener('pagehide', flush)
-    return () => window.removeEventListener('pagehide', flush)
-  }, [])
+    window.addEventListener('pagehide', save)
+    return () => window.removeEventListener('pagehide', save)
+  }, [save])
+
+  // look at storage when another tab changes it (the browser's `storage` event goes to every OTHER tab),
+  // and when this tab comes back to the front: a tab the browser had put to sleep gets no events.
+  // On the way to the back the pending save is written at once: the browser slows the timers of a hidden
+  // tab, and the tab that comes to the front should find this one's last change already in storage.
+  useEffect(() => {
+    const look = () => takeOver(session.check())
+    const onStorage = (e: StorageEvent) => void (session.concerns(e.key) && look())
+    const onVisible = () => (document.visibilityState === 'visible' ? look() : save())
+    window.addEventListener('storage', onStorage)
+    window.addEventListener('focus', look)
+    window.addEventListener('pageshow', look)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.removeEventListener('storage', onStorage)
+      window.removeEventListener('focus', look)
+      window.removeEventListener('pageshow', look)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [session, takeOver, save])
 
   // once, on opening: delete the stored pictures of images removed earlier. Not at the moment of removal,
-  // so Undo can bring a removed image back for as long as the sheet stays open.
+  // so Undo can bring a removed image back for as long as the sheet stays open. A picture is kept if the
+  // character lists it in storage or in this sheet at the moment of deleting, not only when it was opened.
   useEffect(() => {
-    void dropUnlisted(props.initial, imageStore()).catch(() => [])
+    void dropUnlisted(props.initial, imageStore(), () => [cRef.current, loadCharacter(props.initial.id)]).catch(() => [])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -117,6 +167,7 @@ export function Sheet(props: { initial: Character; tab: Tab; onTab: (t: Tab) => 
     if (!undo.length) return
     const prev = undo[undo.length - 1]
     cRef.current = prev
+    dirty.current = true
     setC(prev)
     setUndo(undo.slice(0, -1))
   }
@@ -139,6 +190,16 @@ export function Sheet(props: { initial: Character; tab: Tab; onTab: (t: Tab) => 
   const [chips, setChips] = useState<HTMLElement | null>(null)
   const api: SheetApi = { c, update, toast, settings: props.settings, setSettings: props.setSettings, go: props.onTab, head: { tools, chips } }
   const tab = props.tab
+
+  if (gone)
+    return (
+      <div className="list-page">
+        <p className="warn">{t('sync.gone')}</p>
+        <button className="btn" onClick={props.onBack}>
+          {t('nav.allCharacters')}
+        </button>
+      </div>
+    )
 
   return (
     <div className={`sheet tab-${tab}`}>

@@ -140,10 +140,16 @@ export async function storeImported(c: Character, imageData: Record<string, stri
   }
 }
 
-/** Deletes the stored pictures the character no longer lists (removed images, undone additions). */
-export async function dropUnlisted(c: Character, store: ImageStore): Promise<string[]> {
-  const listed = new Set(imagesOf(c).map((i) => i.id))
-  const gone = (await store.ids(c.id)).filter((id) => !listed.has(id))
+/**
+ * Deletes the stored pictures the character no longer lists (removed images, undone additions).
+ * `others`: asked after the stored ids are read, right before deleting; the images those versions of the
+ * character list are kept too. The sheet passes what is in storage and in its memory at that moment, so a
+ * picture another tab has just imported or added is not deleted on the word of an older version.
+ */
+export async function dropUnlisted(c: Character, store: ImageStore, others?: () => (Character | null)[]): Promise<string[]> {
+  const stored = await store.ids(c.id)
+  const listed = new Set([c, ...(others?.() ?? [])].flatMap((x) => (x ? imagesOf(x) : [])).map((i) => i.id))
+  const gone = stored.filter((id) => !listed.has(id))
   await store.remove(c.id, gone)
   return gone
 }

@@ -896,6 +896,12 @@ export const en: Record<string, string> = {
   // storage
   'storage.saveFailed': 'Could not save',
 
+  // the same character changed in another tab or window of the app
+  'sync.replaced': 'Updated: this character was changed in another tab',
+  'sync.replacedUnsaved': 'This character was changed in another tab',
+  'sync.replacedUnsavedHint': 'That version is shown now. Your last change here was not saved: make it again.',
+  'sync.gone': 'This character was deleted in another tab or window.',
+
   // images (maps)
   'images.title': 'Maps and images',
   'images.add': 'Add images',

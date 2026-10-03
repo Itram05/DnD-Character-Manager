@@ -84,12 +84,67 @@ export function loadCharacter(id: string): Character | null {
   }
 }
 
-export function saveCharacter(c: Character): StorageStatus {
-  const status = safeSet(charKey(c.id), JSON.stringify(c))
+export function saveCharacter(c: Character, text = JSON.stringify(c)): StorageStatus {
+  const status = safeSet(charKey(c.id), text)
   if (!status.ok) return status
   const idx = readIndex()
   if (!idx.includes(c.id)) return safeSet(INDEX_KEY, JSON.stringify([...idx, c.id]))
   return status
+}
+
+/** What an open sheet finds in storage when it looks again: what it last saw, another version of the character, or no character. */
+export type Elsewhere = { kind: 'same' } | { kind: 'replaced'; character: Character } | { kind: 'gone' }
+export type SaveOutcome = { kind: 'saved' } | { kind: 'failed'; error: string } | Exclude<Elsewhere, { kind: 'same' }>
+
+/**
+ * One open sheet's hold on its character in storage. The same character can be changed from elsewhere
+ * while the sheet is open: a second tab or window of the app, an import with "Replace existing" or a
+ * delete in the list there. So the sheet remembers the stored text it last read or wrote, and a save
+ * goes through only while storage still holds exactly that text. Otherwise nothing is written and the
+ * caller gets what is there now: storage wins, the sheet shows it (see Sheet.tsx).
+ */
+export interface CharacterSession {
+  /** Writes the character, unless storage has changed since this session last looked. */
+  save(c: Character): SaveOutcome
+  /** Looks at storage again. Anything but 'same' is reported once: the session then holds the new text. */
+  check(): Elsewhere
+  /** Whether a `storage` event with this key is about this character (null: all of storage was cleared). */
+  concerns(key: string | null): boolean
+}
+
+export function characterSession(id: string): CharacterSession {
+  const key = charKey(id)
+  let seen = safeGet(key)
+  // deleted (or unreadable) elsewhere: final. A later save must not bring the character back.
+  let gone = false
+  const check = (): Elsewhere => {
+    if (gone) return { kind: 'gone' }
+    const now = safeGet(key)
+    if (now === seen) return { kind: 'same' }
+    seen = now
+    if (now !== null) {
+      try {
+        return { kind: 'replaced', character: importCharacterJson(now).character }
+      } catch {
+        /* not a character any more: handled as gone, and left as it is for the list to show as broken */
+      }
+    }
+    gone = true
+    return { kind: 'gone' }
+  }
+  return {
+    check,
+    concerns: (k) => k === null || k === key,
+    save(c) {
+      const found = check()
+      if (found.kind !== 'same') return found
+      const text = JSON.stringify(c)
+      const status = saveCharacter(c, text)
+      if (!status.ok) return { kind: 'failed', error: status.error ?? '' }
+      seen = text
+      return { kind: 'saved' }
+    },
+  }
 }
 
 export function deleteCharacter(id: string): StorageStatus {
