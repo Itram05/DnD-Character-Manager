@@ -190,7 +190,8 @@ describe('files: older ones, and the round trip with pictures', () => {
     const c = addImages(hero(), [img('a')])
     const light = JSON.parse(exportWithoutImages(c))
     expect('images' in light).toBe(false)
-    expect(light).toEqual(JSON.parse(JSON.stringify(hero())))
+    // hero() is read anew, a millisecond later: its updatedAt is not what is compared
+    expect(light).toEqual(JSON.parse(JSON.stringify({ ...hero(), updatedAt: light.updatedAt })))
     expect(importCharacterJson(exportWithoutImages(c)).imagesInFile).toBe(false)
   })
 })
