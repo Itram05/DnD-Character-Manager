@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { loadSrdSpells, type SrdSpell } from '../data/srd'
 import { t } from '../i18n'
+import { categoryList, guessCategory } from '../model/categories'
+import { defaultContainerId, deleteItem, moveTargets } from '../model/containers'
+import { recipesUsing, renameAcross } from '../model/crafting'
 import { newId } from '../model/normalize'
 import { evalFormula } from '../model/rules'
 import { autoPart, ownTagsIn, spellAutoTags, textTags } from '../model/tags'
@@ -53,7 +56,7 @@ function UsesEditor(props: { api: SheetApi; value?: Uses; onChange: (u?: Uses) =
   )
 }
 
-function EditorFrame(props: { title: string; onClose: () => void; onSave: () => void; onDelete?: () => void; children: React.ReactNode; canSave?: boolean }) {
+export function EditorFrame(props: { title: string; onClose: () => void; onSave: () => void; onDelete?: () => void; children: React.ReactNode; canSave?: boolean }) {
   const [confirm, setConfirm] = useState(false)
   return (
     <>
@@ -213,8 +216,11 @@ export function SpellEditor({ api, initial, onClose }: { api: SheetApi; initial:
 
 // ---------------- item ----------------
 
-export function blankItem(): Item {
-  return { id: newId(), name: '', quantity: 1, equipped: false, requiresAttunement: false, attuned: false, description: '' }
+/** A new empty item, in the given container (the first one if none is given). */
+export function blankItem(containerId?: string): Item {
+  const item: Item = { id: newId(), name: '', quantity: 1, equipped: false, requiresAttunement: false, attuned: false, description: '' }
+  if (containerId) item.containerId = containerId
+  return item
 }
 
 export function ItemEditor({ api, initial, onClose }: { api: SheetApi; initial: Item; onClose: () => void }) {
@@ -223,11 +229,21 @@ export function ItemEditor({ api, initial, onClose }: { api: SheetApi; initial: 
   const save = () => {
     // a power added and left completely empty is dropped; one with only a description gets a name on the next import
     const powers = it.powers?.filter((p) => p.name.trim() || p.description.trim())
-    const out: Item = { ...it, powers: powers?.length ? powers : undefined }
-    api.update((c) => ({ ...c, inventory: { ...c.inventory, items: exists ? c.inventory.items.map((x) => (x.id === out.id ? out : x)) : [...c.inventory.items, out] } }))
+    const out: Item = { ...it, powers: powers?.length ? powers : undefined, containerId: it.containerId ?? defaultContainerId(api.c) }
+    const before = api.c.inventory.items.find((x) => x.id === out.id)
+    api.update((c) => {
+      const next = { ...c, inventory: { ...c.inventory, items: exists ? c.inventory.items.map((x) => (x.id === out.id ? out : x)) : [...c.inventory.items, out] } }
+      // the last stack of a name renamed: recipes and counters in Play follow (crafting.ts)
+      return before && before.name !== out.name ? renameAcross(next, before.name, out.name) : next
+    })
     onClose()
   }
+  const usedIn = recipesUsing(api.c, initial.name)
   const isCard = !!it.activation
+  // a bag cannot go into itself or into a bag inside it
+  const targets = moveTargets(api.c, it.id)
+  const categories = categoryList(api.c)
+  const label = (k: { name: string; icon?: string }) => (k.icon ? `${k.icon} ${k.name}` : k.name)
   return (
     <EditorFrame
       title={exists ? t('item.edit') : t('item.add')}
@@ -236,19 +252,13 @@ export function ItemEditor({ api, initial, onClose }: { api: SheetApi; initial: 
       canSave={!!it.name.trim()}
       onDelete={
         exists
-          ? () => (
-              api.update((c) => ({
-                ...c,
-                inventory: { ...c.inventory, items: c.inventory.items.filter((x) => x.id !== it.id) },
-                // an attack made with the deleted item stays, unlinked
-                attacks: c.attacks.map((a) => (a.itemId === it.id ? { ...a, itemId: null } : a)),
-              })),
-              onClose()
-            )
+          ? // attacks made with it stay, unlinked; if it was a bag, its container and everything in it stay (containers.ts)
+            () => (api.update((c) => deleteItem(c, it.id)), onClose())
           : undefined
       }
     >
       <TextField label={t('common.name')} value={it.name} onChange={(name) => setIt({ ...it, name })} />
+      {exists && usedIn.length > 0 && <p className="hint">{t('craft.usedInRecipes', { list: usedIn.map((r) => r.name).join(', ') })}</p>}
       <div className="grid-3">
         <NumberField label={t('item.quantity')} value={it.quantity} min={0} onChange={(quantity) => setIt({ ...it, quantity: Math.max(0, quantity) })} />
         <NumberField label={t('item.weight')} value={it.weight ?? 0} min={0} step={0.5} onChange={(weight) => setIt({ ...it, weight })} />
@@ -256,6 +266,23 @@ export function ItemEditor({ api, initial, onClose }: { api: SheetApi; initial: 
         <NumberField label={t('item.saveBonus')} value={it.saveBonus ?? 0} onChange={(saveBonus) => setIt({ ...it, saveBonus: saveBonus || undefined })} />
         <NumberField label={t('item.spellDcBonus')} value={it.spellDcBonus ?? 0} onChange={(spellDcBonus) => setIt({ ...it, spellDcBonus: spellDcBonus || undefined })} />
         <NumberField label={t('item.spellAttackBonus')} value={it.spellAttackBonus ?? 0} onChange={(spellAttackBonus) => setIt({ ...it, spellAttackBonus: spellAttackBonus || undefined })} />
+      </div>
+      <div className="grid-3">
+        <Select
+          label={t('item.container')}
+          value={it.containerId && targets.some((k) => k.id === it.containerId) ? it.containerId : (targets[0]?.id ?? defaultContainerId(api.c))}
+          options={targets.map((k) => ({ value: k.id, label: label(k) }))}
+          onChange={(containerId) => setIt({ ...it, containerId })}
+        />
+        <Select
+          label={t('item.category')}
+          value={it.category ?? ''}
+          options={[
+            { value: '', label: t('item.categoryAuto', { name: categories.find((k) => k.id === guessCategory(api.c, it))?.name ?? '' }) },
+            ...categories.map((k) => ({ value: k.id, label: label(k) })),
+          ]}
+          onChange={(category) => setIt({ ...it, category: category || undefined })}
+        />
       </div>
       <div className="checks">
         <Check label={t('item.equipped')} checked={it.equipped} onChange={(equipped) => setIt({ ...it, equipped })} />

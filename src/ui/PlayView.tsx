@@ -37,6 +37,7 @@ import { TagList } from './tags'
 import { SIDE_NAV_SIDE, SectionNavMenu, SectionNavSide } from './SectionNav'
 import { ResourcesBlock } from './ResourcesBlock'
 import { ItemPanel, ItemsSection } from './ItemsSection'
+import { CountersSection } from './CountersSection'
 import { itemPanel, itemTiles } from '../model/itemPanel'
 import { groupTitle, playHands, playSections, sectionId } from './playSections'
 
@@ -155,7 +156,7 @@ export function PlayView({ api }: { api: SheetApi }) {
 
   const zonesToShow: Zone[] = selectedZones(filter)
   const hands = playHands(zonesToShow, cards, kinds.length !== 1)
-  const sections = playSections({ mana: mana.length > 0 || !!sp, passives: passives.length, items: tiles.length, hands, passivesFirst: wide, resources: !wide })
+  const sections = playSections({ mana: mana.length > 0 || !!sp, passives: passives.length, counters: c.playCounters.length, items: tiles.length, hands, passivesFirst: wide, resources: !wide })
 
   const renderCard = (card: CardFace) => {
     if (card.kind === 'scroll')
@@ -319,6 +320,8 @@ export function PlayView({ api }: { api: SheetApi }) {
             {resourcePanels(true)}
           </ResourcesBlock>
         )}
+
+        <CountersSection api={api} id={sectionId('counters')} />
 
         {tiles.length > 0 && <ItemsSection id={sectionId('items')} tiles={tiles} collapsible={!wide} onOpen={setOpenItem} />}
 

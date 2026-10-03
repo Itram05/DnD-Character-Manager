@@ -63,10 +63,13 @@ Class table column names = the table header in lowercase with dashes: `rages`, `
 | `attacks` | list of [attack](#attacks) | [] | |
 | `spellcasting` | [object](#spellcasting) | | Slot usage and concentration. |
 | `spells` | list of [spell](#spells) | [] | |
-| `inventory` | `{ items, money }` | | See [items](#items). `money = { cp, sp, ep, gp, pp }`. |
+| `inventory` | `{ items, money, containers, categories }` | | See [items](#items) and [containers](#containers). `money = { cp, sp, ep, gp, pp }`. |
 | `roleplay` | [object](#roleplay) | all "" | |
 | `sessionNotes` | list of `{ date, title, text }` | [] | |
 | `timers` | list of [day timers](#timers) | [] | |
+| `recipes` | list of [recipes](#recipes) | [] | Your crafting recipes. None are built in. |
+| `playCounters` | list of `{ "name" }` | [] | Items shown as counters in Play, in this order. See [recipes](#recipes). |
+| `preferences` | `{ gear }` | see [preferences](#preferences) | How the sheet looks for this character. |
 | `updatedAt` | ISO date | now | Set by the app. |
 
 ## classes
@@ -216,6 +219,70 @@ An attack linked to an item that is not on the Play screen (not equipped, or not
 | `activation` | Makes the item a card: `action`, `bonus`, ... Without `charges`, the card is a consumable: − and + on the card lower and raise `quantity`. Potions and scrolls are recognized by name instead (below) and need no `activation`. |
 | `powers` | Optional list of [item powers](#item-powers): the item's separate abilities, each its own card. |
 | `tags` | Optional list of your own [tags](#tags). They also apply to every power of the item. |
+| `containerId` | The id of the [container](#containers) the item is in. Missing or unknown = the first container (an unknown one with a warning). Where the item is kept, not whether it is worn: an `equipped` item counts as on you whatever its container. |
+| `category` | Optional category id: a built-in one (`weapon`, `armor`, `magic`, `scroll`, `potion`, `material`, `valuable`, `gear`) or one from `inventory.categories`. Without it the app guesses (scroll, potion, armor, weapon if an attack is made with it, magic, `material` tag, else gear); the guess is not written to the file. An id the list does not have is added to `inventory.categories` on import, with a warning. |
+
+## containers
+
+```json
+"containers": [
+  { "id": "backpack", "name": "Backpack", "icon": "🎒" },
+  { "id": "k2", "name": "Bag of Holding", "itemId": "boh", "capacity": 500, "weightless": true, "extradimensional": true }
+]
+```
+
+The inventory is one flat list of items; each item names its container. Containers are made by the player.
+
+| Field | Notes |
+|---|---|
+| `id`, `name` | A duplicate id gets a new id on import (the items stay with the first). |
+| `icon`, `color` | Optional: a short symbol (emoji) and a CSS colour. |
+| `capacity` | Optional weight limit of what is inside, lb. Over it is a warning on the Gear tab, not a block. |
+| `weightless` | What is inside does not count toward the carried weight (Bag of Holding, a mount, a chest at home). The bag item itself still counts where it is. |
+| `extradimensional` | Bag of Holding, Handy Haversack, Portable Hole: one inside another (at any depth) is a warning, as in the rules. |
+| `itemId` | The item this container is (the Bag of Holding item). The container is then wherever that item is: that is how containers nest. A link to a missing item, a second container claiming the same item, or a loop (a bag inside itself) is removed on import with a warning; the container and its items stay. |
+
+**Weight.** Carried = every item that is `equipped`, or not inside a `weightless` container at any depth; weight × quantity, rounded to 1/1000 lb. A container's load (for `capacity`) = its unequipped items, plus what is inside non-weightless bags in it.
+
+**A file without `containers`** (any older file) gets one `{ "id": "backpack", "name": "Backpack" }` and every item goes in it, silently. Deleting a container in the app moves its items to where the container was (or the first other container); the last container cannot be deleted.
+
+`categories`: optional list of `{ "id", "name", "icon", "color" }`: your own categories, or a built-in one renamed (same id as the built-in).
+
+## recipes
+
+```json
+"recipes": [
+  {
+    "id": "r1",
+    "name": "Potion of Healing",
+    "inputs": [{ "name": "Moonpetal", "quantity": 2 }, { "name": "Empty vial", "quantity": 1 }],
+    "output": { "name": "Potion of Healing", "quantity": 1, "template": { "category": "potion", "weight": 0.5 } },
+    "time": "1 day", "tool": "Herbalism Kit", "dc": "DC 12", "note": "",
+    "containerId": "backpack"
+  }
+],
+"playCounters": [{ "name": "Moonpetal" }]
+```
+
+Inputs, the output and counters name items **by name**, not by id: case and extra spaces are ignored, and every stack of that name counts, in any container (bags, i.e. items that are a container, never count). So a recipe can be written before you own the material, and keeps working when a stack runs out, is deleted, split or merged. Renaming the last item of a name in the app renames it in recipes and counters too.
+
+| Field | Meaning |
+|---|---|
+| `inputs` | Taken out on every craft. `quantity` above 0 (fractions allowed). A plain string `"Herb"` = 1 Herb. Missing name: ignored with a warning. |
+| `output` | Put in on every craft: added to a stack of that name in the chosen container; else a new item from `template`; else a copy of a stack of that name elsewhere; else a plain item. A string = 1 of it. Missing: 1 of the recipe's name, with a warning. |
+| `output.template` | Optional. Any [item](#items) fields except `id`, `name`, `quantity`, `containerId`, `equipped`, `attuned` (those are ignored with a warning). Read like an item. |
+| `time`, `tool`, `dc`, `note` | Free text, only shown. |
+| `containerId` | Where the output went last time; the Craft dialog starts there. |
+
+**Craft ×N** is refused unless every input is there N times over; it then takes the inputs (unequipped stacks first, inventory order), adds the output and remembers the container, as one change (one Undo). A stack emptied by it is removed when another stack of that name still has some; otherwise one stays at quantity 0. `playCounters`: a name pinned twice keeps the first.
+
+## preferences
+
+```json
+"preferences": { "gear": { "view": "hybrid", "groupBy": "container", "show": { "quantity": true, "weight": true, "category": true, "tags": true, "charges": true } } }
+```
+
+`gear.view`: `hybrid`, `tiles` or `rows` (the layout of the coming Gear redesign; stored, not used yet). `gear.groupBy`: `container`, `category` or `none`. `gear.show`: which details a row shows. Missing fields get these defaults.
 
 **Potions and scrolls** are ordinary items; the Play screen only reads their name (src/model/consumables.ts). An item **without `charges`** is a *scroll* if its name contains "scroll" (not "scroll case/tube"); the spell is taken from "Scroll of X", "Spell Scroll of X", "Spell Scroll (X)", "Scroll: X" or "X scroll", and its text from the character's spells, then the SRD, then the item's `description`. Otherwise it is a *potion* if its name contains "potion", "elixir" or "philter". A potion whose name also says "healing" is a *healing potion* (Healing / Greater / Superior / Supreme, from the name): a counter in the Concentration panel, not a card; its dice come from `description`, else the standard 2d4+2 / 4d4+4 / 8d4+8 / 10d4+20. Every other potion is a card in the scroll group with "Use".
 
@@ -361,7 +428,7 @@ Blank lines separate paragraphs.
 |---|---|---|
 | 1 | First format. | |
 | 2 | New optional fields: `tags` (spells, features, items, item powers) and `powers` (items). Unknown fields are kept instead of dropped. | None needed: every version 1 field means the same in version 2, so a version 1 file imports unchanged and is exported as version 2. Item descriptions are **not** split into powers automatically (that would be guessing at rules text); add powers on the Gear tab or in the file. |
-| 3 | New fields: `partySize`, `xpLog` (experience log) and `timers` (day timers). Items: `spellDcBonus`, `spellAttackBonus`. | A version 2 file gets `partySize` 5 and empty `xpLog` and `timers`; `xp` keeps its value. A passive item power named like "+1 spell save DC" / "+3 spell attack" becomes the item's `spellDcBonus` / `spellAttackBonus` (its text goes to the item's `description`); if the item counted before but is not equipped, it is equipped, so the DC and spell attack stay the same. This conversion runs on every import, so version 3 files saved before these fields existed are converted too. Attacks: `itemId` (see attacks); a missing `itemId` is filled in on every import, the same way. |
+| 3 | New fields: `partySize`, `xpLog` (experience log) and `timers` (day timers). Items: `spellDcBonus`, `spellAttackBonus`. | A version 2 file gets `partySize` 5 and empty `xpLog` and `timers`; `xp` keeps its value. A passive item power named like "+1 spell save DC" / "+3 spell attack" becomes the item's `spellDcBonus` / `spellAttackBonus` (its text goes to the item's `description`); if the item counted before but is not equipped, it is equipped, so the DC and spell attack stay the same. This conversion runs on every import, so version 3 files saved before these fields existed are converted too. Attacks: `itemId` (see attacks); a missing `itemId` is filled in on every import, the same way. Inventory (2026-10-01): `containers`, `categories`, item `containerId` and `category`, top-level `preferences`; crafting (2026-10-01): top-level `recipes` and `playCounters`. A file without containers gets one Backpack with every item in it, on every import. These are optional additions, so the version stayed 3: a version 3 app without containers opens such a file and keeps the new fields unchanged. |
 
 Added without a new version (optional fields, older files read the same): `exhaustionRules`, `images`.
 
