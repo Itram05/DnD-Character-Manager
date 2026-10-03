@@ -186,6 +186,8 @@ Used by features (`uses`), spells (`freeCasts`) and items (`charges`).
 ```
 
 `ability`: an ability, `finesse` (best of Str/Dex) or `spell` (the first spellcasting class's ability).
+A `spell` attack is a spell attack: it also takes the `spellAttackBonus` of the items that count (see items), so
+do not repeat that bonus in `bonus`.
 To-hit and damage bonus are computed. Attacks appear as cards in the Action hand.
 
 `itemId` (optional): the `id` of the item the attack is made with. The attack then also shows in that item's panel
@@ -240,7 +242,7 @@ An attack linked to an item that is not on the Play screen (not equipped, or not
 | `acBonus` | Added to AC while equipped (and attuned if required). Shield = 2. |
 | `saveBonus` | Added to all saving throws under the same condition (Ring/Cloak of Protection). |
 | `spellDcBonus` | Added to the spell save DC under the same condition (a focus with +1 to the DC). Shown as a chip "+1 spell save DC" under "Always on" exactly while it counts. |
-| `spellAttackBonus` | Added to spell attack rolls under the same condition (Staff of Ages +3). Chip "+3 spell attack". |
+| `spellAttackBonus` | Added to spell attack rolls under the same condition (Staff of Ages +3): the spell attack in the head and every attack with `"ability": "spell"`. Chip "+3 spell attack". |
 | `charges` | [uses](#uses). |
 | `activation` | Makes the item a card: `action`, `bonus`, ... Without `charges`, the card is a consumable: − and + on the card lower and raise `quantity`. Potions and scrolls are recognized by name instead (below) and need no `activation`. |
 | `powers` | Optional list of [item powers](#item-powers): the item's separate abilities, each its own card. |

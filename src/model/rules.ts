@@ -491,16 +491,26 @@ export function spellDcView(c: Character): SpellDcView[] {
 
 // ---------------- attacks ----------------
 
+/**
+ * To hit and the damage modifier of an attack. Exhaustion is NOT in toHit (as in castingStats): the screens
+ * take it off once, where they show the number.
+ * An attack with `ability: 'spell'` is a spell attack, so it takes the items' spellAttackBonus under the
+ * same rule as the spell attack in the head (itemSpellBonuses: equipped, and attuned if required): a
+ * proficient one with no `bonus` of its own shows exactly that number. (Until 2026-10-03 the item bonus
+ * reached only the head, and had to be written into the attack's `bonus` by hand.)
+ */
 export function attackStats(c: Character, a: Attack) {
   const m = mods(c)
   let abil = 0
+  let items = 0
   if (a.ability === 'finesse') abil = Math.max(m.str, m.dex)
   else if (a.ability === 'spell') {
     const cs = castingStats(c)[0]
     abil = cs ? m[cs.ability] : 0
+    items = itemSpellBonuses(c).attack.reduce((s, x) => s + x.value, 0)
   } else abil = m[a.ability]
   const pb = proficiencyBonus(totalLevel(c))
-  const toHit = abil + (a.proficient ? pb : 0) + (a.bonus || 0)
+  const toHit = abil + (a.proficient ? pb : 0) + (a.bonus || 0) + items
   const dmgMod = (a.addAbilityToDamage ? abil : 0) + (a.damageBonus || 0)
   return { toHit, dmgMod }
 }

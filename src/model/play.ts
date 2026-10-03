@@ -361,7 +361,7 @@ export function itemBonusPowers(i: Item): ItemPower[] {
   if (i.spellDcBonus)
     out.push({ id: `${i.id}:spellDcBonus`, name: `${signed(i.spellDcBonus)} spell save DC`, activation: 'passive', description: `${signed(i.spellDcBonus)} to your spell save DC ${rule}. Already counted in the DC in the head.` })
   if (i.spellAttackBonus)
-    out.push({ id: `${i.id}:spellAttackBonus`, name: `${signed(i.spellAttackBonus)} spell attack`, activation: 'passive', description: `${signed(i.spellAttackBonus)} to your spell attack rolls ${rule}. Already counted in the spell attack in the head.` })
+    out.push({ id: `${i.id}:spellAttackBonus`, name: `${signed(i.spellAttackBonus)} spell attack`, activation: 'passive', description: `${signed(i.spellAttackBonus)} to your spell attack rolls ${rule}. Already counted in the spell attack in the head and in attacks made with the spellcasting ability.` })
   return out
 }
 

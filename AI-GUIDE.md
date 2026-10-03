@@ -448,9 +448,9 @@ A list. Each entry is a card in the Action hand.
 
 A cantrip that needs an attack roll (Fire Bolt) is a spell. If the player uses it every turn, you may **also** add it
 to `attacks` with `"ability": "spell"`, `"addAbilityToDamage": false`, `"itemId": null`, so a card shows the bonus.
-Such a card is ability modifier + Proficiency Bonus + `bonus` and nothing else: an item's `spellAttackBonus` is
-**not** in it (that field reaches only the spell attack shown beside the save DC). If the hero has such an item,
-write its bonus into this attack's `bonus` too, and say in `notes` that it comes from the item.
+Such a card is ability modifier + Proficiency Bonus + `bonus` + the `spellAttackBonus` of every active item: the
+same number as the spell attack shown beside the save DC. So leave an item's bonus **out** of this attack's `bonus`
+(it would count twice); `bonus` is only for what no item field carries.
 
 ### spellcasting
 
@@ -530,7 +530,7 @@ A list. Every spell the hero can cast, or has in a spellbook.
 | `acBonus` | number | if it applies | absent | Added to AC while the item is active. A Shield is an item with `"acBonus": 2` (no `armor`). |
 | `saveBonus` | number | if it applies | absent | Added to every saving throw while active (Cloak of Protection: 1). |
 | `spellDcBonus` | number | if it applies | absent | Added to the spell save DC while active. |
-| `spellAttackBonus` | number | if it applies | absent | Added to spell attack rolls while active. |
+| `spellAttackBonus` | number | if it applies | absent | Added to spell attack rolls while active: the spell attack beside the save DC and every attack with `"ability": "spell"`. |
 | `charges` | [counter](#counters) | if it applies | absent | The item's pool of charges. |
 | `activation` | as for features | if it applies | absent | Makes the item itself a card that spends `quantity`. Consumables only; see the table below. |
 | `powers` | list | if it applies | absent | The item's separate abilities. See [item powers](#item-powers). |
