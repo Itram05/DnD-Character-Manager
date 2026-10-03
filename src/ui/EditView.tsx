@@ -132,7 +132,7 @@ export function EditView({ api }: { api: SheetApi }) {
 
       <section className="panel">
         <h3>{t('edit.file')}</h3>
-        <button className="btn" onClick={() => downloadJson(c)}>
+        <button className="btn" onClick={() => void downloadJson(c).then((m) => m.length && api.toast({ title: t('images.exportMissing'), lines: m, tone: 'bad' }))}>
           {t('list.export')}
         </button>
         <p className="hint">{t('edit.fileHint')}</p>

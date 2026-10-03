@@ -3988,3 +3988,305 @@ details summary {
   gap: 0.45rem;
   font-size: 0.88rem;
 }
+
+/* ---------------- images (maps): the Images tab and the full-screen viewer ---------------- */
+
+.images-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+.images-head h3 {
+  margin: 0;
+  flex: 1 1 auto;
+}
+.images-size {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+.images-size select {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.25rem 0.4rem;
+  font: inherit;
+}
+.image-grid {
+  list-style: none;
+  margin: 0.7rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.6rem;
+  align-items: start;
+}
+@media (min-width: 900px) {
+  .image-grid {
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 0.8rem;
+  }
+}
+.image-tile {
+  position: relative;
+  min-width: 0;
+}
+.image-open {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--panel-2);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: zoom-in;
+  transition:
+    border-color var(--t),
+    transform var(--t);
+}
+.image-open:hover,
+.image-open:focus-visible {
+  border-color: var(--accent);
+}
+.image-open:active {
+  transform: scale(0.985);
+}
+/* every thumbnail is the same 4:3 window, whatever the picture's shape: the tiles line up in rows */
+.image-thumb {
+  display: block;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: var(--bg-2);
+}
+.image-thumb img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.image-nothumb {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 2rem;
+  color: var(--muted);
+}
+.image-name {
+  padding: 0.4rem 0.55rem 0.45rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  line-height: 1.25;
+}
+.image-gone {
+  padding: 0 0.55rem 0.45rem;
+  font-size: 0.75rem;
+  color: var(--warn);
+}
+.image-tile.gone .image-thumb img {
+  opacity: 0.55;
+}
+.image-edit {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgb(255 255 255 / 0.35);
+  background: rgb(15 12 22 / 0.72);
+  color: #fff;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.image-edit:hover,
+.image-edit:focus-visible {
+  background: rgb(15 12 22 / 0.92);
+  border-color: #fff;
+}
+.images-note {
+  margin: 0.7rem 0 0;
+}
+.images-foot {
+  margin-top: 0.8rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--line);
+}
+.images-foot .hint {
+  margin: 0 0 0.5rem;
+}
+.images-export {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.image-order {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.7rem 0 0.4rem;
+}
+.image-order .muted {
+  flex: 1 1 100%;
+}
+
+/* the viewer is dark in both themes: a map is looked at, not read against the page */
+.viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: #08060c;
+  color: #f1ece0;
+  outline: none;
+  animation: fade var(--t);
+}
+.viewer-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: calc(0.4rem + env(safe-area-inset-top)) 0.5rem 0.4rem 0.8rem;
+  background: rgb(8 6 12 / 0.6);
+}
+.viewer-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.viewer-title b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+}
+.viewer-count {
+  font-size: 0.78rem;
+  color: #b9b1c6;
+  font-variant-numeric: tabular-nums;
+}
+.viewer-tools {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.viewer-btn {
+  min-width: 40px;
+  height: 40px;
+  padding: 0 0.5rem;
+  border-radius: 10px;
+  border: 1px solid rgb(255 255 255 / 0.22);
+  background: rgb(40 34 54 / 0.85);
+  color: #f1ece0;
+  font: inherit;
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.viewer-btn:hover:not(:disabled),
+.viewer-btn:focus-visible {
+  border-color: #e0b85c;
+  color: #e0b85c;
+}
+.viewer-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.viewer-fit {
+  min-width: 58px;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+.viewer-close {
+  margin-left: 0.4rem;
+}
+.viewer-stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  /* the browser must not scroll or zoom the page here: the viewer handles drag and pinch itself */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: zoom-in;
+}
+.viewer-stage.zoomed {
+  cursor: grab;
+}
+.viewer-stage.zoomed.dragging {
+  cursor: grabbing;
+}
+.viewer-img {
+  flex: 0 0 auto;
+  display: block;
+  max-width: none;
+  transform-origin: center center;
+  will-change: transform;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+.viewer-img.preview {
+  filter: blur(2px);
+}
+.viewer-note {
+  position: absolute;
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
+  width: min(92%, 520px);
+  margin: 0;
+  padding: 0.5rem 0.8rem;
+  border-radius: 10px;
+  background: rgb(8 6 12 / 0.85);
+  text-align: center;
+  font-size: 0.9rem;
+}
+.viewer-missing {
+  border: 1px solid #f0a24a;
+  color: #f6c98b;
+}
+.viewer-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 64px;
+  padding: 0;
+  font-size: 1.8rem;
+  background: rgb(20 16 28 / 0.6);
+}
+.viewer-prev {
+  left: 0.4rem;
+}
+.viewer-next {
+  right: 0.4rem;
+}
+/* phone: the arrows sit at the bottom corners, out of the picture's way (a swipe also turns the page) */
+@media (max-width: 899px) {
+  .viewer-nav {
+    top: auto;
+    bottom: calc(0.6rem + env(safe-area-inset-bottom));
+    transform: none;
+    height: 44px;
+  }
+}

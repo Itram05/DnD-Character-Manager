@@ -23,6 +23,7 @@ git-ignored `.env.test.local` (one `NAME=path` per line). A path that is set but
 | Path | What |
 |---|---|
 | `src/model/` | Data model and rules, no React: `types.ts` (the format), `normalize.ts` (forgiving import), `rules.ts` (all calculations), `rest.ts`, `levelup.ts`, `xp.ts` (experience), `timers.ts` (day timers), `play.ts` (cards, mana, casting), `sorcery.ts` (Sorcery Points, Flexible Casting), `expr.ts` (formulas), `storage.ts` |
+| `src/model/images.ts`, `imageStore.ts` | Maps and other pictures of a character: the list is on the character, the pictures are in IndexedDB and travel inside the exported file (see `images` in SCHEMA.md). |
 | `src/ui/` | React screens. `PlayView.tsx` + `GameCard.tsx` are the card table. |
 | `src/i18n/en.ts` | Every UI string. Add `bg.ts` with the same keys to translate. |
 | `src/content/rulesHelp.en.ts` | Hand-written rules summaries (turn, 2014 → 2024). |

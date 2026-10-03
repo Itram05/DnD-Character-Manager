@@ -18,7 +18,7 @@ describe('i18n keys', () => {
   })
   it('dynamic key families are complete', () => {
     const families: Record<string, string[]> = {
-      'tab.': ['play', 'stats', 'spells', 'gear', 'features', 'story', 'level', 'edit'],
+      'tab.': ['play', 'stats', 'spells', 'gear', 'features', 'story', 'images', 'level', 'edit'],
       'zone.': ['all', 'action', 'bonus', 'reaction', 'other', 'action.short', 'bonus.short', 'reaction.short', 'other.short'],
       'act.': ['passive', 'action', 'bonus', 'reaction', 'free', 'special'],
       'recharge.': ['short', 'long', 'dawn', 'other', 'none'],
