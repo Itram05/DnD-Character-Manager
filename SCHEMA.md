@@ -218,7 +218,7 @@ An attack linked to an item that is not on the Play screen (not equipped, or not
 | `name`, `level` | `level` 0 = cantrip. A plain string `"Fire Bolt"` works (then fill it in the app: typing an SRD name fills everything). |
 | `source` | Class id (decides the spellcasting ability shown) or `feat`, `item`, ... |
 | `prepared` | Default true. Unprepared spells are not shown as cards. |
-| `alwaysPrepared` | Subclass/feat spells; they don't count toward the prepared limit. |
+| `alwaysPrepared` | Subclass/feat spells; they don't count toward the prepared limit, and an always-prepared cantrip doesn't count toward the class's number of cantrips. |
 | `ritual`, `concentration` | true/false. |
 | `school`, `castingTime`, `range`, `components`, `duration`, `description` | Text. `castingTime` starting with "Bonus Action" / "Reaction" puts the card in that hand. |
 | `freeCasts` | [uses](#uses) for casting without a slot (Magic Initiate, Divine Smite from Paladin's Smite, Mystic Arcanum...). |

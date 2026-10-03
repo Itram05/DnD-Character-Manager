@@ -494,11 +494,10 @@ A list. Every spell the hero can cast, or has in a spellbook.
   max from the 2024 class table and counting the spells with that class's `source`, level 1+, `prepared` and not
   `alwaysPrepared`. Nothing is refused, on import or later. So know the limit yourself, count, and if the player named
   fewer or more, tell them; do not fill the gap with spells of your choosing.
-- **Cantrips.** The Spells tab shows "Cantrips n/max" per class, counting **every** cantrip with that class's
-  `source`; `alwaysPrepared` does not take a cantrip out of that count (it only adds the ★). So a cantrip that does
-  not count against the class's number (a subclass's bonus cantrip, a species or feat cantrip) gets `source`
-  `"species"` or `"feat"`, or, for a subclass, stays with the class's id and you tell the player the count shows
-  one more than the rules count. Nothing is refused.
+- **Cantrips.** The Spells tab shows "Cantrips n/max" per class, counting the cantrips with that class's `source`
+  that are not `alwaysPrepared`: the same rule as for prepared spells. So a cantrip that does not count against the
+  class's number gets `"alwaysPrepared": true` and the class's id as `source` if a subclass gives it (Circle of the
+  Moon's Starry Wisp), or `source` `"species"` or `"feat"` if it comes from there. Nothing is refused.
 - **Save DC and spell attack of a spell.** The app works these out **per casting class only** and shows them in
   the head and on the Spells tab; a spell card carries no numbers of its own. A spell with `source` `"species"`,
   `"feat"` or `"item"` gets no DC from the app. If it uses the same ability as the hero's class, nothing more is

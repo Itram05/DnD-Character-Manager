@@ -360,6 +360,17 @@ export function pactSlots(c: Character): { slots: number; level: number } {
 }
 
 /**
+ * What the Spells tab counts against one class's limits ("Cantrips n/max", "Prepared n/max"): the spells
+ * with that class's id as `source`, without the always-prepared ones. A subclass's bonus cantrip (Circle of
+ * the Moon's Starry Wisp) is outside the class's number of cantrips, as a domain spell is outside the
+ * prepared limit. (Until 2026-10-03 `alwaysPrepared` took only spells of level 1+ out of the count.)
+ */
+export function classSpellCounts(c: Character, classId: string): { cantrips: number; prepared: number } {
+  const mine = c.spells.filter((s) => s.source === classId && !s.alwaysPrepared)
+  return { cantrips: mine.filter((s) => s.level === 0).length, prepared: mine.filter((s) => s.level > 0 && s.prepared).length }
+}
+
+/**
  * Is this item on the Play screen (its tile, cards, linked attacks, "Always on" chips, features from it)?
  * The same rule as its bonuses (itemActive): equipped, and attuned if it requires attunement.
  * Exception: consumables (scrolls, potions, items spent by quantity, see isCarriedConsumable). You carry

@@ -545,7 +545,7 @@ export const en: Record<string, string> = {
   'spell.hasFreeCasts': 'Can be cast without a slot (limited)',
   'spell.srdHint': 'Type the name of an SRD spell to fill in everything automatically.',
   'spells.limits': 'Preparing spells',
-  'spells.limitsHint': 'Limits come from each class table. Always-prepared spells (subclass, feats) do not count.',
+  'spells.limitsHint': 'Limits come from each class table. Always-prepared spells and cantrips (subclass, feats) do not count.',
   'spells.cantripsCount': 'Cantrips {n}/{max}',
   'spells.preparedCount': 'Prepared {n}/{max}',
   'spells.addFromSrd': 'Add from the SRD spell list',

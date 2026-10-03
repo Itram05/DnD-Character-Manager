@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { srdClass } from '../data/srd'
 import { t } from '../i18n'
-import { casterType, castingStats, classColumnValue, spellAttackNow } from '../model/rules'
+import { casterType, castingStats, classColumnValue, classSpellCounts, spellAttackNow } from '../model/rules'
 import { filterOptions, matchesFilter, spellFilterable } from '../model/filter'
 import type { Spell } from '../model/types'
 import { Check, Dis, InHead, fmtMod } from './common'
@@ -52,9 +52,7 @@ export function SpellsView({ api }: { api: SheetApi }) {
               const stats = castingStats(c).find((s) => s.classId === k.id)
               const maxPrep = classColumnValue(k.id, 'prepared-spells', k.level)
               const maxCantrips = classColumnValue(k.id, 'cantrips', k.level)
-              const mine = c.spells.filter((s) => s.source === k.id)
-              const prep = mine.filter((s) => s.level > 0 && s.prepared && !s.alwaysPrepared).length
-              const cantrips = mine.filter((s) => s.level === 0).length
+              const { cantrips, prepared: prep } = classSpellCounts(c, k.id)
               return (
                 <div key={k.id} className="limit">
                   <strong>{k.name}</strong>
