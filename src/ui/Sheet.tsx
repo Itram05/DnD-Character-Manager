@@ -94,6 +94,12 @@ export function Sheet(props: { initial: Character; tab: Tab; onTab: (t: Tab) => 
 
   // flush the pending save when leaving the sheet (the debounce above would drop it)
   useEffect(() => () => void saveCharacter(cRef.current), [])
+  // and when the page itself goes away (tab closed, app sent to the background, Reload for a new version)
+  useEffect(() => {
+    const flush = () => void saveCharacter(cRef.current)
+    window.addEventListener('pagehide', flush)
+    return () => window.removeEventListener('pagehide', flush)
+  }, [])
 
   // once, on opening: delete the stored pictures of images removed earlier. Not at the moment of removal,
   // so Undo can bring a removed image back for as long as the sheet stays open.
