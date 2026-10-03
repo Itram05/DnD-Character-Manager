@@ -5,7 +5,8 @@ import {
   attackStats,
   castingStats,
   exhaustionEffects,
-  passiveScore,
+  passiveScoreView,
+  spellAttackNow,
   savingThrow,
   savingThrowProficiencies,
   skillMod,
@@ -35,6 +36,7 @@ export function StatsView({ api }: { api: SheetApi }) {
 
   return (
     <div className="stats">
+      {exhaustion.dead && <p className="banner dead-banner">{t('cond.exhaustionDeath')}</p>}
       {exh > 0 && <p className="warn banner">{t('stats.exhaustionBanner', { p: exh })}</p>}
       {exhaustion.checksDisadvantage && (
         <p className="warn banner">{t(exhaustion.attacksSavesDisadvantage ? 'stats.exhaustionDisAll' : 'stats.exhaustionDisChecks', { n: exhaustion.level })}</p>
@@ -96,12 +98,16 @@ export function StatsView({ api }: { api: SheetApi }) {
           <section className="panel passives">
             <h3>{t('stats.passives')}</h3>
             <ul className="check-list">
-              {(['perception', 'insight', 'investigation'] as const).map((s) => (
-                <li key={s}>
-                  <span className="li-name">{t(`skill.${s}`)}</span>
-                  <b>{passiveScore(c, s)}</b>
-                </li>
-              ))}
+              {(['perception', 'insight', 'investigation'] as const).map((s) => {
+                const p = passiveScoreView(c, s)
+                return (
+                  <li key={s} className={p.penalty ? 'reduced' : ''} title={p.penalty ? t('cond.reducedFrom', { n: p.base }) : undefined}>
+                    <span className="li-name">{t(`skill.${s}`)}</span>
+                    {p.penalty > 0 && <small className="passive-minus">{t('stats.passiveMinus', { p: p.penalty })}</small>}
+                    <b>{p.value}</b>
+                  </li>
+                )
+              })}
             </ul>
           </section>
 
@@ -125,9 +131,9 @@ export function StatsView({ api }: { api: SheetApi }) {
                       <td>
                         <b>{s.saveDc}</b>
                       </td>
-                      <td>
-                        <Dis on={exhaustion.attacksSavesDisadvantage} />
-                        <b>{fmtMod(s.attack - exh)}</b>
+                      <td className="nowrap">
+                        <Dis on={spellAttackNow(c, s.attack).disadvantage} />
+                        <b>{fmtMod(spellAttackNow(c, s.attack).attack)}</b>
                       </td>
                     </tr>
                   ))}
@@ -185,7 +191,7 @@ export function StatsView({ api }: { api: SheetApi }) {
                       {a.name}
                       {a.mastery && <small className="muted"> · {a.mastery}</small>}
                     </td>
-                    <td>
+                    <td className="nowrap">
                       <Dis on={exhaustion.attacksSavesDisadvantage} />
                       <b>{fmtMod(s.toHit - exh)}</b>
                     </td>

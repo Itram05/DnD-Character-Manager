@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
 import { srdClass } from '../data/srd'
 import { t } from '../i18n'
-import { casterType, castingStats, classColumnValue } from '../model/rules'
+import { casterType, castingStats, classColumnValue, spellAttackNow } from '../model/rules'
 import { filterOptions, matchesFilter, spellFilterable } from '../model/filter'
 import type { Spell } from '../model/types'
-import { Check, InHead, fmtMod } from './common'
+import { Check, Dis, InHead, fmtMod } from './common'
 import { SpellEditor, blankSpell, fromSrdSpell, useSrdSpells } from './editors'
 import type { SheetApi } from './Sheet'
 import { ActiveFilters, FilterButton } from './filter'
@@ -60,7 +60,8 @@ export function SpellsView({ api }: { api: SheetApi }) {
                   <strong>{k.name}</strong>
                   {stats && (
                     <span className="muted">
-                      {t('stats.saveDc')} {stats.saveDc} · {t('stats.spellAttack')} {fmtMod(stats.attack)}
+                      {t('stats.saveDc')} {stats.saveDc} · {t('stats.spellAttack')} {fmtMod(spellAttackNow(c, stats.attack).attack)}
+                      <Dis on={spellAttackNow(c, stats.attack).disadvantage} />
                     </span>
                   )}
                   {maxCantrips !== undefined && maxCantrips > 0 && (

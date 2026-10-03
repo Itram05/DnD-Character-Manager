@@ -103,7 +103,7 @@ export function TopBar({ api, onBack, onUndo, children }: { api: SheetApi; onBac
             <button
               className={`stat-chip dc ${dcs.length > 1 ? 'multi' : ''}`}
               onClick={() => setModal('dc')}
-              title={dcs.map((d) => t('vitals.dcLine', { dc: d.saveDc, atk: fmtMod(d.attack), ability: t(`ability.${d.ability}`) })).join('\n')}
+              title={dcs.map((d) => t('vitals.dcLine', { dc: d.saveDc, atk: fmtMod(d.attack) + (d.attackDisadvantage ? ` (${t('cond.disShort')})` : ''), ability: t(`ability.${d.ability}`) })).join('\n')}
             >
               <span className="chip-label">
                 <span className="dc-long">{t('vitals.dc')}</span>
@@ -140,8 +140,8 @@ export function TopBar({ api, onBack, onUndo, children }: { api: SheetApi; onBac
       {(c.conditions.length > 0 || c.exhaustion > 0) && (
         <div className="cond-strip">
           {c.exhaustion > 0 && (
-            <button className="cond-chip exh" onClick={() => setModal('conditions')}>
-              {t('cond.exhaustionChip', { n: c.exhaustion, rules: exh.rules, effects: exhaustionLines(c).join(' · ') })}
+            <button className={exh.dead ? 'cond-chip exh dead' : 'cond-chip exh'} onClick={() => setModal('conditions')}>
+              {exh.dead ? t('cond.exhaustionDeadChip', { rules: exh.rules }) : t('cond.exhaustionChip', { n: c.exhaustion, rules: exh.rules, effects: exhaustionLines(c).join(' · ') })}
             </button>
           )}
           {c.conditions.map((id) => (
@@ -188,12 +188,16 @@ export function TopBar({ api, onBack, onUndo, children }: { api: SheetApi; onBac
                   ))}
                   <tr className="total">
                     <td>{t('vitals.spellAttack')}</td>
-                    <td>{fmtMod(d.attack)}</td>
+                    <td className="nowrap">
+                      <Dis on={d.attackDisadvantage} />
+                      {fmtMod(d.attack)}
+                    </td>
                   </tr>
                 </tbody>
               </table>
             </div>
           ))}
+          {exh.level > 0 && <p className="warn">{t(exh.attacksSavesDisadvantage ? 'vitals.dcExhDis' : exh.d20Penalty ? 'vitals.dcExhMinus' : 'vitals.dcExhNone', { n: exh.level, p: exh.d20Penalty })}</p>}
           <p className="hint">{t('vitals.dcHint')}</p>
         </Modal>
       )}
@@ -230,6 +234,7 @@ function partLabel(p: CastingPart): string {
   if (p.kind === 'base') return t('vitals.dcBase')
   if (p.kind === 'ability') return t(`ability.long.${p.label}`)
   if (p.kind === 'pb') return t('vitals.pbLong')
+  if (p.kind === 'exhaustion') return t('cond.exhaustionN', { n: p.label })
   return p.label
 }
 
@@ -511,7 +516,7 @@ function ConditionsModal({ api, onClose }: { api: SheetApi; onClose: () => void 
         ) : (
           <p className="muted">{t('cond.none')}</p>
         )}
-        {c.exhaustion >= 6 && <p className="warn">{t('cond.exhaustionDeath')}</p>}
+        {c.exhaustion >= 6 && <p className="banner dead-banner">{t('cond.exhaustionDeath')}</p>}
         <details>
           <summary>{t('cond.rulesText')}</summary>
           <RichText text={exh?.text ?? ''} />
