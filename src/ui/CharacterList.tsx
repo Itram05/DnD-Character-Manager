@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import sampleJson from '../../examples/sample-character.json?raw'
 import { SRD_ATTRIBUTION } from '../data/srd'
 import { t } from '../i18n'
@@ -6,7 +6,7 @@ import { formatBytes, imagesBytes, imagesOf, keepImages } from '../model/images'
 import { dropAll, imageStore, storeImported } from '../model/imageStore'
 import { ImportError, importCharacterJson, newId } from '../model/normalize'
 import { totalLevel } from '../model/rules'
-import { deleteCharacter, listCharacters, saveCharacter, type Settings } from '../model/storage'
+import { deleteCharacter, listCharacters, loadCharacter, saveCharacter, type Settings } from '../model/storage'
 import type { Character } from '../model/types'
 import { Confirm, Modal } from './common'
 import { fillPreviews } from './imageCodec'
@@ -31,6 +31,12 @@ export function CharacterList(props: { onOpen: (id: string) => void; onNew: () =
   const [busy, setBusy] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const refresh = () => setData(listCharacters())
+
+  // another tab or window of the app changed the characters: show what is stored now
+  useEffect(() => {
+    window.addEventListener('storage', refresh)
+    return () => window.removeEventListener('storage', refresh)
+  }, [])
 
   const stage = (text: string, fileName: string) => {
     try {
@@ -61,7 +67,8 @@ export function CharacterList(props: { onOpen: (id: string) => void; onNew: () =
 
   const commit = async (p: Pending, asCopy: boolean) => {
     // a file without an `images` field says nothing about images: the ones this browser has for the character stay
-    let c = keepImages(p.character, p.imagesInFile, characters.find((x) => x.id === p.character.id))
+    // (read from storage now, not from the list on screen: another tab may have changed the character since)
+    let c = keepImages(p.character, p.imagesInFile, loadCharacter(p.character.id) ?? undefined)
     if (asCopy) c = { ...c, id: newId(), name: `${c.name} (${t('list.copy')})` }
     if (imagesOf(c).length) {
       setBusy(true)
