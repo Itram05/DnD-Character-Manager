@@ -338,6 +338,8 @@ rule about this hero.
 | `description` | text | always | "" | The rule. See [Text fields](#text-fields). |
 | `level` | 1–20 | optional | absent | The level at which it was gained. Informational. |
 | `tags` | list of text | optional | absent | See [Tags](#tags). |
+| `poolId` | text | options of a pool | absent | The `id` of **another feature in this list** whose `uses` this one spends: Turn Undead names Channel Divinity. The card then shows that counter, and its Use button spends from it. The feature named must have `uses`. See "A pool with options" below. |
+| `cost` | whole number ≥ 1 | with `poolId` | 1 | How many of the pool's uses one use takes. Only together with `poolId`. |
 
 | `activation` | Use it for | Where it shows |
 |---|---|---|
@@ -353,11 +355,15 @@ rule about this hero.
 - **A feature that only changes another one goes into that one's text**, under an italic sub-heading, and gets no
   entry of its own. Sear Undead is a paragraph of Turn Undead; Improved Divine Smite is a paragraph of Divine Smite.
   Two entries would say the same thing in two places.
-- **A pool with options** (Channel Divinity, a Battle Master's Superiority Dice): one card for the pool, with
-  `activation: "special"` and the counter, plus one card per option with the option's real activation and **no**
-  counter. The app has no link between them: using an option's card spends nothing, and the player taps the pool's
-  card themselves. So end each option's text with "Expends one use of Channel Divinity." and name the options in the
-  pool's text. Do not give the options counters of their own. Section 7 has a worked fragment.
+- **A pool with options** (Channel Divinity, Wild Shape, Monk's Focus, Bardic Inspiration with several ways to spend
+  it, a Battle Master's Superiority Dice): one card for the pool, with `activation: "special"` and the counter, plus
+  one card per option with the option's real activation and **no** `uses` of its own. Each option names the pool:
+  `"poolId": "<the pool feature's id>"` and `"cost": 1` (2 or more when one use takes more, as some Focus options
+  do). The option's card then shows the pool's counter, its Use button spends from the pool, and it goes dark when
+  the pool has less than its cost. `poolId` is the pool's **`id`**, not its name, so give the pool feature an `id`
+  you can repeat exactly. An id that matches no feature is dropped with an adjustment and the card spends nothing.
+  Give an option `uses` of its own only when it really has a second limit ("once per Long Rest, and it expends a
+  use of Channel Divinity"): then both are spent. Section 7 has a worked fragment.
 - Features that only record a choice already expressed in numbers (Ability Score Improvement, "Spellcasting",
   "Cleric Subclass") can be left out. So can a "Domain Spells" feature: the spells themselves carry it (see
   [spells](#spells)).
@@ -386,7 +392,9 @@ player unticks that), `other` (never automatic: "once every 7 days"), `none` (ne
 
 **One counter per resource.** Favored Enemy lets a Ranger cast Hunter's Mark without a slot: that is `freeCasts` on
 the Hunter's Mark spell, and the Favored Enemy feature is passive with **no** `uses`. The same goes for Magic
-Initiate, species spells, and an item whose power spends the item's charges (`cost`, not a second counter).
+Initiate, species spells, an item whose power spends the item's charges (`cost`, not a second counter), and a
+feature that spends another feature's uses (`poolId` and `cost`, not a second counter; see
+[features](#features)).
 
 ### attacks
 
@@ -627,7 +635,8 @@ per file.
 ### Pattern: a full caster with Channel Divinity and domain spells
 
 A Life Domain Cleric of level 6, only the parts that are easy to get wrong (texts shortened here with "..."; write
-them in full). The pool card is `special` with the counter; an option is its own card with no counter (Divine Spark
+them in full). The pool card is `special` with the counter; an option is its own card with no counter of its own,
+linked to the pool by `poolId` and `cost`, so its card shows the pool's counter and spends from it (Divine Spark
 and Preserve Life look like Turn Undead); Sear Undead lives inside Turn Undead; a domain spell is `prepared` and
 `alwaysPrepared`. There is no "Life Domain Spells" feature and no "Sear Undead" feature.
 
@@ -641,7 +650,7 @@ and Preserve Life look like Turn Undead); Sear Undead lives inside Turn Undead; 
       "name": "Channel Divinity",
       "source": { "type": "class", "name": "Cleric 2" },
       "activation": "special",
-      "description": "The pool for Divine Spark, Turn Undead and Preserve Life: each use of one of them expends one use here. You regain one use on a Short Rest and all on a Long Rest...",
+      "description": "You can channel divine energy to fuel Divine Spark, Turn Undead and Preserve Life; each use of one of them expends one use here. You regain one use on a Short Rest and all on a Long Rest...",
       "uses": { "max": "cleric.channel-divinity", "used": 1, "recharge": "long", "shortRestRegain": 1 }
     },
     {
@@ -649,7 +658,9 @@ and Preserve Life look like Turn Undead); Sear Undead lives inside Turn Undead; 
       "name": "Channel Divinity: Turn Undead",
       "source": { "type": "class", "name": "Cleric 2" },
       "activation": "action",
-      "description": "As a Magic action, each Undead of your choice within 30 feet must make a Wisdom saving throw or be Frightened and Incapacitated for 1 minute...\n\n_Sear Undead (Cleric 5)._ Each Undead that fails also takes Radiant damage equal to a number of d8s equal to your Wisdom modifier.\n\nExpends one use of Channel Divinity."
+      "description": "As a Magic action, each Undead of your choice within 30 feet must make a Wisdom saving throw or be Frightened and Incapacitated for 1 minute...\n\n_Sear Undead (Cleric 5)._ Each Undead that fails also takes Radiant damage equal to a number of d8s equal to your Wisdom modifier.",
+      "poolId": "feat-channel-divinity",
+      "cost": 1
     }
   ],
   "spells": [
@@ -706,7 +717,7 @@ backs it up. Tell the player.
 - [ ] Nothing in the file is a choice you made for the player. Open choices are listed, and in `roleplay.notes`.
 - [ ] Every `activation` is deliberate; every `castingTime` starts with Action, Bonus Action or Reaction, or is a
       longer time on purpose.
-- [ ] Each limited resource has exactly one counter, with `used` showing the current state. Options of a pool have none.
+- [ ] Each limited resource has exactly one counter, with `used` showing the current state. Options of a pool have none of their own: they name the pool (`poolId`, `cost`).
 - [ ] Every weapon in use is `equipped`, has an attack, and the attack has `itemId`.
 - [ ] Every magic item in use is active (equipped, and attuned if it needs it); at most three are attuned.
 - [ ] Potions and scrolls are named so the app recognizes them; nothing else is named that way by accident.

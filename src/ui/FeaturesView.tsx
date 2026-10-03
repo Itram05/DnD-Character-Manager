@@ -3,6 +3,7 @@ import { SRD_BACKGROUNDS, SRD_CLASSES, SRD_FEATS, SRD_SPECIES, srdClass, srdSubc
 import { guessActivation, presetFor } from '../data/srdPresets'
 import { t } from '../i18n'
 import { newId } from '../model/normalize'
+import { featureCost, featurePool } from '../model/play'
 import { usesMax } from '../model/rules'
 import { SOURCE_TYPES, type Feature, type SourceType } from '../model/types'
 import { Modal, RichText } from './common'
@@ -90,6 +91,7 @@ export function FeaturesView({ api }: { api: SheetApi }) {
                     {usesMax(c, f.uses.max) - Math.min(f.uses.used, usesMax(c, f.uses.max))}/{usesMax(c, f.uses.max)} · {t(`recharge.${f.uses.recharge}`)}
                   </span>
                 )}
+                {featurePool(c, f) && <span className="muted">{t('feature.poolRow', { n: featureCost(f), pool: featurePool(c, f)!.name })}</span>}
               </li>
             ))}
           </ul>

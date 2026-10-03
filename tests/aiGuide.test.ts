@@ -3,7 +3,7 @@
 // - its example hero (examples/ai-guide-example.json) imports with no adjustments and is exactly what
 //   the app would export, so it shows the format as it is, not as it once was;
 // - the copy of the example inside the guide is the file, character for character;
-// - the Cleric fragment of the guide (Channel Divinity with options, a domain spell) imports clean;
+// - the Cleric fragment of the guide (Channel Divinity with an option that spends it, a domain spell) imports clean;
 // - every field the importer reads (KNOWN in normalize.ts) and every fixed word list is in the guide,
 //   in the section of the object it belongs to. A new field in types.ts / normalize.ts fails here until
 //   the guide describes it.
@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest'
 import { SRD_CLASSES } from '../src/data/srd'
 import { itemTiles } from '../src/model/itemPanel'
 import { KNOWN, importCharacterJson } from '../src/model/normalize'
-import { healingPotionRows, playCards, playPassivePowers, playPassives } from '../src/model/play'
+import { healingPotionRows, playCards, playPassivePowers, playPassives, useCard } from '../src/model/play'
 import { armorClass, attackStats, attunedCount, castingStats, initiative, spellSlots, usesMax } from '../src/model/rules'
 import { characterToJson } from '../src/model/storage'
 import { ABILITIES, ACTIVATIONS, CURRENT_SCHEMA_VERSION, RECHARGES, SKILL_IDS, SOURCE_TYPES, USES_RESOURCES } from '../src/model/types'
@@ -89,18 +89,23 @@ describe('AI-GUIDE.md', () => {
   })
 
   // the Cleric fragment of section 7 is real JSON, and it imports as the text around it says
-  it('has a caster fragment that imports clean: a pool card, an option without a counter, an always-prepared spell', () => {
+  it('has a caster fragment that imports clean: a pool card, an option that spends it, an always-prepared spell', () => {
     const m = guide.match(/<!-- FRAGMENT:START[^>]*-->\n```json\n([\s\S]*?)\n```\n<!-- FRAGMENT:END -->/)
     expect(m, 'the fragment block between the FRAGMENT markers').not.toBeNull()
     const { character: f, warnings } = importCharacterJson(m![1])
     expect(warnings).toEqual([])
     const pool = f.features.find((x) => x.name === 'Channel Divinity')!
     expect(usesMax(f, pool.uses!.max)).toBe(3)
-    expect(playCards(f).map((x) => `${x.zone}/${x.kind}: ${x.name}${x.uses ? ' (counter)' : ''}`)).toEqual([
-      'other/feature: Channel Divinity (counter)',
-      'action/feature: Channel Divinity: Turn Undead',
+    expect(playCards(f).map((x) => `${x.zone}/${x.kind}: ${x.name}${x.uses ? ` (${x.uses.left}/${x.uses.max})` : ''}${x.pool ? ` spends ${x.pool.cost} of ${x.pool.name}` : ''}`)).toEqual([
+      'other/feature: Channel Divinity (2/3)',
+      'action/feature: Channel Divinity: Turn Undead (2/3) spends 1 of Channel Divinity',
       'action/spell: Bless',
     ])
+    // the option has no counter of its own; using its card spends the pool
+    const turn = f.features.find((x) => x.name === 'Channel Divinity: Turn Undead')!
+    expect(turn.uses).toBeUndefined()
+    const after = useCard(f, { kind: 'feature', id: turn.id })
+    expect(after.features.find((x) => x.name === 'Channel Divinity')!.uses!.used).toBe(2)
     expect(f.spells[0]).toMatchObject({ prepared: true, alwaysPrepared: true, source: 'cleric' })
   })
 

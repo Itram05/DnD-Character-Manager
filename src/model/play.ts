@@ -56,6 +56,8 @@ export interface PlayCard {
   /** Item power: the item it belongs to, and what one use costs from the item's charges. */
   itemId?: string
   chargeCost?: PowerCost
+  /** Feature that spends another feature's uses (Feature.poolId): that feature, and what one use takes from it. */
+  pool?: { id: string; name: string; cost: number }
   /** Spells, scrolls, item powers: the icon strip (action, range, area, damage, save), see strip.ts. */
   strip?: CardStrip
 }
@@ -178,8 +180,79 @@ export function addHealingPotion(c: Character, tier: HealingTier): Character {
 /** Passive features shown on the Play screen ("battlefield"). */
 export const playPassives = (c: Character) => c.features.filter((f) => isPassive(f) && featureInPlay(c, f))
 
+// ---------------- feature pools ----------------
+// A feature with one counter and several options (Channel Divinity: Turn Undead, Preserve Life; Wild Shape;
+// Monk's Focus) is one feature with `uses` (the pool) plus one feature per option that names it (`poolId`)
+// and what a use takes from it (`cost`, 1 when absent). The same idea as an item's powers and its charges:
+// the option's card shows the pool's counter, and using it spends from the pool (and one of its own `uses`,
+// if it has them). Rests restore the pool as they always did; the options have nothing of their own to restore.
+
+/** The feature whose uses this one spends: named by `poolId`, and it has a counter. */
+export function featurePool(c: Character, f: Feature): Feature | undefined {
+  if (!f.poolId || f.poolId === f.id) return undefined
+  const pool = c.features.find((x) => x.id === f.poolId)
+  return pool?.uses ? pool : undefined
+}
+
+/** Uses of the pool one use of this feature takes. */
+export const featureCost = (f: Feature) => Math.max(1, Math.round(f.cost ?? 1))
+
+/** The features that spend this one's uses. */
+export const poolOptions = (c: Character, pool: Feature): Feature[] => c.features.filter((f) => f.id !== pool.id && f.poolId === pool.id)
+
+/** Features that can be a pool for `f` in the editor: any other feature with a counter. */
+export const poolChoices = (c: Character, f: Feature): Feature[] => c.features.filter((x) => x.id !== f.id && !!x.uses)
+
+/** Can the feature be used right now (own uses left, and enough in the pool)? Without a counter of any kind: yes. */
+export function featureAffordable(c: Character, f: Feature): boolean {
+  const own = usesView(c, f.uses)
+  if (own && own.max > 0 && own.left <= 0) return false
+  const pool = featurePool(c, f)
+  return !pool || usesView(c, pool.uses)!.left >= featureCost(f)
+}
+
+/**
+ * Uses a feature `delta` times: that many of its own uses, and its cost from its pool for each.
+ * A feature with a pool does nothing when the pool cannot pay. A negative delta (undo) gives both back.
+ * Without a pool this is the plain counter it always was: moved by delta, kept between 0 and its maximum.
+ */
+export function spendFeature(c: Character, featureId: string, delta = 1): Character {
+  const f = c.features.find((x) => x.id === featureId)
+  if (!f) return c
+  const pool = featurePool(c, f)
+  if (!f.uses && !pool) return c
+  if (pool && delta > 0 && (!featureAffordable(c, f) || usesView(c, pool.uses)!.left < featureCost(f) * delta)) return c
+  const bump = (u: Uses, d: number): Uses => ({ ...u, used: Math.min(usesMax(c, u.max), Math.max(0, u.used + d)) })
+  return {
+    ...c,
+    features: c.features.map((x) => {
+      if (x.id === f.id && x.uses) return { ...x, uses: bump(x.uses, delta) }
+      if (pool && x.id === pool.id) return { ...x, uses: bump(x.uses!, featureCost(f) * delta) }
+      return x
+    }),
+  }
+}
+
+/** Deletes a feature. Features that spent its uses stay, unlinked (their cards then spend nothing). */
+export function deleteFeature(c: Character, featureId: string): Character {
+  return {
+    ...c,
+    features: c.features
+      .filter((f) => f.id !== featureId)
+      .map((f) => {
+        if (f.poolId !== featureId) return f
+        const { poolId: _pool, cost: _cost, ...rest } = f
+        void _pool
+        void _cost
+        return rest
+      }),
+  }
+}
+
 export function featureCard(c: Character, f: Feature): PlayCard {
-  const uses = usesView(c, f.uses)
+  const pool = featurePool(c, f)
+  // the counter on the card: the feature's own uses if it has them, else its pool's
+  const uses = usesView(c, f.uses) ?? usesView(c, pool?.uses)
   return {
     key: `feature:${f.id}`,
     kind: 'feature',
@@ -191,7 +264,9 @@ export function featureCard(c: Character, f: Feature): PlayCard {
     cost: COST[f.activation],
     text: shortText(f.description),
     uses,
-    tapped: !!uses && uses.max > 0 && uses.left === 0,
+    ...(pool ? { pool: { id: pool.id, name: pool.name, cost: featureCost(f) } } : {}),
+    // out of its own uses, or the pool has less than it costs
+    tapped: !featureAffordable(c, f),
     tags: featureTags(f),
   }
 }
@@ -498,9 +573,7 @@ export function useCard(c: Character, card: Pick<PlayCard, 'kind' | 'id'>, delta
     const max = usesMax(c, u.max)
     return { ...u, used: Math.min(max, Math.max(0, u.used + delta)) }
   }
-  if (card.kind === 'feature') {
-    return { ...c, features: c.features.map((f) => (f.id === card.id && f.uses ? { ...f, uses: bump(f.uses) } : f)) }
-  }
+  if (card.kind === 'feature') return spendFeature(c, card.id, delta)
   if (card.kind === 'power') return spendPower(c, card.id, delta)
   if (card.kind === 'spell') {
     return { ...c, spells: c.spells.map((s) => (s.id === card.id && s.freeCasts ? { ...s, freeCasts: bump(s.freeCasts) } : s)) }

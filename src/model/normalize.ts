@@ -156,7 +156,7 @@ export const KNOWN = {
   combat: ['unarmoredAc', 'acBonus', 'initiativeBonus', 'speed', 'hp', 'hitDiceUsed', 'deathSaves'],
   hp: ['max', 'current', 'temp'],
   deathSaves: ['successes', 'failures'],
-  feature: ['id', 'name', 'source', 'activation', 'uses', 'description', 'level', 'tags'],
+  feature: ['id', 'name', 'source', 'activation', 'uses', 'description', 'level', 'tags', 'poolId', 'cost'],
   source: ['type', 'name'],
   uses: ['max', 'used', 'recharge', 'shortRestRegain', 'regain', 'note', 'resource'],
   attack: ['id', 'name', 'ability', 'proficient', 'bonus', 'damage', 'damageType', 'addAbilityToDamage', 'damageBonus', 'mastery', 'notes', 'itemId'],
@@ -287,6 +287,41 @@ export function linkAttacks(attacks: Attack[], items: readonly Item[], warnings:
       warnings.push(`${p}: "${a.name}" was linked to an item that is not in the inventory; the link was removed.`)
       a.itemId = null
     }
+  })
+}
+
+// Since 2026-10-03 a feature can spend the uses of another one (Feature.poolId, Feature.cost): Turn Undead
+// spends Channel Divinity. The link is an id, like Attack.itemId. A file written by hand may name the pool
+// instead ("poolId": "Channel Divinity"): when exactly one other feature has that name the link is made by
+// name, and said. A link to nothing is removed and said, so a card never fails to spend in silence.
+
+/** Checks the pool links of the (already read) features, in place. */
+export function linkPools(features: Feature[], warnings: string[]) {
+  features.forEach((f, i) => {
+    if (f.poolId === undefined) return
+    const p = `features[${i}]`
+    const unlink = () => {
+      delete f.poolId
+      delete f.cost
+    }
+    let pool = features.find((x) => x.id === f.poolId)
+    if (!pool) {
+      const named = features.filter((x) => x !== f && normName(x.name) === normName(f.poolId!))
+      if (named.length === 1) {
+        pool = named[0]
+        warnings.push(`${p}: "${f.name}" now spends the uses of "${pool.name}" (poolId was its name; it is the feature's id now).`)
+        f.poolId = pool.id
+      }
+    }
+    if (!pool) {
+      warnings.push(`${p}: "${f.name}" spent the uses of a feature that is not in the list (poolId "${f.poolId}"); the link was removed, so its card spends nothing. Set it again in the feature's editor ("Spends uses of").`)
+      return unlink()
+    }
+    if (pool === f) {
+      warnings.push(`${p}: "${f.name}" named itself as the feature whose uses it spends (poolId); the link was removed.`)
+      return unlink()
+    }
+    if (!pool.uses) warnings.push(`${p}: "${f.name}" spends the uses of "${pool.name}", which has no counter (uses); its card spends nothing until "${pool.name}" gets one.`)
   })
 }
 
@@ -524,9 +559,21 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     if (f.level !== undefined) feat.level = r.num(f.level, `${p}.level`, 1, 1, 20)
     const tg = r.tags(f.tags, `${p}.tags`)
     if (tg) feat.tags = tg
+    // optional: the feature whose uses this one spends, and how many (linkPools below checks the link)
+    const poolId = r.str(f.poolId, `${p}.poolId`).trim()
+    if (poolId) feat.poolId = poolId
+    if (f.cost !== undefined && f.cost !== null && f.cost !== '') {
+      if (!poolId) warnings.push(`${p}.cost: ignored: a cost needs "poolId", the feature whose uses it spends.`)
+      else {
+        const cost = r.num(f.cost, `${p}.cost`, 1, 1)
+        if (!Number.isInteger(cost)) warnings.push(`${p}.cost: ${cost} is not a whole number; using ${Math.max(1, Math.round(cost))}.`)
+        feat.cost = Math.max(1, Math.round(cost))
+      }
+    }
     keep(f, feat, KNOWN.feature, p)
     features.push(feat)
   })
+  linkPools(features, warnings)
 
   // ----- attacks -----
   const attacks: Attack[] = []

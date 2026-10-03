@@ -141,6 +141,29 @@ then + every equipped item's `acBonus` (items that require attunement count only
 | `description` | Text. `**bold**`, `_italic_`, lines starting with `• ` and `| table | rows |` are rendered. |
 | `level` | Optional, informational. |
 | `tags` | Optional list of your own [tags](#tags). |
+| `poolId` | Optional. The `id` of another feature whose `uses` this one spends (see below). |
+| `cost` | Optional, with `poolId`: how many of the pool's uses one use takes. A whole number, 1 or more; absent = 1. Without `poolId` it is ignored with a warning. |
+
+### A feature that spends another feature's uses
+
+One counter with several options (Channel Divinity: Turn Undead, Preserve Life; Wild Shape; Monk's Focus) is one
+feature with `uses` (the pool) and one feature per option that names it. The same idea as an item's
+[powers](#item-powers) and its charges.
+
+```json
+{ "id": "cd", "name": "Channel Divinity", "activation": "special", "uses": { "max": "cleric.channel-divinity", "used": 0, "recharge": "long", "shortRestRegain": 1 } },
+{ "id": "turn", "name": "Turn Undead", "activation": "action", "poolId": "cd", "cost": 1 }
+```
+
+- The option's card shows the pool's counter; "Use" spends `cost` from the pool, "Undo one use" gives it back. The
+  card is tapped when the pool has less than `cost` left. The pool's own card keeps working as before.
+- An option with `uses` of its own shows those and spends both (one of its own, `cost` from the pool).
+- Rests restore the pool as they always did (`recharge`, `shortRestRegain`); the options have nothing to restore.
+- The link is an **id** (like `itemId` on an attack), so renaming the pool keeps it. Deleting the pool in the app
+  removes the link from its options.
+- On import: a `poolId` that matches no feature id but is the name of exactly one other feature is linked by name
+  (with a warning); one that matches nothing, or names the feature itself, is removed with a warning; a pool
+  without `uses` keeps the link and warns that the card spends nothing until the pool gets a counter.
 
 ## uses
 
@@ -433,7 +456,7 @@ Blank lines separate paragraphs.
 | 2 | New optional fields: `tags` (spells, features, items, item powers) and `powers` (items). Unknown fields are kept instead of dropped. | None needed: every version 1 field means the same in version 2, so a version 1 file imports unchanged and is exported as version 2. Item descriptions are **not** split into powers automatically (that would be guessing at rules text); add powers on the Gear tab or in the file. |
 | 3 | New fields: `partySize`, `xpLog` (experience log) and `timers` (day timers). Items: `spellDcBonus`, `spellAttackBonus`. | A version 2 file gets `partySize` 5 and empty `xpLog` and `timers`; `xp` keeps its value. A passive item power named like "+1 spell save DC" / "+3 spell attack" becomes the item's `spellDcBonus` / `spellAttackBonus` (its text goes to the item's `description`); if the item counted before but is not equipped, it is equipped, so the DC and spell attack stay the same. This conversion runs on every import, so version 3 files saved before these fields existed are converted too. Attacks: `itemId` (see attacks); a missing `itemId` is filled in on every import, the same way. Inventory (2026-10-01): `containers`, `categories`, item `containerId` and `category`, top-level `preferences`; crafting (2026-10-01): top-level `recipes` and `playCounters`. A file without containers gets one Backpack with every item in it, on every import. These are optional additions, so the version stayed 3: a version 3 app without containers opens such a file and keeps the new fields unchanged. |
 
-Added without a new version (optional fields, older files read the same): `exhaustionRules`, `images`.
+Added without a new version (optional fields, older files read the same): `exhaustionRules`, `images`, feature `poolId` and `cost` (2026-10-03).
 
 **Careful with older copies of the app:** a copy from before the Images tab keeps `images` as an unknown field, pictures included, and then
 cannot save the character (the browser's localStorage is too small); give it a file exported without images.

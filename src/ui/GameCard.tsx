@@ -88,6 +88,16 @@ function ChargeCost({ card }: { card: CardFace }) {
   )
 }
 
+/** Feature that spends another feature's uses: how many one use takes ("1 from pool"); the pool's name is in the tooltip and in the zoomed card. */
+function PoolCost({ card }: { card: CardFace }) {
+  if (!card.pool) return null
+  return (
+    <span className="tag charge-cost pool-cost" title={t('feature.poolCostHint', { n: card.pool.cost, pool: card.pool.name })}>
+      {t('feature.poolCostShort', { n: card.pool.cost })}
+    </span>
+  )
+}
+
 /** One card (or one list row). Clicking the body opens the zoomed view. */
 export function GameCard(props: { card: CardFace; mode: 'cards' | 'list'; onOpen: () => void; onUse?: () => void; onUndo?: () => void; useLabel?: string }) {
   const { card, mode } = props
@@ -141,6 +151,7 @@ export function GameCard(props: { card: CardFace; mode: 'cards' | 'list'; onOpen
           {card.concentration && <span className="tag">C</span>}
           {card.ritual && <span className="tag">R</span>}
           <ChargeCost card={card} />
+          <PoolCost card={card} />
         </span>
         {card.stat && <span className="row-stat">{card.stat}</span>}
         {card.meta && <span className="row-stat muted">{card.meta}</span>}
@@ -172,6 +183,7 @@ export function GameCard(props: { card: CardFace; mode: 'cards' | 'list'; onOpen
           {/* the strip below shows Ritual with its own icon */}
           {card.ritual && !card.strip?.ritual && <span className="tag" title={t('spell.ritual')}>R</span>}
           <ChargeCost card={card} />
+          <PoolCost card={card} />
         </div>
         <CardStrip strip={card.strip} />
         {card.stat && <div className="card-stat">{card.stat}</div>}

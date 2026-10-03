@@ -8,6 +8,7 @@ import {
   itemCard,
   manaRows,
   paymentOptions,
+  featurePool,
   findPower,
   playCards,
   playPassivePowers,
@@ -522,8 +523,10 @@ export function CardZoom({ api, face, onClose, onUse, srd, initiallyEditing }: {
     onClose()
   }
 
+  // a feature that spends another one's uses (Turn Undead -> Channel Divinity): the counter shown is the pool's
+  const pool = feature && !feature.uses ? featurePool(c, feature) : undefined
   const description = feature?.description ?? spell?.description ?? scroll?.description ?? item?.description ?? power?.power.description ?? attack?.notes ?? ''
-  const counter = feature?.uses ?? spell?.freeCasts ?? item?.charges ?? power?.power.uses ?? power?.item.charges
+  const counter = feature?.uses ?? pool?.uses ?? spell?.freeCasts ?? item?.charges ?? power?.power.uses ?? power?.item.charges
 
   return (
     <Modal title={<span className={`zoom-title frame-text-${face.frame}`}>{face.name}</span>} onClose={onClose} className={`zoom frame-${face.frame}`}>
@@ -577,13 +580,14 @@ export function CardZoom({ api, face, onClose, onUse, srd, initiallyEditing }: {
           {power.power.cost === 'all' ? t('power.costsAll', { item: power.item.name }) : t('power.costs', { n: power.power.cost, item: power.item.name })}
         </p>
       ) : null}
+      {face.pool && <p className="power-cost">{t('feature.poolCosts', { n: face.pool.cost, pool: face.pool.name })}</p>}
       <RichText text={description} />
       {scroll?.note && <RichText text={scroll.note} className="scroll-note" />}
       <TagList tags={face.tags} />
 
       {face.uses && face.uses.max > 0 && (
         <div className="zoom-uses">
-          <span>{spell ? t('cast.freeCasts') : power && !power.power.uses ? t('power.pool', { item: power.item.name }) : counter?.note || t('card.uses')}</span>
+          <span>{spell ? t('cast.freeCasts') : power && !power.power.uses ? t('power.pool', { item: power.item.name }) : pool ? t('feature.poolUses', { pool: pool.name }) : counter?.note || t('card.uses')}</span>
           <Pips max={face.uses.max} left={face.uses.left} onSpend={() => onUse(face)} onRestore={() => onUse(face, -1)} />
           <span className="muted">
             {t(`recharge.${counter?.recharge ?? 'none'}`)}

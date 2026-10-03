@@ -88,6 +88,14 @@ export interface Feature {
   level?: number
   /** Your own tags (lowercase). Automatic tags (damage type, healing, save...) are added at display time, see tags.ts. */
   tags?: string[]
+  /**
+   * The feature whose `uses` this one spends (Feature.id): Turn Undead -> Channel Divinity, a Wild Shape
+   * form -> Wild Shape, Flurry of Blows -> Monk's Focus. The card then shows that counter and "Use" spends
+   * from it. An id, like Attack.itemId, so renaming the pool keeps the link. Absent = spends nothing shared.
+   */
+  poolId?: string
+  /** With `poolId`: how many of the pool's uses one use takes. A whole number, 1 or more. Absent = 1. */
+  cost?: number
 }
 
 export interface ClassEntry {

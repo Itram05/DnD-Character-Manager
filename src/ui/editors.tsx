@@ -5,6 +5,7 @@ import { categoryList, guessCategory } from '../model/categories'
 import { defaultContainerId, deleteItem, moveTargets } from '../model/containers'
 import { recipesUsing, renameAcross } from '../model/crafting'
 import { newId } from '../model/normalize'
+import { deleteFeature, featureCost, poolChoices, poolOptions } from '../model/play'
 import { evalFormula } from '../model/rules'
 import { autoPart, ownTagsIn, spellAutoTags, textTags } from '../model/tags'
 import { ACTIVATIONS, ABILITIES, RECHARGES, SOURCE_TYPES, type Activation, type Attack, type Feature, type Item, type ItemPower, type PowerCost, type Recharge, type SourceType, type Spell, type Uses } from '../model/types'
@@ -102,13 +103,18 @@ export function FeatureEditor({ api, initial, onClose }: { api: SheetApi; initia
     api.update((c) => ({ ...c, features: exists ? c.features.map((x) => (x.id === f.id ? f : x)) : [...c.features, f] }))
     onClose()
   }
+  // "Spends uses of": any other feature with a counter; a link to a feature without one (or gone) is shown as broken
+  const pools = poolChoices(api.c, f)
+  const linked = f.poolId ? api.c.features.find((x) => x.id === f.poolId) : undefined
+  const spentBy = poolOptions(api.c, f)
   return (
     <EditorFrame
       title={exists ? t('feature.edit') : t('feature.add')}
       onClose={onClose}
       onSave={save}
       canSave={!!f.name.trim()}
-      onDelete={exists ? () => (api.update((c) => ({ ...c, features: c.features.filter((x) => x.id !== f.id) })), onClose()) : undefined}
+      // features that spent its uses stay, unlinked (play.ts, deleteFeature)
+      onDelete={exists ? () => (api.update((c) => deleteFeature(c, f.id)), onClose()) : undefined}
     >
       <TextField label={t('common.name')} value={f.name} onChange={(name) => setF({ ...f, name })} />
       <div className="grid-3">
@@ -117,6 +123,26 @@ export function FeatureEditor({ api, initial, onClose }: { api: SheetApi; initia
         <Select<Activation> label={t('feature.activation')} value={f.activation} options={ACTIVATIONS.map((a) => ({ value: a, label: t(`act.${a}`) }))} onChange={(activation) => setF({ ...f, activation })} />
       </div>
       <UsesEditor api={api} value={f.uses} onChange={(uses) => setF({ ...f, uses })} label={t('feature.hasUses')} />
+      {exists && spentBy.length > 0 && <p className="hint">{t('feature.spentBy', { list: spentBy.map((x) => x.name).join(', ') })}</p>}
+      {(pools.length > 0 || f.poolId) && (
+        <fieldset className="pool-editor">
+          <div className="grid-2">
+            <Select
+              label={t('feature.pool')}
+              value={f.poolId ?? ''}
+              options={[
+                { value: '', label: t('feature.poolNone') },
+                ...pools.map((x) => ({ value: x.id, label: x.name })),
+                // kept visible, so a broken link can be seen and cleared
+                ...(f.poolId && !pools.some((x) => x.id === f.poolId) ? [{ value: f.poolId, label: linked ? t('feature.poolNoCounter', { name: linked.name }) : t('feature.poolGone') }] : []),
+              ]}
+              onChange={(poolId) => setF(poolId ? { ...f, poolId, cost: featureCost(f) } : (({ poolId: _p, cost: _c, ...rest }) => (void _p, void _c, rest))(f))}
+            />
+            {f.poolId && <NumberField label={t('feature.poolCost')} value={featureCost(f)} min={1} step={1} onChange={(cost) => setF({ ...f, cost: Math.max(1, Math.round(cost) || 1) })} />}
+          </div>
+          <p className={f.poolId && !pools.some((x) => x.id === f.poolId) ? 'warn' : 'hint'}>{f.poolId && !pools.some((x) => x.id === f.poolId) ? t('feature.poolBroken') : t('feature.poolHint')}</p>
+        </fieldset>
+      )}
       <TextArea label={t('common.description')} rows={6} value={f.description} onChange={(description) => setF({ ...f, description })} />
       <TagInput value={f.tags} onChange={(tags) => setF({ ...f, tags })} auto={autoPart(textTags(f.description), f.tags)} known={ownTagsIn(api.c)} />
     </EditorFrame>

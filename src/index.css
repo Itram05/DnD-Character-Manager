@@ -449,7 +449,8 @@ input.full {
     grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 }
-fieldset.uses-editor {
+fieldset.uses-editor,
+fieldset.pool-editor {
   border: 1px dashed var(--line);
   border-radius: 10px;
   padding: 0.5rem 0.75rem;
@@ -3129,6 +3130,9 @@ details summary {
   color: var(--f-item);
   font-weight: 600;
   margin: 0.2rem 0 0.5rem;
+}
+.pool-cost.charge-cost {
+  color: var(--accent);
 }
 .charge-cost {
   color: var(--f-item);
