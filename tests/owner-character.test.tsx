@@ -12,11 +12,13 @@ import { CURRENT_SCHEMA_VERSION, type Character } from '../src/model/types'
 import { InventoryView } from '../src/ui/InventoryView'
 import { FlexibleCasting, PlayView } from '../src/ui/PlayView'
 import type { SheetApi } from '../src/ui/Sheet'
-import { GRAV_COPY_FILE, GRAV_FILE, expectGravImportWarnings, gravAfterImport, ownerFile } from './ownerFiles'
+import { GRAV_COPY_FILE, GRAV_FILE, expectGravCopyImportWarnings, gravAfterImport, ownerFile } from './ownerFiles'
 
 const points = (c: Character) => sorceryPoints(c)!
 
 // The owner's real character as he imports it (Paladin 5 / Sorcerer 9, 2014 rules with slotsOverride).
+// Since 2026-10-03 the file is his own export from the laptop (schema 3): Exhaustion 3, 28 items (no Everfrost
+// Trident, no Wand of Web), Nicklaus' Spectacles equipped, a day timer. Fire Bolt has bonus 0: the Staff's +3 is the item's.
 // A fixed path (OWNER_GRAV_FILE), not a search by pattern: the same folder also holds an older v1 copy for the published
 // site, and a pattern could pick that one without anyone noticing. Set but missing = a failed test (ownerFiles.ts).
 const OWNER_FILE = GRAV_FILE.path
@@ -24,19 +26,29 @@ describe.skipIf(!ownerFile(GRAV_FILE))("owner's character file", () => {
   const text = existsSync(OWNER_FILE) ? readFileSync(OWNER_FILE, 'utf8') : '{}'
   const { character: c, warnings } = importCharacterJson(text)
 
-  it('imports and loses nothing: every field of the file, except the one listed conversion of the spell bonuses', () => {
-    expectGravImportWarnings(warnings, { witchFocusPower: false })
+  const rested: Character = { ...c, exhaustion: 0 }
+
+  it('imports and loses nothing: every field of the file, with nothing to convert and no warning', () => {
+    // the app's own export: already schema 3, the spell bonuses are fields, the attacks are linked
+    expect(warnings).toEqual([])
     // every field written in the file is there with the same value (lists keep their length and order);
-    // the importer may only ADD what the hand-edited file lacks: ids, defaults, and schema 3's partySize/xpLog/timers
-    expect(JSON.parse(JSON.stringify(c))).toMatchObject({ partySize: 5, xpLog: [], timers: [], ...gravAfterImport(JSON.parse(text)) })
-    expect(c.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
+    // the importer may only ADD what a later version of the app has and the file lacks (defaults)
+    const raw = JSON.parse(text)
+    expect(JSON.parse(JSON.stringify(c))).toMatchObject(gravAfterImport(raw))
+    expect(gravAfterImport(raw)).toEqual(raw)
+    expect([raw.schemaVersion, c.schemaVersion]).toEqual([3, CURRENT_SCHEMA_VERSION])
+    expect(c.inventory.items).toHaveLength(28)
+    expect(c.inventory.items.map((i) => i.name)).not.toEqual(expect.arrayContaining(['Everfrost Trident']))
+    expect(c.inventory.items.map((i) => i.name)).not.toEqual(expect.arrayContaining(['Wand of Web']))
+    expect(c.timers).toMatchObject([{ name: 'Наем за къщата в Севера', days: 10, start: 10 }])
+    expect([c.exhaustion, c.combat.hp.current, c.combat.hp.max]).toEqual([3, 15, 98])
     // and an export of it imports back identically, with nothing left to convert
     const again = importCharacterJson(JSON.stringify(c))
     expect(again.warnings).toEqual([])
     expect(again.character).toEqual(c)
   })
-  it('DC 18 and spell attack +13: Witch Focus needs attunement and is not attuned (3/3 taken), Staff of Ages +3', () => {
-    const v = spellDcView(c)
+  it('DC 18 and spell attack +13 before Exhaustion: Witch Focus needs attunement and is not attuned (3/3 taken), Staff of Ages +3', () => {
+    const v = spellDcView(rested)
     expect(v.map((x) => [x.saveDc, x.attack])).toEqual([[18, 13]])
     expect(v[0].dcParts.filter((p) => p.kind === 'item')).toEqual([])
     expect(v[0].attackParts.filter((p) => p.kind === 'item')).toEqual([{ kind: 'item', label: 'Staff of Ages', value: 3 }])
@@ -102,10 +114,11 @@ describe.skipIf(!ownerFile(GRAV_FILE))("owner's character file", () => {
       expect(phone).toContain('SP 2')
       expect(phone).toContain('Greater × 8')
       for (const t of [wide, phone]) {
-        // Staff of Ages, Crown, Chain hook and Fire Bolt; the unequipped Trident's attack is hidden with it
-        // (Crown and hook equipped 2026-10-01)
-        expect(t).toContain('Attacks ( 4 )')
-        expect(t).toContain('Items ( 5 )')
+        // Staff of Ages, Crown, Chain hook, Fire Bolt, and the Everfrost Trident: the Trident ITEM is gone from
+        // the file since 2026-10-03, but its attack stayed, linked to no item (itemId null), so nothing hides it
+        expect(t).toContain('Attacks ( 5 )')
+        // Staff, Pearl, Crown, Chain hook, Helm, and Nicklaus' Spectacles (equipped since 2026-10-03)
+        expect(t).toContain('Items ( 6 )')
         expect(t).not.toContain('Font of Magic')
         expect(t).not.toContain('Witch Focus')
         expect(t).toContain('+3 spell attack · Staff of Ages')
@@ -125,7 +138,7 @@ describe.skipIf(!HAVE_COPY_FILE)("owner's character: attunement on the Play scre
   const { character: c, warnings } = importCharacterJson(text)
 
   it('imports and loses nothing but the listed conversion of the spell bonuses', () => {
-    expectGravImportWarnings(warnings, { witchFocusPower: true })
+    expectGravCopyImportWarnings(warnings)
     // hand-written file: the import only adds defaults, every field written in it survives unchanged
     // except the spell bonus powers that became fields (gravAfterImport lists that change exactly)
     expect(JSON.parse(JSON.stringify(c))).toMatchObject(gravAfterImport(JSON.parse(text)))

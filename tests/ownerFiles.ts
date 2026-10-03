@@ -20,7 +20,11 @@ export interface OwnerFile {
 
 const fromEnv = (env: string): OwnerFile => ({ env, path: process.env[env]?.trim() ?? '' })
 
-/** Grav's current file: the one the owner imports into the app (Paladin 5 / Sorcerer 9, schema 2). Witch Focus needs attunement and is not attuned (DC 18). */
+/**
+ * Grav's current file (Paladin 5 / Sorcerer 9). Witch Focus needs attunement and is not attuned (DC 18).
+ * Since 2026-10-03 it is the app's own export from the owner's laptop (schema 3), no longer a hand-edited
+ * schema 2 file: it imports with no warning and nothing to convert. Only the older copy below is still v2.
+ */
 export const GRAV_FILE = fromEnv('OWNER_GRAV_FILE')
 /** An older copy of the same hero (Witch Focus still has its "+1 spell save DC" power; 3 attuned items). */
 export const GRAV_COPY_FILE = fromEnv('OWNER_GRAV_COPY_FILE')
@@ -58,6 +62,7 @@ type Obj = Record<string, unknown>
  * two conversions of 2026-09-29 (item bonuses to spells from powers to fields; attacks linked to their
  * items by name). Written out by hand on purpose, so any other change the importer makes to his file
  * fails the "loses nothing" check.
+ * The current file (an export, already converted) comes back as it is; the older v2 copy gets both conversions.
  */
 export function gravAfterImport(raw: Obj): Obj {
   const copy = JSON.parse(JSON.stringify(raw)) as Obj & { inventory: { items: Obj[] } }
@@ -93,19 +98,17 @@ export const GRAV_ATTACK_ITEMS: Record<string, string | null> = {
 }
 
 /**
- * The warnings the conversions give on Grav's file. Nothing else.
- * The older copy (OWNER_GRAV_COPY_FILE) still has Witch Focus's old "+1 spell save DC" power: two powers moved,
- * Witch Focus equipped. The current file (OWNER_GRAV_FILE) was fixed by hand on 2026-09-29 (Witch Focus needs attunement; spellDcBonus is already
- * a field): only the Staff's "+3 spell attack" moves.
+ * The warnings the conversions give on the older v2 copy of Grav (OWNER_GRAV_COPY_FILE). Nothing else.
+ * It still has the Staff's "+3 spell attack" and Witch Focus's "+1 spell save DC" as powers: both move to
+ * fields and Witch Focus gets equipped. (The current file, OWNER_GRAV_FILE, is the app's own export since
+ * 2026-10-03 and must give no warning at all; its tests say so themselves.)
  */
-export function expectGravImportWarnings(warnings: string[], { witchFocusPower }: { witchFocusPower: boolean }) {
-  const bonus = witchFocusPower ? 3 : 1
+export function expectGravCopyImportWarnings(warnings: string[]) {
+  const bonus = 3
   expect(warnings).toHaveLength(bonus + 4)
   expect(warnings[0]).toMatch(/: the power "\+3 spell attack" is now the item's spellAttackBonus \(3\); its text was added to the item description\.$/)
-  if (witchFocusPower) {
-    expect(warnings[1]).toMatch(/: the power "\+1 spell save DC" is now the item's spellDcBonus \(1\); its text was added to the item description\.$/)
-    expect(warnings[2]).toMatch(/: "Witch Focus" is now equipped: /)
-  }
+  expect(warnings[1]).toMatch(/: the power "\+1 spell save DC" is now the item's spellDcBonus \(1\); its text was added to the item description\.$/)
+  expect(warnings[2]).toMatch(/: "Witch Focus" is now equipped: /)
   // then the four attacks linked to their items by name (Fire Bolt has none and gets null, silently)
   expect(warnings.slice(bonus)).toEqual(
     Object.entries(GRAV_ATTACK_ITEMS)

@@ -11,7 +11,7 @@ import type { Character } from '../src/model/types'
 import { CountersSection } from '../src/ui/CountersSection'
 import { InventoryView } from '../src/ui/InventoryView'
 import type { SheetApi } from '../src/ui/Sheet'
-import { GRAV_FILE, expectGravImportWarnings, gravAfterImport, ownerFile } from './ownerFiles'
+import { GRAV_FILE, gravAfterImport, ownerFile } from './ownerFiles'
 
 const HAVE = ownerFile(GRAV_FILE)
 const text = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
@@ -24,7 +24,8 @@ describe.skipIf(!HAVE)('Grav and crafting', () => {
   const { character: c, warnings } = importCharacterJson(bytes.toString('utf8'))
 
   it('imports with no recipes and no counters, loses nothing, no new warning', () => {
-    expectGravImportWarnings(warnings, { witchFocusPower: false })
+    // the file is the app's own export (since 2026-10-03): nothing to convert, so no warning at all
+    expect(warnings).toEqual([])
     expect(c.recipes).toEqual([])
     expect(c.playCounters).toEqual([])
     expect(JSON.parse(JSON.stringify(c))).toMatchObject(gravAfterImport(raw))

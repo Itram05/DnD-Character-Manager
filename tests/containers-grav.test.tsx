@@ -10,7 +10,7 @@ import { importCharacterJson } from '../src/model/normalize'
 import type { Character } from '../src/model/types'
 import { InventoryView } from '../src/ui/InventoryView'
 import type { SheetApi } from '../src/ui/Sheet'
-import { GRAV_FILE, expectGravImportWarnings, ownerFile } from './ownerFiles'
+import { GRAV_FILE, ownerFile } from './ownerFiles'
 
 const HAVE = ownerFile(GRAV_FILE)
 const text = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
@@ -23,7 +23,10 @@ describe.skipIf(!HAVE)('Grav and containers', () => {
   const { character: c, warnings } = importCharacterJson(bytes.toString('utf8'))
 
   it('every item goes into one Backpack, in the same order, with no new warning', () => {
-    expectGravImportWarnings(warnings, { witchFocusPower: false })
+    // the file is the app's own export (since 2026-10-03): nothing to convert, so no warning at all
+    expect(warnings).toEqual([])
+    // 28 items: the Everfrost Trident and the Wand of Web are gone from it (owner, 2026-10-03)
+    expect(raw.inventory.items).toHaveLength(28)
     expect(c.inventory.containers.map((k) => k.name)).toEqual(['Backpack'])
     expect(c.inventory.items.map((i) => i.name)).toEqual(raw.inventory.items.map((i: { name: string }) => i.name))
     expect(itemsIn(c, 'backpack')).toHaveLength(raw.inventory.items.length)
