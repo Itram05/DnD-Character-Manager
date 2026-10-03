@@ -70,9 +70,21 @@ level 1, then the fixed value per level (d6: 4, d8: 5, d10: 6, d12: 7), plus the
 per-level bonuses (Dwarf +1, Tough +2, Draconic Sorcerer +1). If their number and your calculation disagree, still
 write theirs, and tell them the difference: it is usually rolled Hit Points, sometimes a forgotten bonus.
 
+**Skills, tools, languages.** Write the ones the player named, and only those. Know how many the rules give (class,
+background, species, feats), count, and if the player named fewer or more, tell them and list it as open. Do not
+fill the gap with proficiencies of your choosing, and do not add the background's skills on your own if the player's
+list leaves them out.
+
 **Check your work against the sheet.** Before you write the file, work out what the app will show (Armor Class, Initiative, attack bonuses, spell save DC,
 spell slots) and compare with the player's sheet. If the sheet says AC 18 and your data gives 17, something is
 missing (a shield, a Fighting Style, a magic item). Find it and fix the **data**.
+
+**With Exhaustion, the app shows the numbers already lowered.** Under the 2024 rules it takes 2 per level off
+Initiative, saving throws, skills, passive scores, every attack card and the spell attack, and 5 feet per level off
+Speed; the spell save DC and Armor Class do not change. A hero with Exhaustion 1, Dexterity +2 and Speed 35 shows
+Initiative +0 and Speed 30. Still write the full `combat.speed` (35) and no minus anywhere in the file. In "What
+you should see", give the lowered numbers and say which they are. (2014 rules: Disadvantage marks instead of a
+minus, section 11.)
 
 **Closing.** Give the player, in this order:
 
@@ -105,8 +117,27 @@ healing potions have their own panels. Passive features are small chips on an **
 So the choices that matter most are `activation` (which hand) and the counters (`uses`, `charges`, `freeCasts`):
 a reaction filed as an action is a card the player will not find when they need it.
 
-**Cards do not know about each other.** Each card has its own counter or none. No card spends another card's uses,
-and the app tracks no hands, action economy or prerequisites. Where two things belong together, the text says so.
+**Cards know about each other in one way only.** A feature can spend another feature's uses (`poolId`, section 6:
+Turn Undead spends Channel Divinity), and an item's power spends that item's charges. That is all: no card pays with
+a spell slot unless it is a spell, no card gives anything back, and the app tracks no hands, action economy or
+prerequisites. Where two things belong together beyond that, the text says so.
+
+**What a card cannot do, its text must say.** Write the missing step as the last paragraph of the card's
+`description`, as an instruction to the player:
+
+- **A price that is one of two things** (Wild Companion: a spell slot or a use of Wild Shape). Link the card to the
+  pool it usually spends (`poolId`), and write: "This card spends a use of Wild Shape. If you pay with a spell slot
+  instead, mark the slot on the spell slot panel and do not press Use here."
+- **An option that gives a use back to a pool** (Wild Resurgence: a spell slot for a use of Wild Shape). No `poolId`
+  (it would spend, not restore) and no `uses`. Write: "The app does not do this: mark the spell slot as spent, and
+  give one use back on the Wild Shape card."
+- **An option that gives a spell slot** (Wild Resurgence the other way, a Wizard's Arcane Recovery). `poolId` or
+  `uses` for what it costs, and: "The app does not add the slot: give one spent level 1 slot back on the spell slot
+  panel." The panel cannot hold more slots than the class table gives, so with none spent the player has to remember
+  the extra one. Only a Sorcerer's Font of Magic makes slots in the app itself.
+- **Stat blocks** (Wild Shape forms, a familiar, a summoned creature, a mount). The app has no place for a creature.
+  Put each one in the `description` of the card that uses it (the forms in "Wild Shape: Beast Form"), as a
+  sub-heading and a short table, after the rule itself; forms the player has not chosen yet are an open point.
 
 ## 4. What the app calculates, and what you must write
 
@@ -255,7 +286,7 @@ is not in Latin letters) plus a few random characters, `"hero-vessa-thornhide-7k
 | `inventory` | `{ items, money, containers, categories }` | always | empty | See [items](#items), [containers](#containers) and [money](#money). |
 | `roleplay` | object | optional | all "" | See [roleplay](#roleplay). |
 | `xpLog`, `sessionNotes`, `timers`, `recipes`, `playCounters` | lists | `[]` in a new file | [] | The app's XP history, the player's journal, day countdowns, crafting recipes, items pinned as counters. Section 12. |
-| `preferences` | object | as in the example | defaults | How the Gear tab is laid out. Section 12. |
+| `preferences` | object | exactly as here | defaults | How the Gear tab is laid out. Always this: `{ "gear": { "view": "hybrid", "groupBy": "container", "show": { "quantity": true, "weight": true, "category": true, "tags": true, "charges": true } } }`. Left out, the app fills in the same values, with no adjustment. |
 | `images` | list | **never** | absent | Maps and pictures the player added in the app. You do not write them, and you never drop them from an exported file. Section 12. |
 | `updatedAt` | ISO date-time text | optional | now | `"2026-10-03T12:00:00.000Z"`. The hero list is sorted by it. |
 
@@ -417,6 +448,9 @@ A list. Each entry is a card in the Action hand.
 
 A cantrip that needs an attack roll (Fire Bolt) is a spell. If the player uses it every turn, you may **also** add it
 to `attacks` with `"ability": "spell"`, `"addAbilityToDamage": false`, `"itemId": null`, so a card shows the bonus.
+Such a card is ability modifier + Proficiency Bonus + `bonus` and nothing else: an item's `spellAttackBonus` is
+**not** in it (that field reaches only the spell attack shown beside the save DC). If the hero has such an item,
+write its bonus into this attack's `bonus` too, and say in `notes` that it comes from the item.
 
 ### spellcasting
 
@@ -440,7 +474,7 @@ A list. Every spell the hero can cast, or has in a spellbook.
 | `id` | text | always | generated | |
 | `name` | text | always | "Unnamed spell" | |
 | `level` | 0–9 | always | 0 | 0 = cantrip. |
-| `source` | text | always | absent | The `id` of the class the spell belongs to, exactly (`"ranger"`). For a spell from elsewhere: `"feat"`, `"species"`, `"item"`. |
+| `source` | text | always | absent | The `id` of the class the spell belongs to, exactly (`"ranger"`). For a spell from elsewhere: `"feat"`, `"species"`, `"item"`. It is a label and decides which class's limits the spell counts toward; it does **not** choose a spellcasting ability (see below). |
 | `prepared` | true/false | always | true | A prepared spell is a card on Play. `false`: only on the Spells tab (a Wizard's spellbook). Cantrips are always cards. |
 | `alwaysPrepared` | true/false | always | false | Granted by a subclass, species or feat: always a card, marked ★, not counted against the class's limit. |
 | `ritual` | true/false | always | false | |
@@ -460,6 +494,20 @@ A list. Every spell the hero can cast, or has in a spellbook.
   max from the 2024 class table and counting the spells with that class's `source`, level 1+, `prepared` and not
   `alwaysPrepared`. Nothing is refused, on import or later. So know the limit yourself, count, and if the player named
   fewer or more, tell them; do not fill the gap with spells of your choosing.
+- **Cantrips.** The Spells tab shows "Cantrips n/max" per class, counting **every** cantrip with that class's
+  `source`; `alwaysPrepared` does not take a cantrip out of that count (it only adds the ★). So a cantrip that does
+  not count against the class's number (a subclass's bonus cantrip, a species or feat cantrip) gets `source`
+  `"species"` or `"feat"`, or, for a subclass, stays with the class's id and you tell the player the count shows
+  one more than the rules count. Nothing is refused.
+- **Save DC and spell attack of a spell.** The app works these out **per casting class only** and shows them in
+  the head and on the Spells tab; a spell card carries no numbers of its own. A spell with `source` `"species"`,
+  `"feat"` or `"item"` gets no DC from the app. If it uses the same ability as the hero's class, nothing more is
+  needed. If it uses another ability, or the hero has no casting class, work the numbers out and end the spell's
+  `description` with them: "Spell save DC 13, spell attack +5 (Intelligence)."
+- **One spell, two origins** (Pass without Trace from the Druid list and from Wood Elf): **one** entry, never two.
+  Two entries are two cards for one spell. Give it the `freeCasts` and `alwaysPrepared` the second origin brings,
+  and the class's id as `source` only if the player also prepares it as a class spell; otherwise `"species"` or
+  `"feat"`. The card is cast with the free cast or with any slot either way.
 - **Cantrip damage.** Write the **level 1** die in the main text ("1d8 Radiant damage") and keep the upgrade
   paragraph, starting `_Cantrip Upgrade._` and naming level 5: "The damage increases by 1d8 when you reach levels 5
   (2d8), 11 (3d8), and 17 (4d8)." The card's damage icon then shows the right dice for the hero's level and keeps
@@ -472,7 +520,7 @@ A list. Every spell the hero can cast, or has in a spellbook.
 | Field | Type | Write | Default | What it does |
 |---|---|---|---|---|
 | `id` | text | always | generated | |
-| `name` | text | always | "Item" | Some words in a name have meaning; see [Names the app reads](#names-the-app-reads). |
+| `name` | text | always | "Item" | Published items: the English name. A homebrew item keeps the name the player gave it, in any alphabet; do not translate it. Some words in a name have meaning; see [Names the app reads](#names-the-app-reads). |
 | `quantity` | number ≥ 0 | always | 1 | |
 | `equipped` | true/false | always | false | Worn, wielded or held ready. |
 | `requiresAttunement` | true/false | always | false | |
@@ -510,6 +558,7 @@ Which shape to give an item:
 | Shield | `acBonus: 2`, `equipped: true` |
 | A weapon | A plain item with `equipped: true`, **and** an entry in `attacks` whose `itemId` is this item's `id` |
 | A magic item in use | The bonus fields or `powers`; `equipped: true`; and if it needs attunement, `requiresAttunement: true`, `attuned: true` |
+| A magic item that is **only passive** (Cloak of Elvenkind, Ring of Swimming) | One `passive` power holding the rule: without a power the item is on the Gear tab only and nothing on Play reminds the player of it. Keep the item's `description` to what the thing is ("Wondrous item, requires attunement"); do not write the rule twice. An item with no effect at the table (a trinket) needs only `description`. |
 | A magic item that needs attunement and is **not attuned yet** | `requiresAttunement: true`, `attuned: false`, and `equipped` as it really is (worn or in the pack). Either way it does nothing and is not on Play until the player taps Attuned on the Gear tab, which also equips it. |
 | An item that **sets or raises an ability score** (Amulet of Health, Gauntlets of Ogre Power, a Belt of Giant Strength) | The app cannot do this from an item. While the item is active, write the **resulting** score in `abilities` (and a Hit Point maximum that includes a new Constitution modifier), and say so in the item's `description`: "Constitution is 19 while worn (already in the scores; without it: 16)." While it is not active, write the hero's own score and note what to change by hand on the Edit tab. |
 | A consumable thrown or used up (Alchemist's Fire, Holy Water, caltrops) | `activation`, `quantity`, **no** `charges`. The card has − and + for the quantity. Never put a bare `activation` on a reusable item (Boots of Speed): using its card would lower `quantity`. A reusable ability goes in `powers`, even if it is the only one. |
@@ -595,6 +644,9 @@ Potions and scrolls have no special fields. The app recognizes them **by the ite
 | one of those **and** "healing" | A healing potion: a counter beside Concentration, not a card. "Greater", "Superior" or "Supreme" in the name picks the kind; the dice come from the description, else the standard ones. |
 
 A thing that merely has such a word in its name ("Potion Belt") is taken for one too: name it differently.
+The Bulgarian words "свитък" and "отвара" (with "лекуване" or "лечебна" for healing) are read the same way, so a
+homebrew potion or scroll with a Bulgarian name is recognized as it stands. In any other language, add the English
+word to the name: "Zaubertrank der Eile (Potion)".
 
 **Scrolls.** The spell is taken from the name: `Spell Scroll (Fireball)`, `Scroll of Fireball`, `Scroll: Fireball`,
 `Fireball Scroll`. The card shows that spell's level, casting time and text, taken from the hero's own spell of that
@@ -704,6 +756,11 @@ file with that name. Your notes to the player go in the chat.
 
 The goal is a clean import. If the dialog lists adjustments, ask the player to copy them to you: each names the field
 and what was changed.
+
+If the app refuses the file with "This file uses schema version 3, but this app only knows version 2. Update the
+app: open it while online, press Reload on the "New version ready" row (or close the app and open it again), then
+import the file again.", the file is fine: the player's copy of the app is older than this guide. They do what the
+message says; nothing in the file changes.
 
 Heroes live in **that browser on that device** only; **Export JSON**, next to the hero in the list, moves one or
 backs it up. Tell the player.
@@ -1394,7 +1451,7 @@ suggests 2024 features, and the limits on the Spells tab are the 2024 ones. None
 
 ## 12. Journal, XP log, timers, recipes, preferences, images
 
-What the app writes itself. A new file has `[]` for the five lists, the `preferences` of the example, and no `images`.
+What the app writes itself. A new file has `[]` for the five lists, the `preferences` shown below, and no `images`.
 When you edit an exported file, keep all of it as it is.
 
 ### sessionNotes
