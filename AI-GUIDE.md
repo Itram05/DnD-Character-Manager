@@ -5,97 +5,91 @@ character in **Hero Deck**, a free character tracker that runs in the browser
 (<https://itram05.github.io/DnD-Character-Manager/>). The app stores each hero as one JSON object and can import such a
 file. Your job is to interview the player, then write that file so that it imports with no adjustments and nothing lost.
 
-You have not seen the app and you cannot see its code. Everything you need is in this document: how the app behaves,
-the complete file format, the mistakes that go wrong quietly, and a full working example at the end.
+You have not seen the app and you cannot see its code. Everything you need is in this document. It describes
+**schema version 3**, the format of the published app.
 
-This guide describes **schema version 3**, the format of the published app.
+**Read sections 1 to 9 before you write anything.** They end with a checklist. The long JSON example (section 10)
+comes after them, so a reader that is cut off part-way through the example has still seen every rule. After the
+example there are three short sections for special cases only: the 2014 rules (11), the journal, XP log and timers
+(12), and changing a file the app exported (13).
 
 ## 1. Ground rules
 
-- **Speak the player's language.** This guide is in English because the game's terms and the app's interface are
-  English. Talk to the player in whatever language they write to you. Keep game terms and everything inside the file
-  in English (spell names, conditions, "Bonus Action"): the app reads some of those words.
-- **Assume the 2024 rules** (D&D 5e, 2024 Player's Handbook / SRD 5.2). Use the 2014 rules only if the player says so.
-  See [section 4](#4-edition-2024-unless-the-player-says-otherwise).
-- **Ask in small rounds**, not one long questionnaire. [Section 2](#2-how-to-run-the-conversation) gives the order.
-- **Never invent rules content the player did not confirm.** Where they do not know something, pick a sensible value,
-  and list every such guess at the end.
-- **The output is one JSON file**, strict JSON, nothing else in it. [Section 9](#9-output-and-import).
+- **Speak the player's language.** Talk to the player in whatever language they write to you. Inside the file, rules
+  content is in English (spell and feature names, conditions, "Bonus Action", damage types): the app reads some of
+  those words. What belongs to the player stays as they wrote it, in any alphabet: the hero's `name`, `player`, the
+  `roleplay` texts and notes.
+- **Assume the 2024 rules** (D&D 5e, 2024 Player's Handbook / SRD 5.2). Say so once. Only if the player says their
+  table plays the 2014 rules, read section 11.
+- **Ask in small rounds**, not one long questionnaire.
+- **Derive what the rules fix; never choose what the player chooses.** Every unknown is one of three kinds:
+
+  | The unknown | What you do |
+  |---|---|
+  | **The rules fix it** once you know class, level, species and background: class features, species traits, the background's feat, the fixed Hit Points per level, a counter's maximum. | Work it out yourself. That is not inventing. |
+  | **The player chose it**, or their DM did: which spells, which Fighting Style, which feat at level 4, what a homebrew item does. | Ask once. If they still do not know, do **not** pick for them: leave the choice out (the feature stays, with its general text and no pick) and list it as open. |
+  | **A fact about the person or the story**: `player`, `alignment`, the `roleplay` texts. | Leave it `""`. An empty text is a correct value. |
+
+  The "sensible default" is only for bookkeeping the app needs and the player rarely cares about: XP at the level's
+  threshold, `partySize` 5, size Medium, a fresh state after a Long Rest.
+- **The output is one JSON file**, strict JSON, nothing else in it (section 8).
 
 ## 2. How to run the conversation
 
-### Start from what the player already has
+**Start from what the player already has.** Ask first whether the character is written down anywhere: a PDF or photo
+of the sheet, a D&D Beyond page, notes. If so, read it, show a short summary of what you understood, and ask **only**
+for what is missing or unclear. A player who uploads a full sheet should get three or four questions, not thirty.
+(If what they have is a file exported from Hero Deck, read section 13.)
 
-First ask whether they have the character written down anywhere: a PDF or photo of the sheet, a D&D Beyond page, notes,
-or a file exported from Hero Deck. If they do, read it, extract everything you can, show a short summary of what you
-understood, and then ask **only** for what is missing or unclear. A player who uploads a full sheet should get three or
-four questions, not thirty.
+Otherwise build the hero in these rounds. Offer your best reading wherever you can work one out ("a level 5 Ranger
+prepares 6 spells; which ones?") instead of asking open questions.
 
-If they have nothing, build the hero with them in the rounds below.
-
-### The rounds
-
-Move on when a round is settled. Offer your best guess wherever you can work one out ("a level 5 Ranger has 6 prepared
-spells; which ones?") instead of asking open questions.
-
-1. **Identity.** Hero's name, player's name, species (and lineage or ancestry if the species has one), background,
-   alignment. Mention once that you assume the 2024 rules.
-2. **Class and level.** Class, subclass, level. For a multiclass hero: every class with its level, and which class was
-   taken **first** (that one decides the saving throws). XP total, or "we level by milestones". How many players share XP.
-3. **Numbers.** The six ability scores as they stand now (after background, feats and level-ups), Hit Point maximum,
-   Speed. Skill proficiencies and Expertise, tools, languages.
-4. **Features.** Work these out yourself from class, subclass, level, species, background and feats, show the list by
-   name, and ask only for the choices: Fighting Style, Weapon Masteries, Metamagic, Invocations, feats, a Hunter's Prey
-   option, and anything homebrew.
-5. **Spells** (casters only). Cantrips, prepared spells, spells that are always prepared (subclass, species, feats), and
-   spells with free casts.
+1. **Identity.** Hero's name, player's name, species (and lineage), background, alignment. In the 2024 rules the
+   **background** gives three ability score increases and an **Origin feat** (Acolyte: Magic Initiate (Cleric);
+   Criminal: Alert; Sage: Magic Initiate (Wizard); Soldier: Savage Attacker; for other backgrounds ask). The feat is a
+   feature like any other, and if it has choices (the spells of Magic Initiate), ask for them.
+2. **Class and level.** Class, subclass, level. For a multiclass hero: every class with its level, and which was taken
+   **first**. XP total, or "we level by milestones". How many players share XP.
+3. **Numbers.** The six ability scores as they stand now, Hit Point maximum, Speed. Skill proficiencies and Expertise,
+   tools, languages.
+4. **Features.** Work the list out yourself from class, subclass, level, species, background and feats, show it by
+   name, and ask only for the choices (Fighting Style, Divine Order, Weapon Masteries, Metamagic, Invocations, feats)
+   and for anything homebrew.
+5. **Spells** (casters only). Cantrips, prepared spells, always-prepared spells (subclass, species, feats), free casts.
 6. **Equipment.** Armor and shield, weapons, magic items (attuned or not, charges, exact text), potions and scrolls,
    other gear worth listing, coins.
-7. **Where things stand right now.** Current Hit Points, spell slots already spent, features and item charges already
-   used, Hit Point Dice spent, conditions, Exhaustion, Heroic Inspiration. If the player does not care, start the hero
-   fresh after a Long Rest: full Hit Points, nothing spent.
-8. **Story** (optional, offer to skip). Appearance, personality, ideals, bonds, flaws, goals, backstory.
+7. **Where things stand right now.** Current Hit Points, slots spent, features and charges used, Hit Point Dice
+   spent, conditions, Exhaustion. If the player does not care: fresh after a Long Rest.
+8. **Story** (optional, offer to skip).
 
-### When the player does not know
+**Homebrew or unclear text.** Ask for a photo or a paste. If there is none, write what the player remembers and end
+that description with "(from memory, check with the DM)".
 
-Do not stall. Choose the most ordinary value, mark it, and keep going:
+**Hit Points.** The player's number wins; write it. If they do not know it, calculate: the hit die's maximum at
+level 1, then the fixed value per level (d6: 4, d8: 5, d10: 6, d12: 7), plus the Constitution modifier per level, plus
+per-level bonuses (Dwarf +1, Tough +2, Draconic Sorcerer +1). If their number and your calculation disagree, still
+write theirs, and tell them the difference: it is usually rolled Hit Points, sometimes a forgotten bonus.
 
-- A missing number you can calculate (Hit Points from class and Constitution, using the fixed value per level): calculate it.
-- A missing choice (which Fighting Style): ask once; if they still do not know, take the option the 2024 rules
-  recommend and say so.
-- A missing text (what a homebrew item does exactly): ask for a photo or a paste. If there is none, write what the
-  player remembers and mark the item's description with "(from memory, check with the DM)".
+**Check your work against the sheet.** Before you write the file, work out what the app will show (Armor Class, Initiative, attack bonuses, spell save DC,
+spell slots) and compare with the player's sheet. If the sheet says AC 18 and your data gives 17, something is
+missing (a shield, a Fighting Style, a magic item). Find it and fix the **data**.
 
-### Check your work against the sheet
-
-The app calculates most numbers ([section 5](#5-what-the-app-calculates-and-what-you-must-write)). That gives you a
-free test. Before you write the file, calculate what the app will show (Armor Class, Initiative, attack bonuses, spell
-save DC, spell slots) from the data you collected, and compare with the player's sheet. If the sheet says AC 18 and
-your data gives 17, something is missing (a shield, a Fighting Style, a magic item). Find it and fix the **data**.
-
-### Closing the conversation
-
-Give the player, in this order:
+**Closing.** Give the player, in this order:
 
 1. The file.
-2. **"What I assumed"**: every value you guessed or defaulted.
-3. **"What you should see"**: the numbers the app will calculate (AC, Initiative, spell save DC, spell slots per
-   level, attack bonuses). If the app shows something else, they tell you and you fix the file.
-4. How to import it ([section 9](#9-output-and-import)).
+2. **"What I worked out and what is open"**: every default you used, and every choice you left out because the
+   player did not know. Put the open points in `roleplay.notes` too, so they are in the app; keep them out of the
+   card texts.
+3. **"What you should see"**: AC, Initiative, spell save DC, slots per level, attack bonuses, Hit Point maximum.
+4. How to import it (section 8).
 
 ## 3. What the app is
 
-Knowing how the app uses the data lets you make good choices where this guide has no rule.
-
-Hero Deck is a tracker for the table, not a rules engine or a character builder. It has tabs: **Play**, **Stats**,
-**Spells**, **Gear**, **Features**, **Story**, **Level Up**, **Edit**, **Rules**.
-
-**Play** is the heart of it. Everything the hero can *do* is a **card**, sorted into four **hands** by what it costs:
-Action, Bonus Action, Reaction, and Free / Other. A card with limited uses shows them; using the last one "taps" the
-card. Short Rest and Long Rest buttons untap what they restore. Spell slots sit in their own panel, as do
-Concentration, healing potions and Sorcery Points. Passive features are small chips on an **Always on** strip.
-
-What becomes a card:
+Hero Deck is a tracker for the table, not a rules engine or a character builder. Its heart is the **Play** tab
+(the others: Stats, Spells, Gear, Features, Story, Level Up, Edit, Rules). Everything the hero can *do* is a **card**, sorted into four **hands** by what it costs:
+Action, Bonus Action, Reaction, and Free / Other. A card with limited uses shows them as pips; using the last one
+"taps" the card. Short Rest and Long Rest buttons give back what they restore. Spell slots, Concentration and the
+healing potions have their own panels. Passive features are small chips on an **Always on** strip.
 
 | In the file | On the Play screen |
 |---|---|
@@ -108,125 +102,75 @@ What becomes a card:
 | A spell scroll or a potion (recognized by name) | A card in the "Scrolls & Potions" group; healing potions are counters |
 | Any other item | Nothing on Play; it is listed on the Gear tab |
 
-So the choices that matter most are `activation` (which hand) and the counters (`uses`, `charges`, `freeCasts`).
-A wrong ability score is easy to see and fix in the app. A reaction filed as an action is a card the player will not
-find when they need it.
+So the choices that matter most are `activation` (which hand) and the counters (`uses`, `charges`, `freeCasts`):
+a reaction filed as an action is a card the player will not find when they need it.
 
-The app reads **descriptions** to help the player: it highlights dice, damage types, saving throws and conditions,
-puts small icons on cards (range, area, damage, save) and adds filter tags (damage, healing, control). None of this is
-stored. It works best when the text uses the game's own wording: "8d6 Fire damage", "Dexterity saving throw",
-"20-foot-radius Sphere", "regains 2d8 Hit Points", "within 30 feet".
+**Cards do not know about each other.** Each card has its own counter or none. No card spends another card's uses,
+and the app tracks no hands, action economy or prerequisites. Where two things belong together, the text says so.
 
-## 4. Edition: 2024 unless the player says otherwise
+## 4. What the app calculates, and what you must write
 
-The app is built on the 2024 rules. Its class tables, spell slots, multiclass rule and Exhaustion are the 2024 ones,
-and a file needs nothing special to use them. Tell the player once that you assume 2024, and move on.
+A derived number has no field; adding a field of your own for it only produces an "unknown field" notice.
 
-If the player says their table plays the **2014 rules**, the same file format works, with these differences:
+**Calculated by the app.**
 
-| What | What to do in the file |
-|---|---|
-| Exhaustion | Add `"exhaustionRules": "2014"` at the top level. The app then applies the 2014 table (Disadvantage on checks, halved Speed, and so on) instead of −2 per level. This is the only edition switch the app has. |
-| Spell slots | The app calculates slots by the 2024 rules. They differ from 2014 in two cases: a Paladin or Ranger of level 1 (2014: no slots), and a multiclass hero with Paladin or Ranger levels (2014 rounds half of those levels **down**, the app rounds **up**). In those cases work out the slots by the 2014 rules and write them in `spellcasting.slotsOverride`, for example `[4, 2]`, or `[0]` for no slots. The override is a fixed list: tell the player it must be changed by hand when the hero levels up. In every other case leave it out. |
-| Counters of class features | Write the maximum as a plain number, or a formula with `pb`, `level` and ability modifiers. Do not use class-table formulas such as `"cleric.channel-divinity"`: those tables hold the 2024 numbers. |
-| Feature and spell texts | Write the 2014 text. The app has no 2014 content, but it does not need any: descriptions are the player's own text. |
-| Weapon Mastery | Does not exist in 2014: leave `weaponMasteries` empty and `mastery` blank. |
-| Race | Goes in `species` (the app's word). Inspiration is `heroicInspiration`. |
-| Jack of All Trades | The app adds half the Proficiency Bonus to skills only. In 2014 it also applies to Initiative: add it to `combat.initiativeBonus`. |
-
-Tell a 2014 player what the app will still do the 2024 way, because no field changes it: a Long Rest gives back **all**
-Hit Point Dice (2014: half), the Level Up tab suggests 2024 features, and the limits shown on the Spells tab are the
-2024 ones. None of that damages the file; they correct by hand.
-
-## 5. What the app calculates, and what you must write
-
-The app derives a lot. Writing a derived number into the file is not possible (there is no field for it), and adding a
-field of your own for it only produces an "unknown field" notice. The second list is the one that needs care: those
-things look as if the app would know them, and it does not.
-
-**Calculated by the app. Do not look for a field.**
-
-- Ability modifiers, from the scores.
-- Proficiency Bonus, from the total level.
-- Saving throws: modifier, plus Proficiency Bonus if proficient, plus `saveBonus` of active items.
-- Skill bonuses and passive scores, from proficiency or Expertise (and Jack of All Trades).
+- Ability modifiers, Proficiency Bonus, saving throws (plus `saveBonus` of active items), skills, passive scores.
 - Initiative: Dexterity modifier + `combat.initiativeBonus`.
-- Armor Class: the equipped armor's base + Dexterity (capped), or the `unarmoredAc` formula when no armor is worn; plus
-  `acBonus` of active items, plus `combat.acBonus`.
-- Attack bonus and damage modifier of every attack: ability modifier + Proficiency Bonus (if proficient) + `bonus`.
-- Spell save DC and spell attack bonus, for each spellcasting class: 8 + modifier + Proficiency Bonus + item bonuses.
-- Spell slots per level, from the class table; for several caster classes, by the 2024 multiclass rule. Pact Magic
-  slots separately.
-- The pool of Hit Point Dice, from the classes.
-- The maximum of any counter written as a formula (`"pb"`, `"paladin * 5"`).
-- The effects of Exhaustion on Speed and rolls.
-- XP needed for the next level; total weight carried.
+- Armor Class: the equipped armor's base + Dexterity (capped), or the `unarmoredAc` formula with no armor; plus
+  `acBonus` of every active item, plus `combat.acBonus`.
+- Each attack: ability modifier + Proficiency Bonus (if proficient) + `bonus`; damage modifier likewise.
+- Spell save DC (8 + modifier + Proficiency Bonus + item bonuses) and spell attack bonus, per casting class.
+- Spell slots (2024 class tables and multiclass rule), Pact Magic slots, the pool of Hit Point Dice, a counter's
+  maximum written as a formula, the effects of Exhaustion, XP to the next level, total weight.
 
 **Not calculated. You must write these.**
 
-- **Hit Point maximum** (`combat.hp.max`). Include everything: Constitution, Tough, Draconic Resilience, a Dwarf's bonus.
-- **Speed** (`combat.speed`), with every permanent bonus already in it.
-- **Ability scores**: the final scores, with background, feats and level-ups applied. The app adds nothing to them.
-- **Every feature, as text.** Importing a "Fighter 5" does not give the hero Second Wind or Extra Attack. The
-  `features` list in the file is the whole truth: a feature you leave out does not exist in the app.
-- **Every spell, as text.** A spell with only a name imports as a card with no text.
+- **Hit Point maximum** (`combat.hp.max`), with everything in it. See "Hit Points" in section 2.
+- **Speed** (`combat.speed`), with every permanent bonus in it.
+- **Ability scores**: the final scores. The app adds nothing to them, not background, feats or level-ups, and not a
+  magic item either (see [items](#items)).
+- **Every feature, as text.** A "Fighter 5" in the file does not get Second Wind. The `features` list is the whole
+  truth: a feature you leave out does not exist in the app.
+- **Every spell, as text.** A spell with only a name is a card with no text.
 - **Attacks.** Each weapon or attack the player wants as a card is an entry in `attacks`. The app does not make one
   from a weapon in the inventory.
-- **Bonuses that do not come from an item**: Fighting Style Defense (+1 AC) goes in `combat.acBonus`; Archery (+2) in
-  the `bonus` of each ranged attack; the Alert feat (Proficiency Bonus to Initiative) in `combat.initiativeBonus` as a
-  plain number. That number does not grow with the hero: tell the player to raise it when the Proficiency Bonus goes up
-  (levels 5, 9, 13, 17).
-- **Unarmored Defense** and its kin: write the formula in `combat.unarmoredAc` (Barbarian `"10 + dex + con"`,
-  Monk `"10 + dex + wis"`, Draconic Sorcery `"10 + dex + cha"`).
+- **Bonuses that do not come from an item**: Fighting Style Defense (+1) in `combat.acBonus`; Archery (+2) in the
+  `bonus` of each ranged attack; Alert in `combat.initiativeBonus` as a plain number (tell the player to raise it when
+  the Proficiency Bonus goes up, at levels 5, 9, 13, 17).
+- **Unarmored Defense**: the formula in `combat.unarmoredAc` (Barbarian `"10 + dex + con"`, Monk `"10 + dex + wis"`,
+  Draconic Sorcery `"10 + dex + cha"`).
 - **A magic weapon's +1**: `bonus` and `damageBonus` of its attack.
-- Resistances, senses, languages, tool proficiencies: text only (a feature, or the `proficiencies` text fields).
+- Resistances, senses, languages, tool proficiencies: text only (a feature, or the `proficiencies` texts).
 
-## 6. Content from outside the free rules
+## 5. Content from outside the free rules
 
-The app is public, so it ships only what may be shared freely: the **System Reference Document 5.2.1** (the 2024 SRD).
-That is 12 classes with one subclass each, 9 species, 4 backgrounds, 17 feats and 339 spells. Anything else (other
-subclasses, spells, species, feats and items from the Player's Handbook and other books, and all homebrew) is unknown
-to the app.
+The app ships only the **System Reference Document 5.2.1** (the 2024 SRD): 12 classes with one subclass each, 9
+species, 4 backgrounds, 17 feats, 339 spells. That matters less than it sounds: **the importer fills in no rules text
+for anything, SRD or not.** You write every feature, spell and item into the file. The app's own data is used only for:
 
-That matters less than it sounds, because of how import works: **the importer does not fill in rules text for
-anything, SRD or not.** You write every feature, spell and item into the file. Where the app's own data is actually
-used is narrow:
+- **The 12 classes** (`barbarian bard cleric druid fighter monk paladin ranger rogue sorcerer warlock wizard`): hit
+  die, saving throws, spell slots, spellcasting ability, class-table formulas. Any other class (Artificer, homebrew)
+  needs `hitDie`, `casterType` and `spellcastingAbility` on its class entry, and `proficiencies.savingThrows`.
+- **The spell list**: the text of a spell scroll whose spell the hero does not have (section 7).
 
-| The app's data | What it is used for | If the content is not in the SRD |
-|---|---|---|
-| The 12 classes: `barbarian bard cleric druid fighter monk paladin ranger rogue sorcerer warlock wizard` | Hit die, saving throws, spell slots, the spellcasting ability, class-table formulas | Any other class (Artificer, a homebrew class): give `hitDie`, `casterType`, `spellcastingAbility` on the class entry and write `proficiencies.savingThrows`. Without `hitDie` the import reports an adjustment and assumes d8. |
-| One subclass per class (Berserker, Lore, Life, Land, Champion, Open Hand, Devotion, Hunter, Thief, Draconic Sorcery, Fiend, Evoker) | Only the Level Up tab, later | `subclass` is free text; any name is fine. A subclass that grants spellcasting to a non-caster (Eldritch Knight, Arcane Trickster) needs `"casterType": "third"` and `"spellcastingAbility": "int"` on the class entry. |
-| The spell list | The text of a **spell scroll**, when the hero does not have that spell | Put the spell's text in the scroll item's `description`. |
-| Species, backgrounds, feats | The builder inside the app; not used on import | Nothing to do. |
+Subclasses, species, backgrounds and feats are not looked up at all: `subclass` is free text. Only a subclass that
+gives spellcasting to a non-caster (Eldritch Knight, Arcane Trickster) leaves a trace: `"casterType": "third"` and
+`"spellcastingAbility": "int"` on the class entry.
 
-So for content from a book the app does not ship, do exactly what you do for everything else: **write it out in the
-hero's own data.** A subclass feature is an entry in `features` with its full text; a spell is an entry in `spells`
-with all its fields; a magic item is an item with its `description` and `powers`.
-
-Where the text comes from is between you and the player. The file is the player's own notes about their own
-character. Ask them to paste or photograph the text from their book or their DM's handout, and use it. If you would
+The file is the player's own notes about their own character: ask them to paste or photograph the text. If you would
 rather not reproduce a passage word for word, write it in your own words, keeping **every number, range, duration,
-saving throw, condition and limit**. Never leave a description empty, and never write "see the Player's Handbook,
+saving throw, condition and limit**. Never leave a description empty and never write "see the Player's Handbook,
 page 87": at the table the card is all the player has.
 
-## 7. The file format
+## 6. The file format
 
-One JSON object. In the tables, the **Write** column says what a good file contains:
-
-- **always**: write it, even though the importer would accept the file without it;
-- **if it applies**: write it when the hero has that thing;
-- **optional**: write it if you have the information;
-- **leave out**: the app writes it itself.
-
-Technically the importer requires nothing: `{}` imports as an empty level 1 hero, and every missing field takes the
-default in the table. A default is a fallback, not a goal.
-
-Write the **current** state of the hero. The file holds both what the hero is (scores, features) and where they
-stand in the session (Hit Points, spent slots, used charges).
+One JSON object. The **Write** column says what a good file contains. The importer itself requires nothing (`{}`
+imports as an empty level 1 hero) and a missing field takes the default; a default is a fallback, not a goal. Write
+the **current** state of the hero: what they are, and where they stand in the session.
 
 ### Formulas
 
-Wherever a type says *formula*, you can write a plain number, or a text the app evaluates each time:
+Wherever a type says *formula*, write a plain number, or a text the app evaluates each time:
 
 | In a formula | Means |
 |---|---|
@@ -234,20 +178,19 @@ Wherever a type says *formula*, you can write a plain number, or a text the app 
 | `str_score` ... `cha_score` | the ability **score** |
 | `pb` | Proficiency Bonus |
 | `level` | total character level |
-| a class id from the hero's `classes`: `paladin`, `wizard` | the hero's level in that class (an SRD class the hero does not have counts as 0) |
-| `class.column`: `barbarian.rages`, `monk.focus-points` | the number in that column of the SRD (2024) class table at the hero's class level |
+| a class id of the hero: `paladin`, `wizard` | the hero's level in that class |
+| `class.column`: `barbarian.rages` | that column of the SRD (2024) class table at the hero's class level |
 | `+ - * /`, `( )`, `min()`, `max()`, `floor()`, `ceil()` | arithmetic |
 
-Columns available: Barbarian `rages`, `rage-damage`; Bard, Cleric, Druid, Sorcerer, Warlock, Wizard `cantrips`;
-every caster class `prepared-spells`; Cleric and Paladin `channel-divinity`; Druid `wild-shape`; Fighter `second-wind`; Monk
+Columns: Barbarian `rages`, `rage-damage`; Bard, Cleric, Druid, Sorcerer, Warlock, Wizard `cantrips`; every caster
+class `prepared-spells`; Cleric and Paladin `channel-divinity`; Druid `wild-shape`; Fighter `second-wind`; Monk
 `focus-points`, `unarmored-movement`; Ranger `favored-enemy`; Sorcerer `sorcery-points`; Warlock
 `eldritch-invocations`; Barbarian and Fighter `weapon-mastery`.
 
-A formula is better than a number when the value grows with the hero: `"pb"` is still right after the next level-up,
-`3` is not. But **a name the app does not know counts as 0, with no warning**. A typo such as `"profbonus"` gives a
-feature with no uses. Use only the names above.
+Prefer a formula when the value grows with the hero: `"pb"` is still right after the next level-up. But **a name
+the app does not know counts as 0, with no warning**: `"profbonus"` gives a feature with no uses.
 
-The usual 2024 counters, as the app's own builder writes them:
+The usual 2024 counters:
 
 | Feature | `uses` |
 |---|---|
@@ -260,65 +203,62 @@ The usual 2024 counters, as the app's own builder writes them:
 | Monk's Focus | `{ "max": "monk.focus-points", "used": 0, "recharge": "short" }` |
 | Lay On Hands | `{ "max": "paladin * 5", "used": 0, "recharge": "long", "note": "HP pool" }` |
 | Font of Magic | `{ "max": "sorcerer.sorcery-points", "used": 0, "recharge": "long", "note": "Sorcery Points", "resource": "sorcery-points" }` |
-| Arcane Recovery | `{ "max": 1, "used": 0, "recharge": "long" }` |
-| A species trait usable Proficiency Bonus times | `{ "max": "pb", "used": 0, "recharge": "long" }` |
+| A trait usable Proficiency Bonus times | `{ "max": "pb", "used": 0, "recharge": "long" }` |
 
 ### Text fields
 
 Every `description` is plain text with a little formatting. Inside a JSON string a line break is `\n`.
 
-- A blank line (`\n\n`) starts a new paragraph.
-- `**bold**` and `_italic_` work. Italic is the convention for a sub-heading: `_Using a Higher-Level Spell Slot._`
-- A block whose lines all start with `• ` or `- ` is a bullet list.
-- A block whose lines all start with `|` is a table: `| Level | Damage |\n| 5 | 2d8 |`. The first line is the header.
-  Do **not** add a Markdown separator line (`|---|---|`); it would show as a row of dashes.
+- A blank line (`\n\n`) starts a new paragraph. `**bold**` and `_italic_` work; italic is the convention for a
+  sub-heading: `_Using a Higher-Level Spell Slot._`
+- A block whose lines all start with `• ` or `- ` is a bullet list. A block whose lines all start with `|` is a
+  table (`| Level | Damage |\n| 5 | 2d8 |`); do **not** add a Markdown separator line (`|---|---|`).
 - Nothing else: no `#` headings, no links, no HTML.
-- **Lead with the rule.** A card's face shows only the first 140 characters or so, and an item's panel only the
-  first paragraph; the full text is one tap away. Flavour and remarks go last.
+- **Lead with the rule.** A card's face shows only the first 140 characters or so. Flavour and remarks go last.
+- **Use the game's own wording.** The app reads the text to highlight it, to put small icons on spell and item-power
+  cards (range, area, damage, healing, save) and to add filter tags: "8d6 Fire damage", "Dexterity saving throw",
+  "20-foot-radius Sphere", "regains 2d8 Hit Points", "within 30 feet".
 
 ### Ids
 
-Features, attacks, spells, items, item powers, notes, timers and the hero itself each have an `id`. The importer makes
-one up when it is missing, so a file without ids works. Write them anyway, as short readable texts that are unique in
-the file (`"feat-second-wind"`, `"item-longbow"`), for two reasons: an attack points at its weapon by the item's id,
-and when the player later re-imports an edited file, the hero's own `id` is how the app knows it is the same hero.
-Give the hero an id nobody else will have, such as the name plus a few random characters: `"hero-vessa-thornhide-7k2q9d"`.
+Features, attacks, spells, items, item powers, notes, timers and the hero itself each have an `id`. Write them as
+short readable texts in lowercase Latin letters, digits and dashes, unique in the file (`"feat-second-wind"`,
+`"item-longbow"`): an attack points at its weapon by the item's id, and the hero's own `id` is how the app knows, on a
+later re-import, that it is the same hero. Give the hero an id nobody else will have: the name (transliterated if it
+is not in Latin letters) plus a few random characters, `"hero-vessa-thornhide-7k2q9d"`.
 
 ### Top level
 
 | Field | Type | Write | Default | What it does |
 |---|---|---|---|---|
-| `schemaVersion` | number | always | 1 | Write `3`. Without it the file is read as the oldest format. A number above the app's own is refused. |
-| `id` | text | always | generated | Identifies the hero in the browser. See [Ids](#ids). |
-| `name` | text | always | "Unnamed hero" | |
+| `schemaVersion` | number | always | 1 | Write `3`. Without it the file is read as the oldest format. A higher number is refused. |
+| `id` | text | always | generated | See [Ids](#ids). |
+| `name` | text | always | "Unnamed hero" | As the player writes it; any alphabet. |
 | `player` | text | optional | "" | |
-| `species` | `{ name, size }` | always | `{ "", "Medium" }` | `name`: free text ("Elf (Wood Elf)"). `size`: "Medium", "Small". A plain text is read as the name. (`race` is read as an alias; write `species`.) |
+| `species` | `{ name, size }` | always | `{ "", "Medium" }` | `name`: free text ("Elf (Wood Elf)"). `size`: "Medium", "Small". (`race` is read as an alias; write `species`.) |
 | `background` | text | always | "" | Free text. |
 | `alignment` | text | optional | "" | Free text. |
-| `xp` | number ≥ 0 | always | 0 | Total experience points. See the table below. |
+| `xp` | number ≥ 0 | always | 0 | Total experience points. See below. |
 | `partySize` | 1–20 | optional | 5 | How many players share the XP the DM gives the group. |
-| `xpLog` | list | leave out | [] | History written by the app's XP panel. See [xpLog](#xplog). |
 | `classes` | list | always | Fighter 1 | See [classes](#classes). |
 | `abilities` | object | always | all 10 | See [abilities](#abilities). |
 | `proficiencies` | object | always | | See [proficiencies](#proficiencies). |
 | `combat` | object | always | | See [combat](#combat). |
-| `conditions` | list of text | if it applies | [] | Conditions on the hero now, lowercase: `blinded` `charmed` `deafened` `frightened` `grappled` `incapacitated` `invisible` `paralyzed` `petrified` `poisoned` `prone` `restrained` `stunned` `unconscious`. Not Exhaustion: that is the next field. |
+| `conditions` | list of text | if it applies | [] | Lowercase: `blinded` `charmed` `deafened` `frightened` `grappled` `incapacitated` `invisible` `paralyzed` `petrified` `poisoned` `prone` `restrained` `stunned` `unconscious`. Not Exhaustion. |
 | `exhaustion` | 0–6 | if it applies | 0 | Exhaustion level. Its effects are applied automatically. |
-| `exhaustionRules` | `"2014"` | 2014 only | absent = 2024 | See [section 4](#4-edition-2024-unless-the-player-says-otherwise). Leave it out for a 2024 hero. |
+| `exhaustionRules` | `"2014"` | 2014 only | absent = 2024 | Section 11. Leave it out for a 2024 hero. |
 | `heroicInspiration` | true/false | optional | false | |
 | `features` | list | always | [] | See [features](#features). |
 | `attacks` | list | always | [] | See [attacks](#attacks). |
-| `spellcasting` | object | casters | all 0 | Slots spent and Concentration. See [spellcasting](#spellcasting). |
+| `spellcasting` | object | casters | all 0 | See [spellcasting](#spellcasting). |
 | `spells` | list | casters | [] | See [spells](#spells). |
 | `inventory` | `{ items, money }` | always | empty | See [items](#items) and [money](#money). |
 | `roleplay` | object | optional | all "" | See [roleplay](#roleplay). |
-| `sessionNotes` | list | optional | [] | See [sessionNotes](#sessionnotes). |
-| `timers` | list | optional | [] | See [timers](#timers). |
-| `updatedAt` | ISO date-time text | optional | now | When the hero was last changed, e.g. `"2026-10-03T12:00:00.000Z"`. The hero list is sorted by it. |
+| `xpLog`, `sessionNotes`, `timers` | lists | `[]` in a new file | [] | The app's XP history, the player's journal, day countdowns. Section 12. |
+| `updatedAt` | ISO date-time text | optional | now | `"2026-10-03T12:00:00.000Z"`. The hero list is sorted by it. |
 
-**XP.** The app compares `xp` with the hero's total level and offers a level-up when the XP reaches the next
-threshold. If the table levels by milestones, or the player does not know the XP, write the threshold of the
-**current** level, so the app neither nags about a level-up nor reports the XP as too low.
+**XP.** The app offers a level-up when `xp` reaches the next threshold. If the table levels by milestones, or the
+player does not know the XP, write the threshold of the **current** level.
 
 | Level | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -330,22 +270,21 @@ threshold. If the table levels by milestones, or the player does not know the XP
 
 ### classes
 
-A list, one entry per class. **The first entry is the class the hero started in**: it decides the saving throw
-proficiencies when `proficiencies.savingThrows` is empty.
+A list, one entry per class. **The first entry is the class the hero started in.**
 
 | Field | Type | Write | Default | What it does |
 |---|---|---|---|---|
-| `id` | text | always | | For the 12 SRD classes, the lowercase English name (`"ranger"`). It connects the hero to the class table. For any other class, a lowercase id of your own (`"artificer"`). |
+| `id` | text | always | | For the 12 SRD classes, the lowercase English name (`"ranger"`): it connects the hero to the class table. For any other class, a lowercase id of your own (`"artificer"`). |
 | `name` | text | always | the SRD name | Shown on the sheet ("Ranger"). |
-| `level` | 1–20 | always | 1 | Level in this class. The levels of all classes must not add up to more than 20. |
+| `level` | 1–20 | always | 1 | The levels of all classes must not add up to more than 20. |
 | `subclass` | text | if it applies | absent | Free text. |
-| `hitDie` | number | non-SRD classes only | from the SRD; else 8 | `8` for a d8. Needed for a class that is not in the SRD. |
+| `hitDie` | number | non-SRD classes only | from the SRD; else 8 | `8` for a d8. Without it a non-SRD class is assumed d8, with an adjustment. |
 | `casterType` | `full` `half` `third` `pact` `none` | see note | from the SRD | How the class counts toward spell slots. |
-| `spellcastingAbility` | `str` `dex` `con` `int` `wis` `cha` | with `casterType` | from the SRD | |
+| `spellcastingAbility` | an ability id | with `casterType` | from the SRD | |
 
 Write `casterType` and `spellcastingAbility` in exactly two cases: a class that is not in the SRD, and a non-caster
-class whose subclass casts spells (Eldritch Knight, Arcane Trickster: `"third"`, `"int"`). On an ordinary SRD caster
-leave both out: with `casterType` set, the app stops using the class's own slot table and falls back to a generic one.
+class whose subclass casts spells. On an ordinary SRD caster leave both out: with `casterType` set, the app stops
+using the class's own slot table and falls back to a generic one.
 
 ### abilities
 
@@ -358,7 +297,7 @@ All six of `str` `dex` `con` `int` `wis` `cha`, always. Scores from 1 to 30, fin
 | Field | Type | Write | Default | What it does |
 |---|---|---|---|---|
 | `savingThrows` | list of ability ids | always | the first class's | `["str", "dex"]`. Include a save gained from a feat (Resilient). |
-| `skills` | object | always | none | Only the skills the hero is trained in: `{ "stealth": "expertise", "perception": "proficient" }`. |
+| `skills` | object | always | none | Only the trained skills: `{ "stealth": "expertise", "perception": "proficient" }`. |
 | `jackOfAllTrades` | true/false | Bards level 2+ | false | Adds half the Proficiency Bonus to untrained skills. |
 | `armor` | text | optional | "" | Shown as written: "Light and Medium armor, Shields". |
 | `weapons` | text | optional | "" | "Simple and Martial weapons". |
@@ -366,26 +305,26 @@ All six of `str` `dex` `con` `int` `wis` `cha`, always. Scores from 1 to 30, fin
 | `languages` | text | optional | "" | "Common, Elvish". |
 | `weaponMasteries` | list of text | if it applies | [] | `["Longbow (Slow)", "Shortsword (Vex)"]`. Shown as written. |
 
-Skill ids, exactly as spelled here: `acrobatics` `animalHandling` `arcana` `athletics` `deception` `history`
-`insight` `intimidation` `investigation` `medicine` `nature` `perception` `performance` `persuasion` `religion`
-`sleightOfHand` `stealth` `survival`. Values: `"proficient"` or `"expertise"` (leave untrained skills out).
+Skill ids, exactly: `acrobatics` `animalHandling` `arcana` `athletics` `deception` `history` `insight`
+`intimidation` `investigation` `medicine` `nature` `perception` `performance` `persuasion` `religion`
+`sleightOfHand` `stealth` `survival`. Values: `"proficient"` or `"expertise"`.
 
 ### combat
 
 | Field | Type | Write | Default | What it does |
 |---|---|---|---|---|
-| `hp` | `{ max, current, temp }` | always | 10 / max / 0 | `max`: the Hit Point maximum (not calculated). `current`: Hit Points now, from 0 to `max`. `temp`: Temporary Hit Points. |
+| `hp` | `{ max, current, temp }` | always | 10 / max / 0 | `max`: the Hit Point maximum (not calculated, not checked). `current`: 0 to `max`. `temp`: Temporary Hit Points. |
 | `speed` | number | always | 30 | Walking Speed in feet. Exhaustion is subtracted by the app. |
 | `unarmoredAc` | formula | always | `"10 + dex"` | Armor Class when no body armor is equipped. |
-| `acBonus` | number | always | 0 | Armor Class bonus that does not come from an item in the inventory (Fighting Style Defense). |
-| `initiativeBonus` | number | always | 0 | Added to the Dexterity modifier for Initiative (Alert: the Proficiency Bonus as a number). |
-| `hitDiceUsed` | object | if it applies | {} | Hit Point Dice spent, by die: `{ "d10": 1 }`. The pool itself is calculated. |
-| `deathSaves` | `{ successes, failures }` | optional | 0 / 0 | Each 0–3. |
+| `acBonus` | number | always | 0 | AC bonus that does not come from an item (Fighting Style Defense). |
+| `initiativeBonus` | number | always | 0 | Added to the Dexterity modifier (Alert: the Proficiency Bonus as a number). |
+| `hitDiceUsed` | object | always | {} | Hit Point Dice **spent**, by die: `{ "d10": 1 }`. Nothing spent is `{}`, which is what the app writes after a Long Rest. The pool is calculated. |
+| `deathSaves` | `{ successes, failures }` | always | 0 / 0 | Each 0–3. |
 
 ### features
 
-A list. Class features, subclass features, species traits, background features, feats, boons, and anything else that
-is a rule about this hero.
+A list: class and subclass features, species traits, the background's feat, other feats, boons, anything that is a
+rule about this hero.
 
 | Field | Type | Write | Default | What it does |
 |---|---|---|---|---|
@@ -398,49 +337,54 @@ is a rule about this hero.
 | `level` | 1–20 | optional | absent | The level at which it was gained. Informational. |
 | `tags` | list of text | optional | absent | See [Tags](#tags). |
 
-`activation` is one of:
-
-| Value | Use it for | Where it shows |
+| `activation` | Use it for | Where it shows |
 |---|---|---|
 | `passive` | Always on, nothing to do: Darkvision, Extra Attack, a Fighting Style | A chip on the Always on strip |
 | `action` | Takes an action, including a Magic action | Action hand |
 | `bonus` | Takes a Bonus Action | Bonus Action hand |
 | `reaction` | Takes a Reaction | Reaction hand |
 | `free` | No action, but the player decides to use it: Reckless Attack, Action Surge, Sneak Attack, Metamagic | Free / Other hand |
-| `special` | Something else: a trigger, part of a rest, a pool | Free / Other hand |
+| `special` | Something else: a trigger, part of a rest, a pool that other cards draw on | Free / Other hand |
 
-How finely to split features is a judgment call. A good rule: **one card per decision the player makes at the
-table.** Channel Divinity with two options works better as the Channel Divinity card (with the counter) plus one card
-per option (no counter) than as one long text. Features that only record a choice already expressed in numbers
-(Ability Score Improvement, "Spellcasting", "Ranger Subclass") can be left out.
+**How finely to split: one card per decision the player makes at the table.**
 
-A feature granted by a magic item: set `source` to `{ "type": "item", "name": "<the item's exact name>" }`. It then
-appears and disappears together with that item (see [the Play rule](#the-play-rule-equipped-and-attuned)). For
-abilities of an item, prefer `powers` on the item itself.
+- **A feature that only changes another one goes into that one's text**, under an italic sub-heading, and gets no
+  entry of its own. Sear Undead is a paragraph of Turn Undead; Improved Divine Smite is a paragraph of Divine Smite.
+  Two entries would say the same thing in two places.
+- **A pool with options** (Channel Divinity, a Battle Master's Superiority Dice): one card for the pool, with
+  `activation: "special"` and the counter, plus one card per option with the option's real activation and **no**
+  counter. The app has no link between them: using an option's card spends nothing, and the player taps the pool's
+  card themselves. So end each option's text with "Expends one use of Channel Divinity." and name the options in the
+  pool's text. Do not give the options counters of their own. Section 7 has a worked fragment.
+- Features that only record a choice already expressed in numbers (Ability Score Improvement, "Spellcasting",
+  "Cleric Subclass") can be left out. So can a "Domain Spells" feature: the spells themselves carry it (see
+  [spells](#spells)).
+- A feat whose picks the player could not name (Magic Initiate, spells unknown) stays in the list with its general
+  text; the missing picks are an open point (section 1), not something to fill in.
+
+A feature granted by a magic item: `source` is `{ "type": "item", "name": "<the item's exact name>" }`. It then
+appears and disappears with that item. For an item's own abilities prefer `powers` on the item.
 
 ### Counters
 
-One shape is used for a feature's `uses`, an item's `charges`, an item power's `uses`, and a spell's `freeCasts`.
+One shape for a feature's `uses`, an item's `charges`, an item power's `uses`, and a spell's `freeCasts`.
 
 | Field | Type | Write | Default | What it does |
 |---|---|---|---|---|
 | `max` | formula | always | 1 | How many there are. |
-| `used` | number ≥ 0 | always | 0 | How many are spent **now** (not how many are left). |
+| `used` | number ≥ 0 | always | 0 | How many are spent **now** (not how many are left). Not checked against `max`; keep it at or below. |
 | `recharge` | see below | always | `long` | When the Rest buttons give them back. |
-| `shortRestRegain` | formula | if it applies | absent | With `recharge: "long"`: how many come back on a Short Rest (Rage, Channel Divinity, Wild Shape, Second Wind: `1`). |
-| `regain` | text | if it applies | absent | A roll, such as `"1d6+1"`. **With this set, rests do not refill the counter**; they remind the player to roll. For "regains 1d6+1 charges at dawn". Leave it out when everything simply comes back. |
+| `shortRestRegain` | formula | if it applies | absent | With `recharge: "long"`: how many come back on a Short Rest (`1` for Rage, Channel Divinity, Wild Shape, Second Wind). |
+| `regain` | text | if it applies | absent | A roll, such as `"1d6+1"`. **With this set, rests do not refill the counter**; they remind the player to roll. Leave it out when everything simply comes back. |
 | `note` | text | optional | absent | A label next to the counter: "HP pool". |
-| `resource` | `"sorcery-points"` | Sorcerers | absent | Marks the Sorcery Points counter, so the app shows it beside the spell slots with the Flexible Casting buttons. It is the only value. |
+| `resource` | `"sorcery-points"` | Sorcerers | absent | Marks the Sorcery Points counter, so the app shows it beside the spell slots. It is the only value. |
 
-`recharge` is one of:
+`recharge`: `short` (a Short or a Long Rest), `long`, `dawn` (magic items; a Long Rest counts as a dawn unless the
+player unticks that), `other` (never automatic: "once every 7 days"), `none` (never comes back).
 
-| Value | Meaning |
-|---|---|
-| `short` | Comes back on a Short Rest **or** a Long Rest. |
-| `long` | Comes back on a Long Rest. |
-| `dawn` | Comes back at dawn (magic items). A Long Rest counts as a dawn passing unless the player unticks that. |
-| `other` | Never automatic; the player resets it by hand ("once every 7 days"). |
-| `none` | Never comes back (a single-use boon). |
+**One counter per resource.** Favored Enemy lets a Ranger cast Hunter's Mark without a slot: that is `freeCasts` on
+the Hunter's Mark spell, and the Favored Enemy feature is passive with **no** `uses`. The same goes for Magic
+Initiate, species spells, and an item whose power spends the item's charges (`cost`, not a second counter).
 
 ### attacks
 
@@ -450,7 +394,7 @@ A list. Each entry is a card in the Action hand.
 |---|---|---|---|---|
 | `id` | text | always | generated | |
 | `name` | text | always | "Attack" | |
-| `ability` | `str` `dex` `con` `int` `wis` `cha` `finesse` `spell` | always | `str` | The modifier used. `finesse` = the better of Strength and Dexterity. `spell` = the spellcasting ability of the first caster class. |
+| `ability` | `str` `dex` `con` `int` `wis` `cha` `finesse` `spell` | always | `str` | `finesse` = the better of Strength and Dexterity. `spell` = the spellcasting ability of the first caster class. |
 | `proficient` | true/false | always | true | Adds the Proficiency Bonus to the attack roll. |
 | `bonus` | number | always | 0 | Extra to hit: a +1 weapon, Archery's +2. |
 | `damage` | text | always | "" | **Dice only**: `"1d8"`. The app appends the modifier itself. |
@@ -458,16 +402,11 @@ A list. Each entry is a card in the Action hand.
 | `addAbilityToDamage` | true/false | always | true | False for an off-hand attack without the Two-Weapon Fighting style, and for most spell attacks. |
 | `damageBonus` | number | always | 0 | Extra damage: a +1 weapon, Dueling's +2. |
 | `mastery` | text | optional | "" | The weapon's mastery property, if the hero can use it: "Vex". |
-| `notes` | text | optional | "" | Range, properties, riders: "Range 150/600 ft." |
-| `itemId` | text or null | always | linked by name | The `id` of the item this attack is made with, or `null` for none (Unarmed Strike, a cantrip). |
+| `notes` | text | optional | "" | Range, properties, riders: "Range 150/600 ft.", "Versatile (1d10)". |
+| `itemId` | text or null | always | linked by name | The `id` of the item this attack is made with, or `null` for none (Unarmed Strike). Left out, the importer guesses by name and reports an adjustment. |
 
-Always write `itemId`. When it is missing, the importer links the attack to an item whose name the attack's name
-starts with, and reports that as an adjustment. A linked attack follows its item: it is hidden from Play while the
-item is not equipped.
-
-A cantrip that needs an attack roll (Fire Bolt, Eldritch Blast) is a spell. If the player uses it every turn, you may
-**also** add it to `attacks` with `"ability": "spell"`, `"addAbilityToDamage": false` and `"itemId": null`, so that a
-card shows the attack bonus.
+A cantrip that needs an attack roll (Fire Bolt) is a spell. If the player uses it every turn, you may **also** add it
+to `attacks` with `"ability": "spell"`, `"addAbilityToDamage": false`, `"itemId": null`, so a card shows the bonus.
 
 ### spellcasting
 
@@ -475,12 +414,12 @@ The state of the hero's magic, not their spells.
 
 | Field | Type | Write | Default | What it does |
 |---|---|---|---|---|
-| `slotsUsed` | list of 9 numbers | casters | all 0 | Slots **spent** per spell level; the first number is level 1. `[1, 1, 0, 0, 0, 0, 0, 0, 0]`. |
+| `slotsUsed` | list of 9 numbers | casters | all 0 | Slots **spent** per spell level; the first number is level 1. |
 | `pactSlotsUsed` | number | Warlocks | 0 | Pact Magic slots spent. |
 | `concentration` | text | if it applies | "" | The name of the spell the hero is concentrating on now. |
-| `slotsOverride` | list of numbers | rarely | absent | Replaces the calculated slots: `[4, 3, 2]`. For homebrew, and for the 2014 cases in [section 4](#4-edition-2024-unless-the-player-says-otherwise). Otherwise leave it out, so that the slots keep following the level. |
-| `pactOverride` | `{ slots, level }` | rarely | absent | The same for Pact Magic: how many `slots`, of which spell `level`. |
-| `bonusSlots` | list of 9 numbers | leave out | absent | Slots a Sorcerer created from Sorcery Points; the app writes and clears it. |
+| `slotsOverride` | list of numbers | rarely | absent | Replaces the calculated slots: `[4, 3, 2]`. For homebrew and for 2014 (section 11). Otherwise leave it out. |
+| `pactOverride` | `{ slots, level }` | rarely | absent | The same for Pact Magic. |
+| `bonusSlots` | list of 9 numbers | leave out | absent | Slots a Sorcerer made from Sorcery Points; the app writes and clears it. |
 
 ### spells
 
@@ -491,19 +430,30 @@ A list. Every spell the hero can cast, or has in a spellbook.
 | `id` | text | always | generated | |
 | `name` | text | always | "Unnamed spell" | |
 | `level` | 0–9 | always | 0 | 0 = cantrip. |
-| `source` | text | always | absent | Which class the spell belongs to: that class's `id`, exactly (`"ranger"`). The Spells tab counts prepared spells per class by it. For a spell from elsewhere: `"feat"`, `"species"`, `"item"`. |
+| `source` | text | always | absent | The `id` of the class the spell belongs to, exactly (`"ranger"`). For a spell from elsewhere: `"feat"`, `"species"`, `"item"`. |
 | `prepared` | true/false | always | true | A prepared spell is a card on Play. `false`: only on the Spells tab (a Wizard's spellbook). Cantrips are always cards. |
-| `alwaysPrepared` | true/false | always | false | Granted by a subclass, species or feat: always a card, and not counted against the class's limit. |
+| `alwaysPrepared` | true/false | always | false | Granted by a subclass, species or feat: always a card, marked ★, not counted against the class's limit. |
 | `ritual` | true/false | always | false | |
 | `concentration` | true/false | always | false | Casting it puts it in the Concentration slot. |
 | `school` | text | always | "" | "Evocation". |
-| `castingTime` | text | always | "" | **Starts with** `Action`, `Bonus Action` or `Reaction`; this decides the hand. Anything else ("1 minute", "10 minutes") goes to Free / Other; left empty, it counts as Action. Extra words may follow: "Reaction, which you take when you are hit". |
+| `castingTime` | text | always | "" | **Must start with** `Action`, `Bonus Action` or `Reaction`: that decides the hand. Write "Action" even where a book says "1 action", which does not match. Any other text ("1 minute") goes to Free / Other. Extra words may follow: "Reaction, which you take when you are hit". |
 | `range` | text | always | "" | "60 feet", "Self", "Touch". |
 | `components` | text | always | "" | "V, S, M (a pinch of dirt)". |
-| `duration` | text | always | "" | "Instantaneous", "1 hour", "up to 1 minute". Concentration is the flag above, not this text. |
+| `duration` | text | always | "" | "Instantaneous", "up to 1 minute". Concentration is the flag, not this text. |
 | `description` | text | always | "" | The full effect, including what a higher-level slot does. |
-| `freeCasts` | [counter](#counters) | if it applies | absent | Casts that need no slot: Magic Initiate, a species spell, Favored Enemy's Hunter's Mark, Mystic Arcanum. |
+| `freeCasts` | [counter](#counters) | if it applies | absent | Casts that need no slot: Magic Initiate, a species spell, Favored Enemy's Hunter's Mark. |
 | `tags` | list of text | optional | absent | See [Tags](#tags). |
+
+- **Always-prepared spells** (domain, oath, circle, species, feat): write `"prepared": true` **and**
+  `"alwaysPrepared": true`, with the class's id as `source` if the subclass gives them. Nothing else is needed.
+- **How many are prepared.** The limit is not in the file. The Spells tab shows "Prepared n/max" per class, taking
+  max from the 2024 class table and counting the spells with that class's `source`, level 1+, `prepared` and not
+  `alwaysPrepared`. Nothing is refused, on import or later. So know the limit yourself, count, and if the player named
+  fewer or more, tell them; do not fill the gap with spells of your choosing.
+- **Cantrip damage.** Write the **level 1** die in the main text ("1d8 Radiant damage") and keep the upgrade
+  paragraph, starting `_Cantrip Upgrade._` and naming level 5: "The damage increases by 1d8 when you reach levels 5
+  (2d8), 11 (3d8), and 17 (4d8)." The card's damage icon then shows the right dice for the hero's level and keeps
+  growing. Dice you scale yourself ("2d8") are shown as written and go stale at level 11.
 
 ### items
 
@@ -514,22 +464,30 @@ A list. Every spell the hero can cast, or has in a spellbook.
 | `id` | text | always | generated | |
 | `name` | text | always | "Item" | Some words in a name have meaning; see [Names the app reads](#names-the-app-reads). |
 | `quantity` | number ≥ 0 | always | 1 | |
-| `equipped` | true/false | always | false | Worn, wielded or held ready. Decides Armor Class and what is on Play. |
+| `equipped` | true/false | always | false | Worn, wielded or held ready. |
 | `requiresAttunement` | true/false | always | false | |
-| `attuned` | true/false | always | false | At most 3 items. |
+| `attuned` | true/false | always | false | At most 3 items. A fourth is un-attuned by the importer, with an adjustment: ask the player which three. |
 | `description` | text | always | "" | What it is and does. |
 | `weight` | number | optional | absent | Pounds **per piece**. |
-| `armor` | `{ base, dexCap }` | body armor | absent | `base`: the armor's AC. `dexCap`: the most Dexterity it allows: `null` = no limit (light armor), `2` (medium), `0` (heavy). |
+| `armor` | `{ base, dexCap }` | body armor | absent | `base`: the armor's AC. `dexCap`: the most Dexterity it allows: `null` = no limit (light), `2` (medium), `0` (heavy). |
 | `acBonus` | number | if it applies | absent | Added to AC while the item is active. A Shield is an item with `"acBonus": 2` (no `armor`). |
 | `saveBonus` | number | if it applies | absent | Added to every saving throw while active (Cloak of Protection: 1). |
 | `spellDcBonus` | number | if it applies | absent | Added to the spell save DC while active. |
 | `spellAttackBonus` | number | if it applies | absent | Added to spell attack rolls while active. |
 | `charges` | [counter](#counters) | if it applies | absent | The item's pool of charges. |
-| `activation` | as for features | if it applies | absent | Makes the item itself a card. Read the warning below before using it. |
+| `activation` | as for features | if it applies | absent | Makes the item itself a card that spends `quantity`. Consumables only; see the table below. |
 | `powers` | list | if it applies | absent | The item's separate abilities. See [item powers](#item-powers). |
 | `tags` | list of text | optional | absent | See [Tags](#tags). They also apply to every power of the item. |
 
-"Active" means: equipped, and attuned if the item requires attunement.
+**The Play rule.** An item is **active** when it is `equipped`, and `attuned` too if it `requiresAttunement`. Only an
+active item is on the Play screen (its card, powers, chips, the attacks linked to it, the features whose `source`
+names it), and only an active item's bonuses count. Potions, scrolls and quantity-spent consumables are the
+exception: they are on Play without being equipped. An inactive item is one tap away on the Gear tab, but the player
+will think the import lost it.
+
+The app tracks **no hands**. Equip every weapon the hero fights with, and the shield, all at once: two weapons and a
+shield together are fine, each weapon gets its attack card, and the shield's +2 always counts. Say in the attack's
+`notes` what the table needs to remember ("Versatile (1d10) without the shield").
 
 Which shape to give an item:
 
@@ -539,102 +497,62 @@ Which shape to give an item:
 | Body armor | `armor`, `equipped: true` |
 | Shield | `acBonus: 2`, `equipped: true` |
 | A weapon | A plain item with `equipped: true`, **and** an entry in `attacks` whose `itemId` is this item's `id` |
-| A magic item that only gives bonuses | The bonus fields, `equipped`, and the attunement fields |
-| A magic item with abilities | `powers` (and `charges` if they share a pool) |
-| A consumable thrown or used up (Alchemist's Fire, Holy Water, caltrops) | `activation`, `quantity`, **no** `charges`. The card has − and + for the quantity. |
-| A potion or a scroll | Just the right name and a `quantity`. See [Names the app reads](#names-the-app-reads). |
-
-**The warning about `activation`.** An item with `activation`, without `charges` and without active powers is
-treated as a consumable: using its card lowers `quantity`. That is right for a flask of Alchemist's Fire and wrong for
-Boots of Speed. A reusable ability of an item always goes in `powers`, even when it is the item's only one.
+| A magic item in use | The bonus fields or `powers`; `equipped: true`; and if it needs attunement, `requiresAttunement: true`, `attuned: true` |
+| A magic item that needs attunement and is **not attuned yet** | `requiresAttunement: true`, `attuned: false`, and `equipped` as it really is (worn or in the pack). Either way it does nothing and is not on Play until the player taps Attuned on the Gear tab, which also equips it. |
+| An item that **sets or raises an ability score** (Amulet of Health, Gauntlets of Ogre Power, a Belt of Giant Strength) | The app cannot do this from an item. While the item is active, write the **resulting** score in `abilities` (and a Hit Point maximum that includes a new Constitution modifier), and say so in the item's `description`: "Constitution is 19 while worn (already in the scores; without it: 16)." While it is not active, write the hero's own score and note what to change by hand on the Edit tab. |
+| A consumable thrown or used up (Alchemist's Fire, Holy Water, caltrops) | `activation`, `quantity`, **no** `charges`. The card has − and + for the quantity. Never put a bare `activation` on a reusable item (Boots of Speed): using its card would lower `quantity`. A reusable ability goes in `powers`, even if it is the only one. |
+| A potion or a scroll | The right name and a `quantity`. See [Names the app reads](#names-the-app-reads). |
 
 ### item powers
 
 `powers` is a list on an item. Each active power is its own card, in the hand of its activation, labelled with the
-item's name. A passive power is a chip on the Always on strip. An item with at least one active power has no card of
-its own.
+item's name. A passive power is a chip. An item with at least one active power has no card of its own.
 
 | Field | Type | Write | Default | What it does |
 |---|---|---|---|---|
 | `id` | text | always | generated | |
 | `name` | text | always | "Unnamed power" | |
 | `activation` | as for features | always | `action` | Note the default is not `passive` here. |
-| `cost` | number or `"all"` | if it applies | absent = free | Charges taken from the item's `charges` per use. `"all"` = every charge left (at least 1). |
-| `uses` | [counter](#counters) | if it applies | absent | The power's own counter, separate from the item's charges ("once per Long Rest"). |
+| `cost` | number or `"all"` | if it applies | absent = free | Charges taken from the item's `charges` per use. `"all"` = every charge left (at least 1). Needs `charges` on the item. |
+| `uses` | [counter](#counters) | if it applies | absent | The power's own counter, separate from the charges ("once per Long Rest"). |
 | `description` | text | always | "" | |
 | `tags` | list of text | optional | absent | |
 
-A power can have a `cost`, its own `uses`, both, or neither. A power with `cost` needs `charges` on the item.
-
-A bonus to the spell save DC or to spell attacks is **not** a power: use the item's `spellDcBonus` and
-`spellAttackBonus`. (A passive power named like "+1 spell save DC" is converted by the importer, with an adjustment.)
+- **A spell cast from an item** (a mace that casts Daylight for 1 charge) is a power: `activation` from the spell's
+  casting time, `cost`, and the **spell's full text in the power's `description`**, with the DC if the item fixes one.
+  Do not add it to `spells`: that would be a card that spends the hero's slots.
+- A bonus to the spell save DC or to spell attacks is **not** a power: use `spellDcBonus` and `spellAttackBonus`.
 
 ### money
 
-`inventory.money`: `{ "cp": 0, "sp": 14, "ep": 0, "gp": 43, "pp": 0 }`. Write all five of `cp` `sp` `ep` `gp` `pp`;
-each is a number ≥ 0, default 0.
+`inventory.money`: `{ "cp": 0, "sp": 14, "ep": 0, "gp": 43, "pp": 0 }`. All five of `cp` `sp` `ep` `gp` `pp`, each a
+number ≥ 0.
 
 ### roleplay
 
-All text, all optional, default "": `appearance`, `personality`, `ideals`, `bonds`, `flaws`, `voice`, `mannerisms`,
-`goals`, `backstory`, `allies`, `notes`. Write all eleven keys, with `""` for the ones the player skipped. `notes` is
-the right home for anything about the hero that fits no other field.
-
-### sessionNotes
-
-A list of `{ id, date, title, text }`: the player's journal. `date` is text, by convention `"2026-09-27"`. Usually
-empty in a new file.
-
-### xpLog
-
-Leave it as `[]`. The app's XP panel writes it: one entry per change of `xp`, each `{ id, date, kind, amount }` plus,
-for a session, `groupXp` and `players`. `kind` is `"session"` or `"correction"`; `amount` is what was added to `xp`.
-When you edit an exported file, keep the entries as they are.
-
-### timers
-
-Countdowns in days, for things the story is waiting on: `{ "id": "timer-rent", "name": "Rent due", "days": 9,
-"start": 14, "note": "5 GP" }`. `days` is how many are left (0 = ended), `start` is what the timer was set to
-(default: `days`), `note` is optional. A Long Rest takes one day off each. Usually empty in a new file.
+All text, default "": `appearance`, `personality`, `ideals`, `bonds`, `flaws`, `voice`, `mannerisms`, `goals`,
+`backstory`, `allies`, `notes`. Write all eleven keys, with `""` for what the player did not give. `notes` is the home
+for anything that fits no other field, and for your list of open points.
 
 ### Tags
 
-`tags` on spells, features, items and item powers are short lowercase labels the Play screen filters by.
+`tags` on spells, features, items and item powers are short lowercase labels the Play screen filters by. The app
+adds some itself, from the text, every time it shows a card. **Do not write those**:
 
-The app adds some by itself, from the text, every time it shows a card: `damage` and the damage type, `healing`,
-`control`, `concentration`, `ritual`, and `utility` for a card with no other category. Do not write those.
+| Automatic tag | Added when the description has |
+|---|---|
+| `damage` and the type (`fire`, `radiant`...) | dice followed by a damage type ("8d6 Fire"), or a type followed by "damage" ("Fire damage"). The types: fire, cold, lightning, thunder, acid, poison, necrotic, radiant, psychic, force, bludgeoning, piercing, slashing. |
+| `healing` | "regain(s)" or "restore(s)" with "Hit Points" soon after; "Temporary Hit Points"; or the word heal, heals, healed, healing (not after "can't" or "cannot") |
+| `control` | a saving throw ("Wisdom saving throw", "Dex save", "DC 15") **and** the name of a condition, anywhere in the same text |
+| `concentration`, `ritual` | the spell's flags |
+| `utility` | nothing else gave it a category |
 
-Write a tag when it adds something the text cannot say:
+Write a tag only for what the text cannot give: the four categories the app never detects (`buff`, `defense`,
+`mobility`, `summon`); `control`, `damage` or `healing` on a card whose text misses the words above (Command, Revivify);
+and the player's own labels (`"bow"`, `"social"`). Automatic tags cannot be removed and are sometimes over-eager;
+that is harmless, do not bend the rules text to avoid it.
 
-- the four categories the app never detects: `buff`, `defense`, `mobility`, `summon`;
-- `control`, `damage` or `healing` on a card whose text does not use the words the app looks for;
-- the player's own labels: `"bow"`, `"social"`, `"emergency"`.
-
-Automatic tags cannot be removed. They are a reading aid and sometimes over-eager (a spell that mentions "Immunity to
-Thunder damage" is tagged as damage). That is harmless; do not bend the rules text to avoid it.
-
-## 8. Traps
-
-Each of these produces a file that imports, and a hero that is quietly wrong.
-
-### The Play rule: equipped and attuned
-
-An item is on the Play screen (its card, its powers, its chips, the attacks linked to it, the features whose `source`
-names it), and its bonuses count, only when it is **equipped, and attuned if it requires attunement**.
-
-- A weapon left with `equipped: false` hides its attack card. Equip every weapon the hero fights with.
-- A magic item with `requiresAttunement: true` and `attuned: false` does nothing, even when equipped.
-- `attuned: true` only makes sense with `requiresAttunement: true` and `equipped: true`. Write all three.
-- Consumables are the exception: potions, scrolls and quantity-spent items are on Play without being equipped.
-
-The Gear tab lets the player equip and attune with one tap, so a hidden item is not lost. But they will think the
-import failed.
-
-### Three attuned items
-
-If more than three items have `attuned: true`, the importer keeps the first three in list order and un-attunes the
-rest, with an adjustment. Count them. If the hero has more (an Artificer), ask the player which three matter most and
-describe the rest in `roleplay.notes`.
+## 7. Traps and patterns
 
 ### Names the app reads
 
@@ -645,139 +563,160 @@ Potions and scrolls have no special fields. The app recognizes them **by the ite
 |---|---|
 | "scroll" (but not "scroll case", "scroll tube", "scroll holder") | A spell scroll: a card that looks like the spell it holds |
 | "potion", "elixir" or "philter" | A potion: a card with a Use button |
-| one of those **and** "healing" | A healing potion: a counter beside Concentration, not a card. "Greater", "Superior" or "Supreme" in the name picks the kind. |
+| one of those **and** "healing" | A healing potion: a counter beside Concentration, not a card. "Greater", "Superior" or "Supreme" in the name picks the kind; the dice come from the description, else the standard ones. |
 
-For a scroll, the spell is taken from the name. These forms work: `Scroll of Fireball`, `Spell Scroll of Fireball`,
-`Spell Scroll (Fireball)`, `Scroll: Fireball`, `Fireball Scroll`. The text shown comes from the hero's own spell of
-that name, else from the app's SRD spell list, else from the item's `description`. For a spell outside the SRD that
-the hero does not otherwise have, put the full spell text in the scroll's `description`.
+A thing that merely has such a word in its name ("Potion Belt") is taken for one too: name it differently.
 
-Name healing potions the standard way (`Potion of Healing`, `Potion of Greater Healing`). Their dice come from the
-description, or else from the standard values.
+**Scrolls.** The spell is taken from the name: `Spell Scroll (Fireball)`, `Scroll of Fireball`, `Scroll: Fireball`,
+`Fireball Scroll`. The card shows that spell's level, casting time and text, taken from the hero's own spell of that
+name, else from the app's SRD spell list. So for a spell the hero has or the SRD has, the scroll's `description` is
+only a short note, shown under the spell text: the scroll's level, save DC and attack bonus, which the app does not
+work out (it does **not** use the hero's own DC for a scroll):
 
-The other side of this: a thing that merely has such a word in its name is taken for a potion or scroll. A "Potion
-Belt" or an "Elixir Flask of Holding" should be named differently, or given `charges`.
+| Scroll's spell level | Cantrip, 1, 2 | 3, 4 | 5, 6 | 7, 8 | 9 |
+|---|---|---|---|---|---|
+| Save DC / attack bonus | 13 / +5 | 15 / +7 | 17 / +9 | 18 / +10 | 19 / +11 |
 
-### One counter per resource
+Example: `"Level 3 spell scroll. Spell save DC 15, attack bonus +7."` For a spell that is neither the hero's nor in
+the SRD, the `description` is all the card has: put the full spell text there, after that line, and give the item an
+`activation` if the spell is not cast as an action.
 
-A resource is counted in exactly one place. Favored Enemy lets a Ranger cast Hunter's Mark without a slot: that is
-`freeCasts` on the Hunter's Mark spell, and the Favored Enemy feature is passive with **no** `uses`. If both had a
-counter, the player would have two cards disagreeing about the same thing. The same goes for Magic Initiate, species
-spells, and an item whose single power spends the item's charges (use `cost`, not a second counter).
+### Fields and words the app does not know
 
-### The casting time decides the hand
+**Words.** A value the importer does not recognize falls back to a default and is reported. Use the exact values
+of section 6: ability ids, camelCase skill ids, lowercase class ids (a spell's `source` must match one exactly),
+lowercase conditions, and the lists for `activation`, `recharge` and `source.type`.
 
-`castingTime` must **start** with `Action`, `Bonus Action` or `Reaction`. The 2014 style "1 action" and "1 bonus
-action" does not match, and such a spell lands in the Free / Other hand. Write "Action", whatever the book says.
-
-### Words with fixed spellings
-
-The importer accepts a few variants ("Bonus Action" for `bonus`, "Strength" for `str`), but anything it does not
-recognize falls back to a default and is reported. Use the exact values:
-
-- abilities: `str` `dex` `con` `int` `wis` `cha`
-- skills: camelCase, `sleightOfHand`, `animalHandling`
-- class ids: lowercase, `ranger`; a spell's `source` must match it exactly
-- conditions: lowercase
-- `activation`, `recharge`, `source.type`: the lists in section 7
-
-### Fields the app does not know
-
-A field the app does not use is kept in the file untouched, and listed in the import dialog as "not a field this app
-uses". Nothing breaks, but the player sees a list of adjustments and the information is not shown anywhere in the
-app. So do not invent fields (`"rarity"`, `"resistances"`, `"notes"` on an item, `"hp"` at the top level). Put the
-information where the app shows it: in a `description`, in a feature, or in `roleplay.notes`. A misspelled field
-(`"descripton"`) is the same thing: the real field stays empty.
-
-This also means: write only the fields in section 7. If you know the app from a later version with more features
-(images, containers, crafting), do not use their fields here.
+**Fields.** A field the app does not use is kept untouched and listed in the import dialog as "not a field this app uses"; the
+information is shown nowhere. So do not invent fields (`"rarity"`, `"resistances"`,
+`"notes"` on an item, `"hp"` at the top level), and mind the spelling (`"descripton"` leaves the real field empty).
+Put the information in a `description`, a feature, or `roleplay.notes`. If you know the app from a later version
+(images, containers, crafting), do not use those fields here.
 
 ### Numbers out of range
 
-Out-of-range numbers are clamped, with an adjustment: ability scores 1–30, class level 1–20, spell level 0–9,
-Exhaustion 0–6, death saves 0–3, `hp.current` between 0 and `hp.max`. `used` is not checked against `max` on import;
-keep it at or below.
+Clamped, with an adjustment: ability scores 1–30, class level 1–20, spell level 0–9, Exhaustion 0–6, death saves
+0–3, `hp.current` between 0 and `hp.max`.
 
 ### Strict JSON
 
-The file is parsed as strict JSON, and a syntax error rejects the whole file.
+A syntax error rejects the whole file. No comments, no trailing commas. Straight double quotes only. Inside a text:
+`\"`, `\n`, `\\`; no raw line breaks. `true`, `false`, `null` and numbers unquoted. One object at the top; one hero
+per file.
 
-- No comments, no trailing commas.
-- Double quotes only, straight ones (`"`), never typographic quotes.
-- Inside a text: `\"` for a quote, `\n` for a line break, `\\` for a backslash. No raw line breaks inside a string.
-- `true`, `false` and `null` in lowercase, unquoted. Numbers unquoted.
-- One object at the top, not a list. One hero per file.
+### Pattern: a full caster with Channel Divinity and domain spells
 
-## 9. Output and import
+A Life Domain Cleric of level 6, only the parts that are easy to get wrong (texts shortened here with "..."; write
+them in full). The pool card is `special` with the counter; an option is its own card with no counter (Divine Spark
+and Preserve Life look like Turn Undead); Sear Undead lives inside Turn Undead; a domain spell is `prepared` and
+`alwaysPrepared`. There is no "Life Domain Spells" feature and no "Sear Undead" feature.
 
-**The file.** One JSON object, encoded as UTF-8. Name it after the hero, in lowercase Latin letters and digits with
-dashes, ending in `.json`: `vessa-thornhide.json`. That is how the app names its own exports. (The app accepts any
-name ending in `.json`.) If you can attach or create a file, do. If you can only write text, put the whole JSON in one
-code block and tell the player to save it as a plain-text file with that name.
+<!-- FRAGMENT:START (tests/aiGuide.test.ts imports this fragment) -->
+```json
+{
+  "classes": [{ "id": "cleric", "name": "Cleric", "level": 6, "subclass": "Life Domain" }],
+  "features": [
+    {
+      "id": "feat-channel-divinity",
+      "name": "Channel Divinity",
+      "source": { "type": "class", "name": "Cleric 2" },
+      "activation": "special",
+      "description": "The pool for Divine Spark, Turn Undead and Preserve Life: each use of one of them expends one use here. You regain one use on a Short Rest and all on a Long Rest...",
+      "uses": { "max": "cleric.channel-divinity", "used": 1, "recharge": "long", "shortRestRegain": 1 }
+    },
+    {
+      "id": "feat-turn-undead",
+      "name": "Channel Divinity: Turn Undead",
+      "source": { "type": "class", "name": "Cleric 2" },
+      "activation": "action",
+      "description": "As a Magic action, each Undead of your choice within 30 feet must make a Wisdom saving throw or be Frightened and Incapacitated for 1 minute...\n\n_Sear Undead (Cleric 5)._ Each Undead that fails also takes Radiant damage equal to a number of d8s equal to your Wisdom modifier.\n\nExpends one use of Channel Divinity."
+    }
+  ],
+  "spells": [
+    {
+      "id": "spell-bless",
+      "name": "Bless",
+      "level": 1,
+      "source": "cleric",
+      "prepared": true,
+      "alwaysPrepared": true,
+      "ritual": false,
+      "concentration": true,
+      "school": "Enchantment",
+      "castingTime": "Action",
+      "range": "30 feet",
+      "components": "V, S, M (a Holy Symbol worth 5+ GP)",
+      "duration": "up to 1 minute",
+      "description": "You bless up to three creatures within range. Whenever a target makes an attack roll or a saving throw before the spell ends, the target adds 1d4 to it...",
+      "tags": ["buff"]
+    }
+  ]
+}
+```
+<!-- FRAGMENT:END -->
 
-Nothing but the JSON goes in the file. Your notes to the player go in the chat.
+## 8. Output and import
+
+**The file.** One JSON object, UTF-8, nothing but the JSON. Name it after the hero in lowercase Latin letters and
+digits with dashes, ending in `.json`: `vessa-thornhide.json`; transliterate a name in another alphabet (Борин
+Каменобрад: `borin-kamenobrad.json`). The app accepts any name ending in `.json`. If you can attach or create a file,
+do. If you can only write text, put the whole JSON in one code block and tell the player to save it as a plain-text
+file with that name. Your notes to the player go in the chat.
 
 **Importing**, in words you can pass on:
 
 1. Open <https://itram05.github.io/DnD-Character-Manager/>.
 2. On the first screen (the list of heroes), press **Import JSON** and choose the file.
-3. A dialog shows the hero's name, class and level. Below that is either "The file is clean. No adjustments needed."
-   or a list of adjustments. Press **Import**.
+3. A dialog shows the hero's name, class and level, and either "The file is clean. No adjustments needed." or a list
+   of adjustments. Press **Import**.
 4. If a hero with the same `id` is already there, the buttons are **Replace existing** and **Import as a copy**.
 
-The goal is a clean import. If the dialog lists adjustments, ask the player to copy them to you: each one names the
-field and says what was changed, which is enough to fix the file.
+The goal is a clean import. If the dialog lists adjustments, ask the player to copy them to you: each names the field
+and what was changed.
 
-If the import is refused outright, the message says why: the text is not valid JSON, or `schemaVersion` is higher
-than the app knows.
+Heroes live in **that browser on that device** only; **Export JSON**, next to the hero in the list, moves one or
+backs it up. Tell the player.
 
-Tell the player that heroes live in **that browser on that device** only. To move a hero or keep a backup they use
-**Export JSON**, next to the hero in the list.
+## 9. Before you hand over the file
 
-## 10. Changing a hero later
+- [ ] `"schemaVersion": 3`, and the hero has an `id`. Strict JSON. Only fields from section 6.
+- [ ] Final ability scores, Speed and Hit Point maximum are written; the Hit Point maximum is the player's number,
+      or your calculation, and you told them if the two differ. Nothing derived is in the file.
+- [ ] Every feature and every spell has its full text. Content from outside the SRD is written out, not referenced.
+- [ ] Nothing in the file is a choice you made for the player. Open choices are listed, and in `roleplay.notes`.
+- [ ] Every `activation` is deliberate; every `castingTime` starts with Action, Bonus Action or Reaction, or is a
+      longer time on purpose.
+- [ ] Each limited resource has exactly one counter, with `used` showing the current state. Options of a pool have none.
+- [ ] Every weapon in use is `equipped`, has an attack, and the attack has `itemId`.
+- [ ] Every magic item in use is active (equipped, and attuned if it needs it); at most three are attuned.
+- [ ] Potions and scrolls are named so the app recognizes them; nothing else is named that way by accident.
+- [ ] No reusable item ability sits on a bare `activation`; it is in `powers`.
+- [ ] The numbers the app will calculate match the player's sheet.
+- [ ] The player has the list of what is open, the numbers to expect, and the import steps.
 
-When the player comes back to add an item, fix a feature or level up through you:
-
-1. They press **Export JSON** in the app and give you that file, together with this guide. Work from the fresh
-   export, never from the file you wrote earlier: since then the app has changed Hit Points, slots, charges and notes.
-2. Change only what was asked. Keep everything else exactly as it is: every `id` (above all the hero's own), every
-   counter's `used`, the `xpLog`, and any field you do not recognize. A field that is not in this guide was most
-   likely written by a newer version of the app; removing it loses the player's data.
-3. If the export's `schemaVersion` is higher than 3, this guide is out of date. Say so and ask for the current guide
-   instead of guessing. Never lower the number.
-4. On a level-up, go through what the app does not calculate (section 5): Hit Point maximum, new features, new
-   spells, a higher `initiativeBonus` if it depends on the Proficiency Bonus, a `slotsOverride` if there is one.
-5. Return the whole file, not a fragment. The player imports it and chooses **Replace existing**.
-
-For small changes, the app's own editor (the Edit, Gear, Spells and Features tabs) is quicker than a round trip
-through a file. Say so when it applies.
-
-## 11. A complete example
+## 10. A complete example
 
 Vessa Thornhide, an Orc Ranger (Hunter) of level 5, 2024 rules, in the middle of an adventuring day. The file
-imports with no adjustments, and it is written the way the app itself exports: every field present, in the app's
-order. Use it as the template for your own files.
+imports with no adjustments and is written the way the app itself exports: every field present, in the app's order.
+Use it as the template for your own files. The spell texts are from the SRD 5.2.1.
 
 Things to notice:
 
 - **Numbers the app works out** from this file: Armor Class 17 (Studded Leather 12 + Dexterity 4 + Cloak of
   Protection 1), Initiative +7 (Dexterity 4 + `initiativeBonus` 3 for Alert), spell save DC 13, spell slots 4 and 2,
   Emberwood Longbow +10 to hit for 1d8+5, Shortsword +7 for 1d6+4. None of them is in the file.
-- **Favored Enemy** is passive with no counter; the three free casts are `freeCasts` on Hunter's Mark, with the
-  formula `"ranger.favored-enemy"`.
+- **Favored Enemy** is passive with no counter; the free casts are `freeCasts` on Hunter's Mark, with the formula
+  `"ranger.favored-enemy"`.
 - **Adrenaline Rush** uses `"pb"` and comes back on a Short Rest; **Relentless Endurance** is a trigger, so `special`.
-- **Emberwood Longbow** is homebrew, so everything about it is written out. It has a pool of 3 charges that regain
-  by a roll (`regain`), two powers that spend charges (`cost`), one power with its own counter (`uses`), and a passive
+- **Emberwood Longbow** is homebrew, so everything about it is written out: a pool of 3 charges that regain by a
+  roll (`regain`), two powers that spend charges (`cost`), one power with its own counter (`uses`), and a passive
   power. Its +1 and the Archery +2 are in the attack's `bonus`. The attack points at it with `itemId`.
-- **Cloak of Protection** gives its bonuses through `acBonus` and `saveBonus`, and counts because it is equipped and
-  attuned. Two attuned items in all.
+- **Cloak of Protection** gives `acBonus` and `saveBonus`, and counts because it is equipped and attuned.
 - **Potion of Healing** and **Spell Scroll (Fog Cloud)** are recognized by name. **Alchemist's Fire** is a
   quantity-spent consumable: `activation`, no `charges`.
 - **Goodberry** has `prepared: false`: on the Spells tab, not on Play.
 - The state is mid-session: 31 of 44 Hit Points, one slot of each level spent, one Hit Point Die spent, one charge
   gone, concentrating on Hunter's Mark.
-
-The spell texts are from the SRD 5.2.1.
 
 <!-- EXAMPLE:START (a copy of examples/ai-guide-example.json; tests/aiGuide.test.ts keeps the two identical) -->
 ```json
@@ -1370,22 +1309,59 @@ The spell texts are from the SRD 5.2.1.
 ```
 <!-- EXAMPLE:END -->
 
-## 12. Before you hand over the file
+## 11. The 2014 rules
 
-- [ ] `"schemaVersion": 3`, and the hero has an `id`.
-- [ ] Strict JSON: no comments, no trailing commas, line breaks inside texts written as `\n`.
-- [ ] Only fields from section 7.
-- [ ] Hit Point maximum, Speed and final ability scores are written; nothing derived is.
-- [ ] Every feature and every spell has its full text. Content from outside the SRD is written out, not referenced.
-- [ ] Every `activation` is deliberate. Every spell's `castingTime` starts with Action, Bonus Action or Reaction, or
-      is a longer time on purpose.
-- [ ] Each limited resource has exactly one counter, with `used` showing the current state.
-- [ ] Every weapon in use is `equipped`, has an attack, and the attack has `itemId`.
-- [ ] At most three items are attuned; each attuned item is also equipped and requires attunement.
-- [ ] Potions and scrolls are named so the app recognizes them; nothing else is named that way by accident.
-- [ ] No reusable item ability sits on a bare `activation`; it is in `powers`.
-- [ ] The numbers the app will calculate match the player's sheet.
-- [ ] The player has the list of what you assumed, the numbers to expect, and the import steps.
+Only if the player says their table plays the 2014 rules. The app is built on the 2024 rules; the same file format
+works, with these differences:
+
+| What | What to do in the file |
+|---|---|
+| Exhaustion | Add `"exhaustionRules": "2014"` at the top level: the app then applies the 2014 table instead of −2 per level. This is the only edition switch the app has. |
+| Spell slots | They differ from 2024 in two cases: a Paladin or Ranger of level 1 (2014: no slots), and a multiclass hero with Paladin or Ranger levels (2014 rounds half of those levels **down**, the app rounds **up**). In those cases write the 2014 slots in `spellcasting.slotsOverride`, for example `[4, 2]`, or `[0]` for none, and tell the player it must be changed by hand on a level-up. |
+| Counters of class features | A plain number, or a formula with `pb`, `level` and ability modifiers. Not class-table formulas such as `"cleric.channel-divinity"`: those tables hold the 2024 numbers. |
+| Texts | Write the 2014 text of every feature and spell. Still write `castingTime` as "Action", not "1 action". |
+| Weapon Mastery | Does not exist: leave `weaponMasteries` empty and `mastery` blank. |
+| Race, Inspiration | `species` and `heroicInspiration`. |
+| Jack of All Trades | The app adds it to skills only. In 2014 it also applies to Initiative: add it to `combat.initiativeBonus`. |
+
+Tell the player what the app still does the 2024 way: a Long Rest gives back **all** Hit Point Dice, the Level Up tab
+suggests 2024 features, and the limits on the Spells tab are the 2024 ones. None of that damages the file.
+
+## 12. Journal, XP log and timers
+
+Three top-level lists that a new file leaves as `[]`. When you edit an exported file, keep them as they are.
+
+### sessionNotes
+
+The player's journal: a list of `{ id, date, title, text }`. `date` is text, by convention `"2026-09-27"`.
+
+### xpLog
+
+Written by the app's XP panel, one entry per change of `xp`: `{ id, date, kind, amount }` plus, for a session,
+`groupXp` and `players`. `kind` is `"session"` or `"correction"`; `amount` is what was added to `xp`.
+
+### timers
+
+Countdowns in days: `{ "id": "timer-rent", "name": "Rent due", "days": 9, "start": 14, "note": "5 GP" }`. `days` is
+how many are left (0 = ended), `start` what the timer was set to (default: `days`), `note` optional. A Long Rest
+takes one day off each.
+
+## 13. Changing a hero later
+
+When the player comes back to add an item, fix a feature or level up through you:
+
+1. They press **Export JSON** in the app and give you that file with this guide. Work from the fresh export, never
+   from the file you wrote earlier: the app has since changed Hit Points, slots, charges and notes.
+2. Change only what was asked. Keep everything else exactly as it is: every `id` (above all the hero's own), every
+   counter's `used`, the lists of section 12, and any field you do not recognize. A field that is not in this guide
+   was most likely written by a newer version of the app; removing it loses the player's data.
+3. If the export's `schemaVersion` is higher than 3, this guide is out of date. Say so and ask for the current guide.
+   Never lower the number.
+4. On a level-up, go through what the app does not calculate (section 4): Hit Point maximum, new features and spells,
+   a higher `initiativeBonus` if it depends on the Proficiency Bonus, a `slotsOverride` if there is one.
+5. Return the whole file, not a fragment. The player imports it and chooses **Replace existing**.
+
+For small changes the app's own editor is quicker than a round trip through a file. Say so when it applies.
 
 ---
 

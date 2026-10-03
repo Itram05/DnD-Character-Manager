@@ -3,6 +3,7 @@
 // - its example hero (examples/ai-guide-example.json) imports with no adjustments and is exactly what
 //   the app would export, so it shows the format as it is, not as it once was;
 // - the copy of the example inside the guide is the file, character for character;
+// - the Cleric fragment of the guide (Channel Divinity with options, a domain spell) imports clean;
 // - every field the importer reads (KNOWN in normalize.ts) and every fixed word list is in the guide,
 //   in the section of the object it belongs to. A new field in types.ts / normalize.ts fails here until
 //   the guide describes it.
@@ -85,6 +86,22 @@ describe('AI-GUIDE.md', () => {
     const m = guide.match(/<!-- EXAMPLE:START[^>]*-->\n```json\n([\s\S]*?)\n```\n<!-- EXAMPLE:END -->/)
     expect(m, 'the example block between the EXAMPLE markers').not.toBeNull()
     expect(m![1] + '\n').toBe(exampleText)
+  })
+
+  // the Cleric fragment of section 7 is real JSON, and it imports as the text around it says
+  it('has a caster fragment that imports clean: a pool card, an option without a counter, an always-prepared spell', () => {
+    const m = guide.match(/<!-- FRAGMENT:START[^>]*-->\n```json\n([\s\S]*?)\n```\n<!-- FRAGMENT:END -->/)
+    expect(m, 'the fragment block between the FRAGMENT markers').not.toBeNull()
+    const { character: f, warnings } = importCharacterJson(m![1])
+    expect(warnings).toEqual([])
+    const pool = f.features.find((x) => x.name === 'Channel Divinity')!
+    expect(usesMax(f, pool.uses!.max)).toBe(3)
+    expect(playCards(f).map((x) => `${x.zone}/${x.kind}: ${x.name}${x.uses ? ' (counter)' : ''}`)).toEqual([
+      'other/feature: Channel Divinity (counter)',
+      'action/feature: Channel Divinity: Turn Undead',
+      'action/spell: Bless',
+    ])
+    expect(f.spells[0]).toMatchObject({ prepared: true, alwaysPrepared: true, source: 'cleric' })
   })
 
   it('names the schema version the app writes', () => {
