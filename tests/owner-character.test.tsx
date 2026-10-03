@@ -114,9 +114,10 @@ describe.skipIf(!ownerFile(GRAV_FILE))("owner's character file", () => {
       expect(phone).toContain('SP 2')
       expect(phone).toContain('Greater × 8')
       for (const t of [wide, phone]) {
-        // Staff of Ages, Crown, Chain hook, Fire Bolt, and the Everfrost Trident: the Trident ITEM is gone from
-        // the file since 2026-10-03, but its attack stayed, linked to no item (itemId null), so nothing hides it
-        expect(t).toContain('Attacks ( 5 )')
+        // Staff of Ages, Crown, Chain hook, Fire Bolt. The Everfrost Trident is sold: its item and then its
+        // attack are both out of the file since 2026-10-03
+        expect(t).toContain('Attacks ( 4 )')
+        expect(t).not.toContain('Everfrost Trident')
         // Staff, Pearl, Crown, Chain hook, Helm, and Nicklaus' Spectacles (equipped since 2026-10-03)
         expect(t).toContain('Items ( 6 )')
         expect(t).not.toContain('Font of Magic')

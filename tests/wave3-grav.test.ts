@@ -104,7 +104,7 @@ describe.skipIf(!HAVE_GRAV_V2)('Grav: items in Play', () => {
       ['Helm of the Constellation', 1],
     ])
   })
-  it('nothing of his is out of Play for being unequipped any more; the Trident item is gone but its attack stayed, unlinked', () => {
+  it('nothing of his is out of Play for being unequipped any more; the Trident is gone, item and attack', () => {
     // until 2026-10-03 the unequipped Everfrost Trident and Nicklaus' Spectacles were hidden ('equip'); now the
     // Trident is deleted from the file and the Spectacles are equipped. What is still not equipped (Mukluks,
     // Dragon Scale Mail and the like) is out for another reason or does nothing in Play.
@@ -114,19 +114,19 @@ describe.skipIf(!HAVE_GRAV_V2)('Grav: items in Play', () => {
     const names = playCards(c).map((x) => x.name)
     expect(names).toContain("Nicklaus' Spectacles")
     expect(names).toContain('"Not for a Crown" (+2 longsword)')
-    // the attack "Everfrost Trident" outlived its item: itemId null, so no item can hide it and it is in Play
+    // the attack "Everfrost Trident" outlived its item for a day (itemId null, still in Play); he sold the Trident,
+    // so the attack is out of the file too (2026-10-03): four attacks, all in Play
+    expect(c.attacks.some((a) => a.name === 'Everfrost Trident')).toBe(false)
     expect(c.attacks.map((a) => [a.name, a.itemId === null ? null : c.inventory.items.find((i) => i.id === a.itemId)?.name])).toEqual([
       ['Staff of Ages (+3)', 'Staff of Ages'],
       ['"Not for a Crown" (+2 longsword)', '"Not for a Crown" (+2 longsword)'],
       ['Chain hook', 'Chain hook'],
-      ['Everfrost Trident', null],
       ['Fire Bolt', null],
     ])
     expect(c.attacks.filter((a) => attackInPlay(c, a)).map((a) => a.name)).toEqual([
       'Staff of Ages (+3)',
       '"Not for a Crown" (+2 longsword)',
       'Chain hook',
-      'Everfrost Trident',
       'Fire Bolt',
     ])
     // scrolls and potions stay
@@ -166,7 +166,7 @@ describe.skipIf(!HAVE_GRAV_V2)('Grav: Mukluks of Nimbleness and Dragon Scale Mai
   })
 })
 
-// The to-hit and damage of his five attacks, as the sheet counts them with no Exhaustion (DEX +3, CHA +5, PB +5).
+// The to-hit and damage of his four attacks, as the sheet counts them with no Exhaustion (DEX +3, CHA +5, PB +5).
 // Fire Bolt is the one that matters: until 2026-10-03 its +3 from the Staff of Ages was written into the attack's
 // own bonus by hand, and once the app started adding the item's spellAttackBonus itself it showed +16. In his
 // file the bonus is 0 now, and +13 must come out of CHA 5 + PB 5 + Staff 3, the same number as the head.
@@ -177,10 +177,9 @@ describe.skipIf(!HAVE_GRAV_V2)('Grav: the numbers of his attacks', () => {
     ['Staff of Ages (+3)', 11, 8],
     ['"Not for a Crown" (+2 longsword)', 10, 7],
     ['Chain hook', 8, 3],
-    ['Everfrost Trident', 8, 5],
     ['Fire Bolt', 13, 0],
   ]
-  it('before Exhaustion: Staff +11, Crown +10, Chain hook +8, Trident +8, Fire Bolt +13', () => {
+  it('before Exhaustion: Staff +11, Crown +10, Chain hook +8, Fire Bolt +13', () => {
     expect(stats(rested(c))).toEqual(BEFORE)
     // attackStats does not know about Exhaustion (the screens take the minus off), so the file as it is gives the same
     expect(stats(c)).toEqual(BEFORE)
@@ -227,20 +226,20 @@ describe.skipIf(!HAVE_GRAV_V2)('Grav: Exhaustion 3', () => {
     expect(exhaustionLines(with2024)).toEqual(['−6 to every d20 roll', 'Speed −15 ft (15 ft)'])
     expect([with2024.combat.speed, effectiveSpeed(with2024), effectiveHpMax(with2024)]).toEqual([30, 15, 98])
     expect([armorClass(with2024).total, spellDcView(with2024)[0].saveDc]).toEqual([21, 18])
-    // spell attack +7, Initiative -3; Staff +5, Crown +4, Chain hook +2, Trident +2, Fire Bolt +7
+    // spell attack +7, Initiative -3; Staff +5, Crown +4, Chain hook +2, Fire Bolt +7
     expect(spellDcView(with2024)[0]).toMatchObject({ attack: 7, attackDisadvantage: false })
     expect(initiative(with2024) - exhaustionEffects(with2024).d20Penalty).toBe(-3)
-    expect(shown(with2024)).toEqual([5, 4, 2, 2, 7])
+    expect(shown(with2024)).toEqual([5, 4, 2, 7])
   })
   it('by the 2014 rules: Disadvantage on checks, attacks and saves, Speed halved (15); nothing off the numbers', () => {
     expect(exhaustionEffects(with2014)).toEqual({ level: 3, rules: '2014', d20Penalty: 0, speed: 15, hpMax: 98, checksDisadvantage: true, attacksSavesDisadvantage: true, dead: false })
     expect(exhaustionLines(with2014)).toEqual(['Disadvantage on ability checks', 'Speed halved (15 ft)', 'Disadvantage on attack rolls and saving throws'])
     expect([with2014.combat.speed, effectiveSpeed(with2014), effectiveHpMax(with2014)]).toEqual([30, 15, 98])
     expect([armorClass(with2014).total, spellDcView(with2014)[0].saveDc]).toEqual([21, 18])
-    // spell attack +13 with Disadvantage, Initiative +3; Staff +11, Crown +10, Chain hook +8, Trident +8, Fire Bolt +13
+    // spell attack +13 with Disadvantage, Initiative +3; Staff +11, Crown +10, Chain hook +8, Fire Bolt +13
     expect(spellDcView(with2014)[0]).toMatchObject({ attack: 13, attackDisadvantage: true })
     expect(initiative(with2014) - exhaustionEffects(with2014).d20Penalty).toBe(3)
-    expect(shown(with2014)).toEqual([11, 10, 8, 8, 13])
+    expect(shown(with2014)).toEqual([11, 10, 8, 13])
   })
   it('a Long Rest takes it to 2 by either rule: Speed 20 and -4 on d20 (2024), or still 15 and no more Disadvantage on attacks (2014)', () => {
     expect(exhaustionEffects(longRest(with2024).character)).toMatchObject({ level: 2, rules: '2024', d20Penalty: 4, speed: 20 })

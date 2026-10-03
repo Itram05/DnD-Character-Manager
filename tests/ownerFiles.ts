@@ -88,7 +88,10 @@ export function gravAfterImport(raw: Obj): Obj {
   return { ...copy, schemaVersion: 3 }
 }
 
-/** Grav's attacks and the item the import links each one to (2026-09-29). */
+/**
+ * Grav's attacks and the item the import links each one to (2026-09-29). The Everfrost Trident is only in the
+ * older v2 copy: the current file has neither the item nor the attack since 2026-10-03 (he sold it).
+ */
 export const GRAV_ATTACK_ITEMS: Record<string, string | null> = {
   'Staff of Ages (+3)': 'Staff of Ages',
   '"Not for a Crown" (+2 longsword)': '"Not for a Crown" (+2 longsword)',
