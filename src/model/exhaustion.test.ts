@@ -2,7 +2,23 @@
 import { describe, expect, it } from 'vitest'
 import { importCharacterJson, normalizeCharacter } from './normalize'
 import { longRest, spendHitDie } from './rest'
-import { applyDamage, applyHealing, effectiveHpCurrent, effectiveHpMax, effectiveSpeed, exhaustionD20Penalty, exhaustionEffects, exhaustionLines, exhaustionRules } from './rules'
+import {
+  PASSIVE_DISADVANTAGE,
+  applyDamage,
+  applyHealing,
+  castingStats,
+  effectiveHpCurrent,
+  effectiveHpMax,
+  effectiveSpeed,
+  exhaustionD20Penalty,
+  exhaustionEffects,
+  exhaustionLines,
+  exhaustionRules,
+  passiveScore,
+  passiveScoreView,
+  spellAttackNow,
+  spellDcView,
+} from './rules'
 
 const base = { name: 'T', classes: [{ id: 'fighter', name: 'Fighter', level: 5 }], combat: { speed: 30, hp: { max: 45, current: 45, temp: 0 } } }
 const make = (exhaustion: number, rules?: string) => normalizeCharacter({ ...base, exhaustion, ...(rules ? { exhaustionRules: rules } : {}) }).character
@@ -86,5 +102,57 @@ describe('exhaustion, 2014 rules', () => {
     expect([r.exhaustion, r.combat.hp.current, effectiveHpMax(r)]).toEqual([3, 45, 45])
     const r5 = longRest(make(5, '2014')).character
     expect([r5.exhaustion, r5.combat.hp.current]).toEqual([4, 22])
+  })
+})
+
+// A caster for the passive scores and the spell attack: Wizard 5, INT 16 (+3), WIS 14 (+2), PB +3, Perception proficient.
+const wiz = (exhaustion: number, rules?: string) =>
+  normalizeCharacter({
+    name: 'W',
+    classes: [{ id: 'wizard', name: 'Wizard', level: 5 }],
+    abilities: { str: 10, dex: 10, con: 10, int: 16, wis: 14, cha: 10 },
+    proficiencies: { skills: { perception: 'proficient' } },
+    exhaustion,
+    ...(rules ? { exhaustionRules: rules } : {}),
+  }).character
+
+describe('exhaustion and the passive scores', () => {
+  it('none: 10 + the modifiers, nothing taken off', () => {
+    expect(passiveScoreView(wiz(0), 'perception')).toEqual({ value: 15, base: 15, penalty: 0 })
+    expect(passiveScore(wiz(0), 'investigation')).toBe(13)
+  })
+  it('2024: the d20 minus comes off, 2 per level', () => {
+    expect(passiveScoreView(wiz(1), 'perception')).toEqual({ value: 13, base: 15, penalty: 2 })
+    expect(passiveScoreView(wiz(3), 'perception')).toEqual({ value: 9, base: 15, penalty: 6 })
+    expect(passiveScore(wiz(3), 'insight')).toBe(12 - 6)
+  })
+  it('2014: Disadvantage on ability checks from level 1 is −5, and it does not grow with the level', () => {
+    for (const n of [1, 2, 3, 4, 5, 6]) expect(passiveScoreView(wiz(n, '2014'), 'perception')).toEqual({ value: 10, base: 15, penalty: PASSIVE_DISADVANTAGE })
+    expect(passiveScore(wiz(0, '2014'), 'perception')).toBe(15)
+  })
+})
+
+describe('exhaustion and the spell attack', () => {
+  it('none: the attack as it is, no Exhaustion line in the breakdown', () => {
+    const v = spellDcView(wiz(0))[0]
+    expect([v.saveDc, v.attack, v.attackDisadvantage]).toEqual([14, 6, false])
+    expect(v.attackParts.map((p) => p.kind)).toEqual(['ability', 'pb'])
+  })
+  it('2024: the minus is off the attack and is the last line of its breakdown; the DC stays', () => {
+    const v = spellDcView(wiz(2))[0]
+    expect([v.saveDc, v.attack, v.attackDisadvantage]).toEqual([14, 2, false])
+    expect(v.attackParts.at(-1)).toEqual({ kind: 'exhaustion', label: '2', value: -4 })
+    expect(v.attackParts.reduce((s, p) => s + p.value, 0)).toBe(v.attack)
+    expect(v.dcParts.some((p) => p.kind === 'exhaustion')).toBe(false)
+    // castingStats itself is before Exhaustion; the screens go through spellAttackNow
+    expect(castingStats(wiz(2))[0].attack).toBe(6)
+    expect(spellAttackNow(wiz(2), 6)).toEqual({ attack: 2, disadvantage: false })
+  })
+  it('2014: no minus at any level; Disadvantage from level 3', () => {
+    for (const n of [1, 2, 3, 4, 5, 6]) {
+      const v = spellDcView(wiz(n, '2014'))[0]
+      expect([v.saveDc, v.attack, v.attackDisadvantage]).toEqual([14, 6, n >= 3])
+      expect(v.attackParts.some((p) => p.kind === 'exhaustion')).toBe(false)
+    }
   })
 })

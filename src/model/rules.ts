@@ -92,8 +92,32 @@ export function skillMod(c: Character, s: SkillId): number {
   return base + (c.proficiencies.jackOfAllTrades ? Math.floor(pb / 2) : 0)
 }
 
-/** Passive score = 10 + all modifiers that normally apply to the check. */
-export const passiveScore = (c: Character, s: SkillId) => 10 + skillMod(c, s)
+/** A passive score with what Exhaustion takes off it. */
+export interface PassiveScore {
+  /** The score that counts now. */
+  value: number
+  /** 10 + all modifiers that normally apply to the check, before Exhaustion. */
+  base: number
+  /** How much Exhaustion takes off (0 = nothing). */
+  penalty: number
+}
+
+/** 2014: Disadvantage on a check is −5 to its passive score ("Passive Checks", PHB 2014 / SRD 5.1). */
+export const PASSIVE_DISADVANTAGE = 5
+
+/**
+ * Passive score = 10 + all modifiers that normally apply to the check. Exhaustion counts:
+ * 2024 takes its d20 minus off (the score stands for a d20 roll of 10); 2014 gives Disadvantage
+ * on ability checks from level 1, which for a passive score is −5.
+ */
+export function passiveScoreView(c: Character, s: SkillId): PassiveScore {
+  const e = exhaustionEffects(c)
+  const base = 10 + skillMod(c, s)
+  const penalty = e.d20Penalty + (e.checksDisadvantage ? PASSIVE_DISADVANTAGE : 0)
+  return { value: base - penalty, base, penalty }
+}
+
+export const passiveScore = (c: Character, s: SkillId) => passiveScoreView(c, s).value
 
 /** Initiative is a Dexterity check. JoAT does not apply in 2024 (it needs a skill). */
 export const initiative = (c: Character) => abilityMod(c.abilities.dex) + (c.combat.initiativeBonus || 0)
@@ -355,8 +379,9 @@ export interface CastingStats {
 
 /** One addend of the spell save DC or spell attack, for the breakdown ("Witch Focus +1"). */
 export interface CastingPart {
-  /** "base" = the 8 of the DC; "ability" = the label is the ability id; "pb"; "item" = the label is the item's name. */
-  kind: 'base' | 'ability' | 'pb' | 'item'
+  /** "base" = the 8 of the DC; "ability" = the label is the ability id; "pb"; "item" = the label is the item's name;
+   *  "exhaustion" = the 2024 minus on the spell attack, the label is the Exhaustion level. */
+  kind: 'base' | 'ability' | 'pb' | 'item' | 'exhaustion'
   label: string
   value: number
 }
@@ -379,7 +404,11 @@ export function itemSpellBonuses(c: Character): { dc: CastingPart[]; attack: Cas
   return { dc, attack }
 }
 
-/** Spell save DC = 8 + ability modifier + PB + item bonuses; spell attack = ability modifier + PB + item bonuses. */
+/**
+ * Spell save DC = 8 + ability modifier + PB + item bonuses; spell attack = ability modifier + PB + item bonuses.
+ * Exhaustion is NOT in these numbers (the DC is not a roll; the attack is given before it): the screens
+ * take it off with spellAttackNow(), so the head, Stats and Spells all show the same spell attack.
+ */
 export function castingStats(c: Character): CastingStats[] {
   const pb = proficiencyBonus(totalLevel(c))
   const bonus = itemSpellBonuses(c)
@@ -396,12 +425,22 @@ export function castingStats(c: Character): CastingStats[] {
   return out
 }
 
+/** The spell attack as rolled now: 2024 Exhaustion takes its minus off; 2014 level 3+ is Disadvantage. */
+export function spellAttackNow(c: Character, attack: number): { attack: number; disadvantage: boolean } {
+  const e = exhaustionEffects(c)
+  return { attack: attack - e.d20Penalty, disadvantage: e.attacksSavesDisadvantage }
+}
+
 /** One value of the spell save DC for the head: classes that share an ability share a DC. */
 export interface SpellDcView {
   ability: Ability
   classes: string[]
+  /** Not touched by Exhaustion: a DC is not a d20 roll. */
   saveDc: number
+  /** The spell attack as rolled now (the 2024 Exhaustion minus is taken off; it is the last of attackParts). */
   attack: number
+  /** 2014 Exhaustion 3+: the spell attack is rolled with Disadvantage. */
+  attackDisadvantage: boolean
   dcParts: CastingPart[]
   attackParts: CastingPart[]
 }
@@ -414,6 +453,8 @@ export interface SpellDcView {
 export function spellDcView(c: Character): SpellDcView[] {
   const pb = proficiencyBonus(totalLevel(c))
   const bonus = itemSpellBonuses(c)
+  const exh = exhaustionEffects(c)
+  const exhPart: CastingPart[] = exh.d20Penalty ? [{ kind: 'exhaustion', label: String(exh.level), value: -exh.d20Penalty }] : []
   const out: SpellDcView[] = []
   for (const s of castingStats(c)) {
     const have = out.find((x) => x.ability === s.ability)
@@ -423,7 +464,16 @@ export function spellDcView(c: Character): SpellDcView[] {
     }
     const m = abilityMod(c.abilities[s.ability])
     const base: CastingPart[] = [{ kind: 'ability', label: s.ability, value: m }, { kind: 'pb', label: 'PB', value: pb }]
-    out.push({ ability: s.ability, classes: [s.className], saveDc: s.saveDc, attack: s.attack, dcParts: [{ kind: 'base', label: '8', value: 8 }, ...base, ...bonus.dc], attackParts: [...base, ...bonus.attack] })
+    const now = spellAttackNow(c, s.attack)
+    out.push({
+      ability: s.ability,
+      classes: [s.className],
+      saveDc: s.saveDc,
+      attack: now.attack,
+      attackDisadvantage: now.disadvantage,
+      dcParts: [{ kind: 'base', label: '8', value: 8 }, ...base, ...bonus.dc],
+      attackParts: [...base, ...bonus.attack, ...exhPart],
+    })
   }
   return out.sort((a, b) => b.saveDc - a.saveDc)
 }

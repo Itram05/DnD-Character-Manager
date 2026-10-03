@@ -163,6 +163,9 @@ export const en: Record<string, string> = {
   'vitals.dcBase': 'Base',
   'vitals.pbLong': 'Proficiency bonus',
   'vitals.spellAttack': 'Spell attack',
+  'vitals.dcExhMinus': 'Exhaustion {n}: −{p} is taken off the spell attack. The save DC does not change (it is not a roll).',
+  'vitals.dcExhDis': 'Exhaustion {n} (2014): spell attacks are rolled with Disadvantage. The save DC does not change.',
+  'vitals.dcExhNone': 'Exhaustion {n} (2014): no effect on spell attacks before level 3, and none on the save DC.',
   'vitals.dcHint': 'Item bonuses come from the items\' "Spell save DC bonus" and "Spell attack bonus" fields (Gear tab), while the item is equipped, and attuned if it needs attunement (the same bonuses shown under "Always on").',
 
   // HP
@@ -224,10 +227,13 @@ export const en: Record<string, string> = {
   'cond.title': 'Conditions',
   'cond.exhaustion': 'Exhaustion',
   'cond.exhaustionChip': 'Exhaustion {n} ({rules}): {effects}',
+  'cond.exhaustionDeadChip': '☠ Exhaustion 6 ({rules}): death',
+  'cond.exhaustionN': 'Exhaustion {n}',
+  'cond.disShort': 'Disadvantage',
   'cond.exhaustionRules': 'Rules',
   'cond.disTitle': 'Roll with Disadvantage (Exhaustion)',
   'cond.reducedFrom': 'Reduced by Exhaustion (normally {n})',
-  'cond.exhaustionDeath': 'Exhaustion 6: the creature dies.',
+  'cond.exhaustionDeath': '☠ Exhaustion 6: your character dies. Nothing on the sheet is locked; lower the level in Conditions if this was a mistake.',
   'cond.none': 'None',
   'cond.rulesText': 'Rules text',
 
@@ -447,9 +453,10 @@ export const en: Record<string, string> = {
   'stats.proficiencies': 'Proficiencies',
   'stats.attacks': 'Attacks',
   'stats.noAttacks': 'No attacks yet. Add your weapons and attack cantrips; they show up as cards in the Action hand.',
-  'stats.exhaustionBanner': 'Exhaustion: −{p} is already taken off the saving throws, skills, attacks and spell attacks below. Passive scores and other d20 rolls: subtract it yourself.',
-  'stats.exhaustionDisChecks': 'Exhaustion {n} (2014): Disadvantage on every ability check (marked DIS).',
-  'stats.exhaustionDisAll': 'Exhaustion {n} (2014): Disadvantage on ability checks, attack rolls and saving throws (marked DIS).',
+  'stats.exhaustionBanner': 'Exhaustion: −{p} is already taken off Initiative, the saving throws, skills, passive scores, attacks and spell attacks. Any other d20 roll: subtract it yourself.',
+  'stats.exhaustionDisChecks': 'Exhaustion {n} (2014): Disadvantage on every ability check (marked DIS). Passive scores are 5 lower.',
+  'stats.exhaustionDisAll': 'Exhaustion {n} (2014): Disadvantage on ability checks, attack rolls and saving throws (marked DIS). Passive scores are 5 lower.',
+  'stats.passiveMinus': '−{p} Exhaustion',
 
   // attacks
   'attack.add': 'Add attack',

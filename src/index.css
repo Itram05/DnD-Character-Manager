@@ -982,8 +982,31 @@ tr.clickable:hover {
   line-height: 1.3;
   vertical-align: middle;
 }
-.stat-chip.reduced b {
+.nowrap {
+  white-space: nowrap;
+}
+.stat-chip.reduced b,
+.check-list li.reduced b {
   color: var(--warn);
+}
+.passive-minus {
+  color: var(--warn);
+  font-size: 0.72rem;
+  white-space: nowrap;
+  margin-right: 0.4rem;
+}
+/* Exhaustion 6: death. Loud, but nothing on the sheet is locked. */
+.cond-chip.dead {
+  border-color: var(--danger);
+  color: #fff;
+  background: var(--danger);
+  font-weight: 700;
+}
+.banner.dead-banner {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  font-weight: 700;
 }
 .exh-rules {
   display: inline-flex;
@@ -2181,8 +2204,12 @@ body.untap-step .card:not(.tapped) {
   gap: 0.5rem;
   align-items: center;
 }
-.search-row input {
+/* only the search box grows: "input" alone also caught the checkbox of "Only my classes" and squeezed its label into one word per line */
+.search-row input[type='search'] {
   flex: 1 1 200px;
+}
+.search-row .check span {
+  white-space: nowrap;
 }
 .search-results {
   list-style: none;

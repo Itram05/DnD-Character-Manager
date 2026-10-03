@@ -49,8 +49,9 @@ export const CHANGES: ChangeRow[] = [
   },
   {
     topic: 'Exhaustion',
-    before: 'Six levels, each with a different effect (disadvantage on checks, speed halved, ...).',
-    now: 'Six levels; each level: -2 to every D20 Test and -5 ft Speed. Level 6 = death. A Long Rest removes 1 level.',
+    before:
+      'Six levels, each adds its own effect to the ones before: 1 Disadvantage on ability checks (Initiative and skills included; passive scores are 5 lower); 2 Speed halved; 3 Disadvantage on attack rolls and saving throws; 4 Hit Point maximum halved; 5 Speed 0; 6 death. A Long Rest removes 1 level.',
+    now: 'Six levels; each level: -2 to every D20 Test (ability checks, attack rolls, saving throws) and -5 ft Speed. Level 6 = death. A Long Rest removes 1 level. In this app: pick 2014 or 2024 for the hero in the Conditions panel ("Rules", next to the Exhaustion level); the sheet then applies the chosen one by itself. The minus is taken off the numbers; Disadvantage is a DIS mark; a spell save DC never changes.',
   },
   {
     topic: 'Long Rest and Hit Dice',
