@@ -2181,8 +2181,12 @@ body.untap-step .card:not(.tapped) {
   gap: 0.5rem;
   align-items: center;
 }
-.search-row input {
+/* only the search box grows: "input" alone also caught the checkbox of "Only my classes" and squeezed its label into one word per line */
+.search-row input[type='search'] {
   flex: 1 1 200px;
+}
+.search-row .check span {
+  white-space: nowrap;
 }
 .search-results {
   list-style: none;
