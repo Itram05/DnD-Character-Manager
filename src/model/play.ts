@@ -296,6 +296,17 @@ export function playPassivePowers(c: Character): { item: Item; power: ItemPower 
 }
 
 /**
+ * Where an "Always on" chip is edited, by the chip's key: a passive feature (its own editor), or the item
+ * a passive power or a bonus chip ("+3 spell attack", made from the item's field) belongs to.
+ */
+export function passiveSource(c: Character, key: string): { feature: Feature } | { item: Item } | undefined {
+  const feature = c.features.find((f) => f.id === key)
+  if (feature) return { feature }
+  const item = c.inventory.items.find((i) => [...itemBonusPowers(i), ...(i.powers ?? [])].some((p) => p.id === key))
+  return item ? { item } : undefined
+}
+
+/**
  * Uses a power: spends its cost from the item's charges and one of its own uses.
  * Nothing happens when it cannot be paid. delta -1 (undo) gives back one own use and the cost
  * (for "all": one charge, since how many were spent is not remembered).

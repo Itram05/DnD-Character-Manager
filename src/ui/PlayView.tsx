@@ -12,6 +12,7 @@ import {
   playCards,
   playPassivePowers,
   playPassives,
+  passiveSource,
   attackInPlay,
   playHealingPotions,
   shortText,
@@ -72,7 +73,7 @@ function attackFaces(c: Character): CardFace[] {
 const ORDER: Record<string, number> = { attack: 0, feature: 1, spell: 2, scroll: 3, potion: 4, item: 5, power: 5 }
 
 /** Something on the "Always on" row: a passive feature, or a passive power of an item. */
-interface PassiveChip {
+export interface PassiveChip {
   key: string
   name: string
   glyph: string
@@ -416,17 +417,41 @@ export function PlayView({ api }: { api: SheetApi }) {
             />
           )
         })()}
-      {openPassive && (
-        <Modal title={openPassive.name} onClose={() => setOpenPassive(null)}>
-          <p className="muted">
-            {openPassive.glyph} {openPassive.source} · {t('act.passive')}
-          </p>
-          <RichText text={openPassive.description} />
-        </Modal>
-      )}
+      {openPassive && <PassiveZoom api={api} chip={openPassive} onClose={() => setOpenPassive(null)} />}
     </div>
     {sideNav && sections.length > 1 && <SectionNavSide sections={sections} />}
     </div>
+  )
+}
+
+// ---------------- zoomed "Always on" chip ----------------
+
+/**
+ * The window of one chip: its text, and Edit, which opens the editor of what the chip comes from, like Edit
+ * on a card: the feature's editor, or the item's (a passive power is edited inside its item; a bonus chip
+ * such as "+3 spell attack" is the item's own field). Closing the editor closes the window too.
+ */
+export function PassiveZoom({ api, chip, onClose, initiallyEditing }: { api: SheetApi; chip: PassiveChip; onClose: () => void; /** For tests. */ initiallyEditing?: boolean }) {
+  const [editing, setEditing] = useState(!!initiallyEditing)
+  const source = passiveSource(api.c, chip.key)
+  if (editing && source) {
+    if ('feature' in source) return <FeatureEditor api={api} initial={source.feature} onClose={onClose} />
+    return <ItemEditor api={api} initial={source.item} onClose={onClose} />
+  }
+  return (
+    <Modal title={chip.name} onClose={onClose} className="passive-zoom">
+      <p className="muted">
+        {chip.glyph} {chip.source} · {t('act.passive')}
+      </p>
+      <RichText text={chip.description} />
+      {source && (
+        <div className="zoom-actions">
+          <button className="btn" onClick={() => setEditing(true)}>
+            {'item' in source ? t('item.edit') : t('common.edit')}
+          </button>
+        </div>
+      )}
+    </Modal>
   )
 }
 
