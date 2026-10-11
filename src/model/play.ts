@@ -5,10 +5,10 @@
 // Spent = "tapped" (turned sideways). Rests "untap" the cards they restore.
 // Spell slots are "mana". Passive features lie on the "battlefield".
 import type { SrdSpell } from '../data/srd'
-import { HEALING_NAME, HEALING_TIERS, healingDescription, healingTier, isHealingPotion, isPotion, isScroll, scrollInfo, type HealingTier, type ScrollInfo } from './consumables'
+import { HEALING_NAME, HEALING_TIERS, healingDescription, healingTier, isHealingPotion, isPotion, isScroll, scrollInfo, type HealingTier } from './consumables'
 import { defaultContainerId } from './containers'
 import { newId } from './normalize'
-import { DEFAULT_ABILITY_BONUS_MAX, exhaustionEffects, itemActive, itemInPlay, pactSlots, spellSlots, totalLevel, usesMax } from './rules'
+import { DEFAULT_ABILITY_BONUS_MAX, exhaustionEffects, spellOwnCasting, itemActive, itemInPlay, pactSlots, spellSlots, totalLevel, usesMax } from './rules'
 import { bonusSlotsAt, isSorceryPoints } from './sorcery'
 import { cardStrip, type CardStrip } from './strip'
 import { featureTags, itemTags, mergeTags, powerTags, spellAutoTags, spellTags } from './tags'
@@ -418,7 +418,7 @@ export function spendPower(c: Character, powerId: string, delta = 1): Character 
  * "DC 15 · +7 to hit": the scroll's own save DC and spell attack, not the reader's. Exhaustion counts on the
  * attack like on every attack card: the 2024 minus is taken off, 2014 level 3+ says "DIS" in place of "to hit".
  */
-export function scrollStat(c: Character, n: ScrollInfo['numbers']): string | undefined {
+export function scrollStat(c: Character, n: { saveDc?: number; attack?: number }): string | undefined {
   const exh = exhaustionEffects(c)
   const parts: string[] = []
   if (n.saveDc !== undefined) parts.push(`DC ${n.saveDc}`)
@@ -474,7 +474,10 @@ export function potionCard(i: Item): PlayCard {
 export function spellCard(c: Character, s: Spell): PlayCard {
   const free = usesView(c, s.freeCasts)
   const opts = paymentOptions(c, s)
+  // a spell with an ability of its own (a species' or a feat's): its own DC and attack, like a scroll's
+  const stat = s.castingAbility ? scrollStat(c, spellOwnCasting(c, s.castingAbility)) : undefined
   return {
+    ...(stat ? { stat } : {}),
     key: `spell:${s.id}`,
     kind: 'spell',
     id: s.id,

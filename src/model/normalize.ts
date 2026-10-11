@@ -166,7 +166,7 @@ export const KNOWN = {
   source: ['type', 'name'],
   uses: ['max', 'used', 'recharge', 'shortRestRegain', 'regain', 'note', 'resource'],
   attack: ['id', 'name', 'ability', 'proficient', 'bonus', 'damage', 'damageType', 'addAbilityToDamage', 'damageBonus', 'mastery', 'notes', 'itemId'],
-  spell: ['id', 'name', 'level', 'source', 'prepared', 'alwaysPrepared', 'ritual', 'concentration', 'school', 'castingTime', 'range', 'components', 'duration', 'description', 'freeCasts', 'tags'],
+  spell: ['id', 'name', 'level', 'source', 'prepared', 'alwaysPrepared', 'ritual', 'concentration', 'school', 'castingTime', 'range', 'components', 'duration', 'description', 'castingAbility', 'freeCasts', 'tags'],
   spellcasting: ['slotsUsed', 'pactSlotsUsed', 'concentration', 'slotsOverride', 'pactOverride', 'bonusSlots'],
   pactOverride: ['slots', 'level'],
   inventory: ['items', 'money', 'containers', 'categories'],
@@ -676,6 +676,10 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
       components: r.str(s.components, `${p}.components`),
       duration: r.str(s.duration, `${p}.duration`),
       description: r.str(s.description, `${p}.description`),
+    }
+    if (s.castingAbility !== undefined && s.castingAbility !== null && s.castingAbility !== '') {
+      const ab = ability(s.castingAbility, `${p}.castingAbility`)
+      if (ab) sp.castingAbility = ab
     }
     const fc = uses(s.freeCasts, `${p}.freeCasts`)
     if (fc) sp.freeCasts = fc

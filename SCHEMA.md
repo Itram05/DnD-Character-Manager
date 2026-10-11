@@ -223,6 +223,7 @@ An attack linked to an item that is not on the Play screen (not equipped, or not
 | `alwaysPrepared` | Subclass/feat spells; they don't count toward the prepared limit, and an always-prepared cantrip doesn't count toward the class's number of cantrips. |
 | `ritual`, `concentration` | true/false. |
 | `school`, `castingTime`, `range`, `components`, `duration`, `description` | Text. `castingTime` starting with "Bonus Action" / "Reaction" puts the card in that hand. |
+| `castingAbility` | Optional ability id (`cha`): the ability this one spell is cast with when it is not the class's (a species' spell, Magic Initiate, Fey-Touched). The card and its window then show "DC 14 · +6 to hit": 8 + that modifier + PB, and the modifier + PB, with the items' `spellDcBonus` / `spellAttackBonus`; Exhaustion counts on the attack. Absent = nothing on the card. Since 2026-10-11. |
 | `freeCasts` | [uses](#uses) for casting without a slot (Magic Initiate, Divine Smite from Paladin's Smite, Mystic Arcanum...). |
 | `tags` | Optional list of your own [tags](#tags), e.g. `["buff", "revive"]`. |
 

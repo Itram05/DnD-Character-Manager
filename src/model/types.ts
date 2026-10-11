@@ -128,6 +128,13 @@ export interface Spell {
   components?: string
   duration?: string
   description?: string
+  /**
+   * The ability this one spell is cast with, when it is not the class's: a spell from a species (a Tiefling's
+   * Charisma), a feat (Magic Initiate, Fey-Touched) or an item. The card then shows the spell's own save DC and
+   * attack bonus (8 + that modifier + PB, and the modifier + PB; item bonuses included). Absent = nothing is
+   * shown on the card; the DC in the head is the class's.
+   */
+  castingAbility?: Ability
   /** Free casts without a slot (Magic Initiate, Mystic Arcanum, Favored Enemy...). */
   freeCasts?: Uses
   /** Your own tags (lowercase), e.g. "buff", "control". */

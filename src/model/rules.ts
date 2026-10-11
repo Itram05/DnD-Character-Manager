@@ -479,6 +479,17 @@ export function castingStats(c: Character): CastingStats[] {
   return out
 }
 
+/**
+ * The save DC and spell attack of one spell cast with its own ability (Spell.castingAbility): a species' or a
+ * feat's spell. The same sum as a class's, item bonuses included; Exhaustion is not in it (see castingStats).
+ */
+export function spellOwnCasting(c: Character, ability: Ability): { saveDc: number; attack: number } {
+  const m = abilityMod(abilityScore(c, ability))
+  const pb = proficiencyBonus(totalLevel(c))
+  const bonus = itemSpellBonuses(c)
+  return { saveDc: 8 + m + pb + bonus.dc.reduce((s, x) => s + x.value, 0), attack: m + pb + bonus.attack.reduce((s, x) => s + x.value, 0) }
+}
+
 /** The spell attack as rolled now: 2024 Exhaustion takes its minus off; 2014 level 3+ is Disadvantage. */
 export function spellAttackNow(c: Character, attack: number): { attack: number; disadvantage: boolean } {
   const e = exhaustionEffects(c)

@@ -227,7 +227,14 @@ export function SpellEditor({ api, initial, onClose }: { api: SheetApi; initial:
         <TextField label={t('spell.range')} value={s.range ?? ''} onChange={(range) => setS({ ...s, range })} />
         <TextField label={t('spell.components')} value={s.components ?? ''} onChange={(components) => setS({ ...s, components })} />
         <TextField label={t('spell.duration')} value={s.duration ?? ''} onChange={(duration) => setS({ ...s, duration })} />
+        <Select
+          label={t('spell.castingAbility')}
+          value={s.castingAbility ?? ''}
+          options={[{ value: '', label: t('spell.castingAbilityClass') }, ...ABILITIES.map((a) => ({ value: a as string, label: t(`ability.long.${a}`) }))]}
+          onChange={(v) => setS({ ...s, castingAbility: (v || undefined) as Ability | undefined })}
+        />
       </div>
+      <p className="hint">{t('spell.castingAbilityHint')}</p>
       <div className="checks">
         <Check label={t('spell.prepared')} checked={s.prepared} onChange={(prepared) => setS({ ...s, prepared })} />
         <Check label={t('spell.alwaysPrepared')} checked={s.alwaysPrepared} onChange={(alwaysPrepared) => setS({ ...s, alwaysPrepared })} />

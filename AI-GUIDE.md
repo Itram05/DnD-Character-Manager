@@ -489,6 +489,7 @@ A list. Every spell the hero can cast, or has in a spellbook.
 | `duration` | text | always | "" | "Instantaneous", "up to 1 minute". Concentration is the flag, not this text. |
 | `description` | text | always | "" | The full effect, including what a higher-level slot does. |
 | `freeCasts` | [counter](#counters) | if it applies | absent | Casts that need no slot: Magic Initiate, a species spell, Favored Enemy's Hunter's Mark. |
+| `castingAbility` | ability id | if it applies | absent | Only for a spell that is **not** cast with a class's ability: a species' spell, a feat's (Magic Initiate, Fey-Touched: the ability the feat names), an item's. The card then shows that spell's own save DC and attack bonus. Leave it out for class spells: their DC is the one in the head. For a hero with no spellcasting class it is the only way a spell gets a DC. |
 | `tags` | list of text | optional | absent | See [Tags](#tags). |
 
 - **Always-prepared spells** (domain, oath, circle, species, feat): write `"prepared": true` **and**
