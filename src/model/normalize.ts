@@ -167,7 +167,7 @@ export const KNOWN = {
   spellcasting: ['slotsUsed', 'pactSlotsUsed', 'concentration', 'slotsOverride', 'pactOverride', 'bonusSlots'],
   pactOverride: ['slots', 'level'],
   inventory: ['items', 'money', 'containers', 'categories'],
-  item: ['id', 'name', 'quantity', 'equipped', 'requiresAttunement', 'attuned', 'weight', 'armor', 'acBonus', 'saveBonus', 'spellDcBonus', 'spellAttackBonus', 'abilityScores', 'charges', 'activation', 'description', 'powers', 'tags', 'containerId', 'category'],
+  item: ['id', 'name', 'quantity', 'equipped', 'requiresAttunement', 'attuned', 'weight', 'armor', 'acBonus', 'saveBonus', 'spellDcBonus', 'spellAttackBonus', 'abilityScores', 'saveDc', 'spellAttack', 'charges', 'activation', 'description', 'powers', 'tags', 'containerId', 'category'],
   container: ['id', 'name', 'icon', 'color', 'capacity', 'weightless', 'extradimensional', 'itemId'],
   category: ['id', 'name', 'icon', 'color'],
   preferences: ['gear', 'money'],
@@ -787,6 +787,8 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
       })
       if (list.length) item.abilityScores = list
     }
+    if (it.saveDc !== undefined && it.saveDc !== null && it.saveDc !== '') item.saveDc = Math.round(r.num(it.saveDc, `${p}.saveDc`, 13, 1, 40))
+    if (it.spellAttack !== undefined && it.spellAttack !== null && it.spellAttack !== '') item.spellAttack = Math.round(r.num(it.spellAttack, `${p}.spellAttack`, 5, -20, 40))
     liftSpellBonusPowers(item, p, warnings)
     const tg = r.tags(it.tags, `${p}.tags`)
     if (tg) item.tags = tg

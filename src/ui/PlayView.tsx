@@ -575,6 +575,10 @@ export function CardZoom({ api, face, onClose, onUse, srd, initiallyEditing }: {
         </dl>
       )}
       {scroll && <p className="hint scroll-source">{t(`scroll.from.${scroll.from}`, { name: scroll.spellName ?? '' })}</p>}
+      {scroll && (scroll.numbers.saveDc !== undefined || scroll.numbers.attack !== undefined) && (
+        <p className="hint scroll-numbers">{t(scroll.numbers.dcFrom === 'item' || scroll.numbers.attackFrom === 'item' ? 'scroll.numbersOwn' : 'scroll.numbersTable', { n: scroll.level ?? 0 })}</p>
+      )}
+      {scroll && scroll.numbers.saveDc === undefined && scroll.numbers.attack === undefined && <p className="hint scroll-numbers">{t('scroll.numbersNone')}</p>}
       {power && power.power.cost && power.item.charges ? (
         <p className="power-cost">
           {power.power.cost === 'all' ? t('power.costsAll', { item: power.item.name }) : t('power.costs', { n: power.power.cost, item: power.item.name })}

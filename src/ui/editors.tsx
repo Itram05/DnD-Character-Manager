@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { loadSrdSpells, type SrdSpell } from '../data/srd'
 import { t } from '../i18n'
 import { categoryList, guessCategory } from '../model/categories'
+import { isScroll } from '../model/consumables'
 import { defaultContainerId, deleteItem, moveTargets } from '../model/containers'
 import { recipesUsing, renameAcross } from '../model/crafting'
 import { newId } from '../model/normalize'
@@ -334,12 +335,44 @@ export function ItemEditor({ api, initial, onClose }: { api: SheetApi; initial: 
       {isCard && (
         <Select<Activation> label={t('feature.activation')} value={it.activation!} options={ACTIVATIONS.filter((a) => a !== 'passive').map((a) => ({ value: a, label: t(`act.${a}`) }))} onChange={(activation) => setIt({ ...it, activation })} />
       )}
+      {isScroll(it) && (
+        <fieldset className="scroll-numbers-editor">
+          <legend>{t('item.scrollNumbers')}</legend>
+          <div className="grid-2">
+            <OptionalNumber label={t('item.saveDc')} value={it.saveDc} placeholder={t('item.fromTable')} onChange={(saveDc) => setIt({ ...it, saveDc })} />
+            <OptionalNumber label={t('item.spellAttack')} value={it.spellAttack} placeholder={t('item.fromTable')} onChange={(spellAttack) => setIt({ ...it, spellAttack })} />
+          </div>
+          <p className="hint">{t('item.scrollNumbersHint')}</p>
+        </fieldset>
+      )}
       <AbilityScoresEditor value={it.abilityScores ?? []} onChange={(list) => setIt({ ...it, abilityScores: list.length ? list : undefined })} />
       <UsesEditor api={api} value={it.charges} onChange={(charges) => setIt({ ...it, charges })} label={t('item.hasCharges')} allowRegain />
       <TextArea label={t('common.description')} rows={5} value={it.description ?? ''} onChange={(description) => setIt({ ...it, description })} />
       <PowersEditor api={api} item={it} onChange={(powers) => setIt({ ...it, powers: powers.length ? powers : undefined })} />
       <TagInput value={it.tags} onChange={(tags) => setIt({ ...it, tags })} auto={autoPart(textTags(it.description), it.tags)} known={ownTagsIn(api.c)} />
     </EditorFrame>
+  )
+}
+
+/** A whole number that may be left empty (empty = not set, the app's own value is used). */
+function OptionalNumber(props: { label: string; value: number | undefined; placeholder?: string; onChange: (n: number | undefined) => void }) {
+  const [text, setText] = useState(props.value === undefined ? '' : String(props.value))
+  return (
+    <label className="field">
+      <span>{props.label}</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={text}
+        placeholder={props.placeholder}
+        onChange={(e) => {
+          setText(e.target.value)
+          const s = e.target.value.trim().replace(/^\+/, '')
+          if (s === '') props.onChange(undefined)
+          else if (/^-?\d+$/.test(s)) props.onChange(Number(s))
+        }}
+      />
+    </label>
   )
 }
 

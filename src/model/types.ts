@@ -221,6 +221,13 @@ export interface Item {
   spellAttackBonus?: number
   /** Same rule as acBonus: raises or sets ability scores (Amulet of Health: Constitution becomes 19). Shown as chips under "Always on". */
   abilityScores?: ItemAbilityScore[]
+  /**
+   * A spell scroll's own save DC, in place of the one from the Spell Scroll table (13 to 19 by the spell's level;
+   * consumables.ts). Absent = the table. Only scrolls use it for now.
+   */
+  saveDc?: number
+  /** A spell scroll's own spell attack bonus, in place of the table's (+5 to +11). Absent = the table. */
+  spellAttack?: number
   charges?: Uses
   /** Set this to make the item a card on the play screen. Potions and scrolls are recognized by name and do not need it (see consumables.ts). */
   activation?: Activation

@@ -24,10 +24,10 @@ export const SCROLL_GLYPH = '✉'
 export const POTION_GLYPH = '⚗'
 const glyphOf = (card: CardFace) => (card.kind === 'scroll' ? SCROLL_GLYPH : card.kind === 'potion' ? POTION_GLYPH : FRAME_GLYPH[card.frame])
 
-export interface CardFace extends Omit<PlayCard, 'frame' | 'kind'> {
+export interface CardFace extends Omit<PlayCard, 'frame' | 'kind' | 'stat'> {
   frame: Frame | 'attack'
   kind: PlayCard['kind'] | 'attack'
-  /** Extra line for attack cards: "+7 · 1d8+4". */
+  /** Extra line: "+7 · 1d8+4" on an attack card, "DC 15 · +7 to hit" on a scroll. */
   stat?: ReactNode
 }
 

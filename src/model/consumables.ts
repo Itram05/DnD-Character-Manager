@@ -63,6 +63,45 @@ function candidates(name: string): string[] {
   return [...new Set(out)]
 }
 
+/**
+ * The "Spell Scroll" table of the SRD: the save DC and the attack bonus of the spell cast from a scroll, by the
+ * spell's level (index 0 = cantrip). They are the scroll's own numbers, not the reader's.
+ */
+export const SCROLL_TABLE: readonly { saveDc: number; attack: number }[] = [
+  { saveDc: 13, attack: 5 },
+  { saveDc: 13, attack: 5 },
+  { saveDc: 13, attack: 5 },
+  { saveDc: 15, attack: 7 },
+  { saveDc: 15, attack: 7 },
+  { saveDc: 17, attack: 9 },
+  { saveDc: 17, attack: 9 },
+  { saveDc: 18, attack: 10 },
+  { saveDc: 18, attack: 10 },
+  { saveDc: 19, attack: 11 },
+]
+
+export interface ScrollNumbers {
+  saveDc?: number
+  attack?: number
+  /** Where each number comes from: the item's own field (set by hand) or the table. */
+  dcFrom?: 'item' | 'table'
+  attackFrom?: 'item' | 'table'
+}
+
+/**
+ * The save DC and spell attack of a scroll: the item's own `saveDc` / `spellAttack` when set, else the
+ * table's for the spell's level. A scroll whose spell (and so its level) is not known has only what is set by hand.
+ */
+export function scrollNumbers(item: Pick<Item, 'saveDc' | 'spellAttack'>, level: number | undefined): ScrollNumbers {
+  const row = level === undefined ? undefined : SCROLL_TABLE[Math.max(0, Math.min(9, Math.round(level)))]
+  const out: ScrollNumbers = {}
+  if (item.saveDc !== undefined) (out.saveDc = item.saveDc), (out.dcFrom = 'item')
+  else if (row) (out.saveDc = row.saveDc), (out.dcFrom = 'table')
+  if (item.spellAttack !== undefined) (out.attack = item.spellAttack), (out.attackFrom = 'item')
+  else if (row) (out.attack = row.attack), (out.attackFrom = 'table')
+  return out
+}
+
 type SrdLite = Pick<SrdSpell, 'name' | 'level' | 'school' | 'castingTime' | 'range' | 'components' | 'duration' | 'concentration' | 'ritual' | 'text'>
 
 export interface ScrollInfo {
@@ -83,6 +122,8 @@ export interface ScrollInfo {
   description: string
   /** The item's own description, when the spell text comes from elsewhere. */
   note?: string
+  /** The scroll's save DC and spell attack (scrollNumbers). */
+  numbers: ScrollNumbers
 }
 
 function findCharacterSpell(c: Character, name: string): Spell | undefined {
@@ -118,7 +159,7 @@ export function scrollInfo(c: Character, item: Item, srd?: readonly SrdLite[]): 
   const ref = spellName ? findSrdSpell(srd, spellName) : undefined
   const itemText = (item.description ?? '').trim()
   if (!own && !ref) {
-    return { spellName, from: 'item', concentration: false, ritual: false, description: itemText }
+    return { spellName, from: 'item', concentration: false, ritual: false, description: itemText, numbers: scrollNumbers(item, undefined) }
   }
   const description = own?.description?.trim() || ref?.text || itemText
   return {
@@ -135,6 +176,7 @@ export function scrollInfo(c: Character, item: Item, srd?: readonly SrdLite[]): 
     ritual: own ? own.ritual : !!ref?.ritual,
     description,
     note: itemText && itemText !== description ? itemText : undefined,
+    numbers: scrollNumbers(item, own?.level ?? ref?.level),
   }
 }
 

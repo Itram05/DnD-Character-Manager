@@ -535,6 +535,7 @@ A list. Every spell the hero can cast, or has in a spellbook.
 | `spellDcBonus` | number | if it applies | absent | Added to the spell save DC while active. |
 | `spellAttackBonus` | number | if it applies | absent | Added to spell attack rolls while active: the spell attack beside the save DC and every attack with `"ability": "spell"`. |
 | `abilityScores` | list of `{ ability, mode, value, max }` | if it applies | absent | What the item does to ability scores while active. `ability`: one of the six ids. `mode` `"set"`: the score **becomes** `value` unless it is already higher (Amulet of Health: `{ "ability": "con", "mode": "set", "value": 19 }`). `mode` `"add"`: the score goes up by `value`, but not above `max` (Belt of Dwarvenkind: `{ "ability": "con", "mode": "add", "value": 2, "max": 20 }`); leave `max` out for 20, write 30 for an item with no limit. `max` is for `"add"` only. Everything the app calculates from the score follows; a chip under "Always on" names it. |
+| `saveDc`, `spellAttack` | numbers | rarely | absent | **Spell scrolls only**: the scroll's own save DC and spell attack bonus, in place of the Spell Scroll table. Leave both out for an ordinary scroll of a spell the hero or the SRD has; see [Names the app reads](#names-the-app-reads). |
 | `charges` | [counter](#counters) | if it applies | absent | The item's pool of charges. |
 | `activation` | as for features | if it applies | absent | Makes the item itself a card that spends `quantity`. Consumables only; see the table below. |
 | `powers` | list | if it applies | absent | The item's separate abilities. See [item powers](#item-powers). |
@@ -658,17 +659,18 @@ word to the name: "Zaubertrank der Eile (Potion)".
 
 **Scrolls.** The spell is taken from the name: `Spell Scroll (Fireball)`, `Scroll of Fireball`, `Scroll: Fireball`,
 `Fireball Scroll`. The card shows that spell's level, casting time and text, taken from the hero's own spell of that
-name, else from the app's SRD spell list. So for a spell the hero has or the SRD has, the scroll's `description` is
-only a short note, shown under the spell text: the scroll's level, save DC and attack bonus, which the app does not
-work out (it does **not** use the hero's own DC for a scroll):
+name, else from the app's SRD spell list. The card also shows the scroll's own save DC and attack bonus ("DC 15 · +7
+to hit"), worked out from the spell's level by this table (it does **not** use the hero's own DC for a scroll):
 
 | Scroll's spell level | Cantrip, 1, 2 | 3, 4 | 5, 6 | 7, 8 | 9 |
 |---|---|---|---|---|---|
 | Save DC / attack bonus | 13 / +5 | 15 / +7 | 17 / +9 | 18 / +10 | 19 / +11 |
 
-Example: `"Level 3 spell scroll. Spell save DC 15, attack bonus +7."` For a spell that is neither the hero's nor in
-the SRD, the `description` is all the card has: put the full spell text there, after that line, and give the item an
-`activation` if the spell is not cast as an action.
+So for a spell the hero has or the SRD has, the scroll's `description` is only a short note, shown under the spell
+text, and may be empty. Write `saveDc` and `spellAttack` on the item only when the scroll's numbers differ from the
+table (a scroll the GM made stronger). For a spell that is neither the hero's nor in the SRD the app does not know the
+level: the `description` is all the card has, so put the full spell text there, write `saveDc` and `spellAttack` from
+the table yourself, and give the item an `activation` if the spell is not cast as an action.
 
 ### Fields and words the app does not know
 

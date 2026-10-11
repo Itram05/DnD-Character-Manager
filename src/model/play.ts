@@ -5,10 +5,10 @@
 // Spent = "tapped" (turned sideways). Rests "untap" the cards they restore.
 // Spell slots are "mana". Passive features lie on the "battlefield".
 import type { SrdSpell } from '../data/srd'
-import { HEALING_NAME, HEALING_TIERS, healingDescription, healingTier, isHealingPotion, isPotion, isScroll, scrollInfo, type HealingTier } from './consumables'
+import { HEALING_NAME, HEALING_TIERS, healingDescription, healingTier, isHealingPotion, isPotion, isScroll, scrollInfo, type HealingTier, type ScrollInfo } from './consumables'
 import { defaultContainerId } from './containers'
 import { newId } from './normalize'
-import { DEFAULT_ABILITY_BONUS_MAX, itemActive, itemInPlay, pactSlots, spellSlots, totalLevel, usesMax } from './rules'
+import { DEFAULT_ABILITY_BONUS_MAX, exhaustionEffects, itemActive, itemInPlay, pactSlots, spellSlots, totalLevel, usesMax } from './rules'
 import { bonusSlotsAt, isSorceryPoints } from './sorcery'
 import { cardStrip, type CardStrip } from './strip'
 import { featureTags, itemTags, mergeTags, powerTags, spellAutoTags, spellTags } from './tags'
@@ -51,6 +51,8 @@ export interface PlayCard {
   ritual?: boolean
   /** Short line under the type, e.g. "Action · 60 feet" on a scroll. */
   meta?: string
+  /** A scroll's own numbers, e.g. "DC 15 · +7 to hit" (scrollStat). Attack cards get theirs in the UI. */
+  stat?: string
   /** Own + automatic tags (tags.ts), for the tag filter. */
   tags?: string[]
   /** Item power: the item it belongs to, and what one use costs from the item's charges. */
@@ -412,10 +414,24 @@ export function spendPower(c: Character, powerId: string, delta = 1): Character 
   return { ...c, inventory: { ...c.inventory, items: c.inventory.items.map((x) => (x.id === item.id ? next : x)) } }
 }
 
+/**
+ * "DC 15 · +7 to hit": the scroll's own save DC and spell attack, not the reader's. Exhaustion counts on the
+ * attack like on every attack card: the 2024 minus is taken off, 2014 level 3+ is marked "DIS".
+ */
+export function scrollStat(c: Character, n: ScrollInfo['numbers']): string | undefined {
+  const exh = exhaustionEffects(c)
+  const parts: string[] = []
+  if (n.saveDc !== undefined) parts.push(`DC ${n.saveDc}`)
+  if (n.attack !== undefined) parts.push(`${signed(n.attack - exh.d20Penalty)} to hit${exh.attacksSavesDisadvantage ? ' (DIS)' : ''}`)
+  return parts.length ? parts.join(' · ') : undefined
+}
+
 /** A spell scroll: looks like the spell it holds, counts like an item. */
 export function scrollCard(c: Character, i: Item, srd?: readonly SrdSpell[]): PlayCard {
   const s = scrollInfo(c, i, srd)
+  const stat = scrollStat(c, s.numbers)
   return {
+    ...(stat ? { stat } : {}),
     key: `scroll:${i.id}`,
     kind: 'scroll',
     id: i.id,
