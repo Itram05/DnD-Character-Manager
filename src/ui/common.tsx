@@ -240,7 +240,7 @@ export function RichText({ text, className }: { text: string; className?: string
                 <thead>
                   <tr>
                     {rows[0].map((h, i) => (
-                      <th key={i}>{h}</th>
+                      <th key={i}>{inline(h, `${bi}-h${i}`)}</th>
                     ))}
                   </tr>
                 </thead>
@@ -248,7 +248,7 @@ export function RichText({ text, className }: { text: string; className?: string
                   {rows.slice(1).map((r, ri) => (
                     <tr key={ri}>
                       {r.map((cell, ci) => (
-                        <td key={ci}>{highlight(cell, `${bi}-${ri}-${ci}`)}</td>
+                        <td key={ci}>{inline(cell, `${bi}-${ri}-${ci}`)}</td>
                       ))}
                     </tr>
                   ))}

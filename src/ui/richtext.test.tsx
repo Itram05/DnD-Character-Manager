@@ -22,3 +22,22 @@ describe('RichText with highlighting', () => {
     expect(html).toContain('<strong class="hl-cond">Frightened</strong>')
   })
 })
+
+// 2026-10-11: a cell was drawn without the inline marks, so "**Longsword**" kept its asterisks.
+describe('RichText: bold and italic inside a table', () => {
+  const html = renderToString(<RichText text={'| **Weapon** | Damage |\n|---|---|\n| **Longsword** | 1d8 Slashing damage |\n| _Versatile_ | **1d10** |'} />)
+  it('a cell draws **bold** and _italic_, with no marks left', () => {
+    expect(html).toContain('<td><strong>Longsword</strong></td>')
+    expect(html).toContain('<td><em>Versatile</em></td>')
+    expect(html).not.toContain('**')
+    expect(html).not.toContain('_Versatile_')
+  })
+  it('the header too', () => {
+    expect(html).toContain('<th><strong>Weapon</strong></th>')
+  })
+  it('dice and damage are still picked out, inside bold as well', () => {
+    expect(html).toContain('1d8 Slashing damage</strong></td>')
+    expect(html).toContain('class="hl-dmg ')
+    expect(html).toContain('<strong><strong class="hl-dice">1d10</strong></strong>')
+  })
+})
