@@ -62,7 +62,7 @@ export function FeaturesView({ api }: { api: SheetApi }) {
   const groups = SOURCE_TYPES.map((type) => ({ type, list: c.features.filter((f) => f.source.type === type) })).filter((g) => g.list.length)
 
   return (
-    <div className="features-view">
+    <div className="features-view" id="features-list">
       <div className="toolbar">
         <button className="btn btn-primary" onClick={() => setEdit(blankFeature())}>
           + {t('feature.add')}

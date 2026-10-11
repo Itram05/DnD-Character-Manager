@@ -1,21 +1,20 @@
 // Play: the items the player pinned as counters (materials, arrows, rations...), each the total of all its
 // stacks with − and +. Which items, and their order, is chosen in Gear (CraftingPanel.tsx, and 📌 on a row).
+import type { ReactNode } from 'react'
 import { t } from '../i18n'
 import { bumpCounter, counterViews, nameKey } from '../model/crafting'
 import type { SheetApi } from './Sheet'
 
 const qty = (n: number) => String(Math.round(n * 1000) / 1000)
 
-export function CountersSection({ api, id }: { api: SheetApi; id: string }) {
+export function CountersSection({ api, id, edit }: { api: SheetApi; id: string; /** The section's Edit button (PlayView). */ edit?: ReactNode }) {
   const views = counterViews(api.c)
   if (!views.length) return null
   return (
     <section id={id} className="play-counters panel nav-target">
       <h3>
         {t('counter.title')}
-        <button className="link-btn counter-edit" onClick={() => api.go('gear')}>
-          {t('counter.edit')}
-        </button>
+        {edit}
       </h3>
       <div className="counter-list">
         {views.map((v) => (

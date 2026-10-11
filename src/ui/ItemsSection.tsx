@@ -39,6 +39,8 @@ export function ItemsSection(props: {
   onOpen: (itemId: string) => void
   /** For tests; otherwise from storage. */
   initiallyOpen?: boolean
+  /** The section's Edit button (PlayView). */
+  edit?: ReactNode
 }) {
   const [open, setOpen] = useState(() => props.initiallyOpen ?? loadItemsOpen())
   const toggle = () => {
@@ -50,6 +52,7 @@ export function ItemsSection(props: {
   return (
     <section id={props.id} className={`play-items panel nav-target ${props.collapsible ? 'collapsible' : ''} ${shown ? 'open' : ''}`}>
       {props.collapsible ? (
+        <div className="items-head">
         <button className="items-toggle" onClick={toggle} aria-expanded={open} title={open ? t('items.hide') : t('items.show')}>
           <span className="items-title">
             {t('items.title')} {count}
@@ -58,9 +61,12 @@ export function ItemsSection(props: {
             <path d={open ? 'M5 15l7-7 7 7' : 'M5 9l7 7 7-7'} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
+        {props.edit}
+        </div>
       ) : (
         <h3>
           {t('items.title')} {count}
+          {props.edit}
         </h3>
       )}
       {shown && (

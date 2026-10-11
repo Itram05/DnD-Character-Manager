@@ -43,6 +43,8 @@ import { ItemPanel, ItemsSection } from './ItemsSection'
 import { CountersSection } from './CountersSection'
 import { itemPanel, itemTiles } from '../model/itemPanel'
 import { groupTitle, playHands, playSections, sectionId } from './playSections'
+import { EditMark, SectionEditor, zoneActivation, type EntryRef, type SectionSpec } from './SectionEdit'
+import type { PlayKind } from '../model/play'
 
 // an attack made with an item that is not in play (not equipped, or not attuned) is hidden with the item
 function attackFaces(c: Character): CardFace[] {
@@ -106,6 +108,8 @@ export function PlayView({ api }: { api: SheetApi }) {
   const [openPassive, setOpenPassive] = useState<PassiveChip | null>(null)
   // the item whose panel is open (Items section); hidden while a card or chip from it is zoomed, back after
   const [openItem, setOpenItem] = useState<string | null>(null)
+  // the window behind a section's small Edit button (SectionEdit.tsx)
+  const [sectionEdit, setSectionEdit] = useState<SectionSpec | null>(null)
   const mode = settings.view
   const srd = useSrdForScrolls(c)
 
@@ -172,6 +176,38 @@ export function PlayView({ api }: { api: SheetApi }) {
   const hands = playHands(zonesToShow, cards, kinds.length !== 1)
   const sections = playSections({ mana: mana.length > 0 || !!sp, passives: passives.length, counters: c.playCounters.length, items: tiles.length, hands, passivesFirst: wide, resources: !wide })
 
+  // ----- what each section's Edit window holds -----
+  /** What a card is edited as: itself, or (a power, a scroll, a potion) its item. */
+  const refOf = (card: CardFace): EntryRef =>
+    card.kind === 'attack' || card.kind === 'feature' || card.kind === 'spell' ? { kind: card.kind, id: card.id } : { kind: 'item', id: card.kind === 'power' ? (card.itemId ?? card.id) : card.id }
+  const uniq = (list: EntryRef[]) => list.filter((e, i) => list.findIndex((x) => x.kind === e.kind && (x.kind === 'counter' ? x.name === (e as typeof x).name : x.id === (e as typeof x).id)) === i)
+  const ITEMS_SPEC = { add: 'item', tab: 'gear', anchor: 'gear-items' } as const
+  const groupSpec = (z: Zone, k: PlayKind, list: CardFace[]): SectionSpec => {
+    const where =
+      k === 'attack'
+        ? ({ add: 'attack', tab: 'stats', anchor: 'stats-attacks', reorder: true } as const)
+        : k === 'feature'
+          ? ({ add: 'feature', tab: 'features', anchor: 'features-list' } as const)
+          : k === 'spell'
+            ? ({ add: 'spell', tab: 'spells', anchor: 'spells-mine' } as const)
+            : ITEMS_SPEC
+    return { title: `${t(`zone.${z}`)} · ${groupTitle(k, list)}`, entries: uniq(list.map(refOf)), activation: zoneActivation(z), ...where }
+  }
+  const passivesSpec = (): SectionSpec => ({
+    title: t('play.battlefield'),
+    entries: uniq(
+      passives.flatMap((p): EntryRef[] => {
+        const src = passiveSource(c, p.key)
+        return !src ? [] : 'feature' in src ? [{ kind: 'feature', id: src.feature.id }] : [{ kind: 'item', id: src.item.id }]
+      }),
+    ),
+    add: 'feature',
+    activation: 'passive',
+    tab: 'features',
+    anchor: 'features-list',
+  })
+  const editMark = (section: string, spec: () => SectionSpec) => <EditMark api={api} section={section} onClick={() => setSectionEdit(spec())} />
+
   const renderCard = (card: CardFace) => {
     if (card.kind === 'scroll')
       return <GameCard key={card.key} card={card} mode={mode} onOpen={() => setOpen(card)} onUse={() => readOneScroll(card)} useLabel={t('scroll.use')} />
@@ -197,7 +233,10 @@ export function PlayView({ api }: { api: SheetApi }) {
     <>
         {(mana.length > 0 || sp) && (
           <section id={nested ? undefined : sectionId('mana')} className={`mana ${nested ? 'res-part' : 'panel nav-target'}`}>
-            <h3>{t('play.mana')}</h3>
+            <h3>
+              {t('play.mana')}
+              {editMark(t('play.mana'), () => ({ title: t('play.mana'), entries: sp ? [{ kind: 'feature', id: sp.featureId }] : [], slots: true, tab: 'edit', anchor: 'edit-classes' }))}
+            </h3>
             {mana.map((r) => (
               <div key={`${r.kind}-${r.level}`} className={`mana-row mana-${r.kind}`}>
                 <span className="mana-label">
@@ -256,7 +295,10 @@ export function PlayView({ api }: { api: SheetApi }) {
           {/* the four healing potions live here: HP and Concentration are what you check mid-fight */}
           {/* always all four kinds; a kind without an item shows ×0 and "+" creates the item */}
           <div className="heal-potions" role="group" aria-label={t('potion.healing')}>
-            <h4>{t('potion.healing')}</h4>
+            <h4>
+              {t('potion.healing')}
+              {editMark(t('potion.healing'), () => ({ title: t('potion.healing'), entries: potions.map((i) => ({ kind: 'item', id: i.id })), ...ITEMS_SPEC }))}
+            </h4>
             <div className="potion-list">
               {healingRows.map(({ tier, item: i, name, quantity }) => {
                 const dice = i ? healingDice(i) : HEALING_DICE[tier]
@@ -335,14 +377,27 @@ export function PlayView({ api }: { api: SheetApi }) {
           </ResourcesBlock>
         )}
 
-        <CountersSection api={api} id={sectionId('counters')} />
+        <CountersSection
+          api={api}
+          id={sectionId('counters')}
+          edit={editMark(t('counter.title'), () => ({ title: t('counter.title'), entries: c.playCounters.map((p) => ({ kind: 'counter', name: p.name })), tab: 'gear', anchor: 'gear-items' }))}
+        />
 
-        {tiles.length > 0 && <ItemsSection id={sectionId('items')} tiles={tiles} collapsible={!wide} onOpen={setOpenItem} />}
+        {tiles.length > 0 && (
+          <ItemsSection
+            id={sectionId('items')}
+            tiles={tiles}
+            collapsible={!wide}
+            onOpen={setOpenItem}
+            edit={editMark(t('items.title'), () => ({ title: t('items.title'), entries: tiles.map((x) => ({ kind: 'item', id: x.item.id })), ...ITEMS_SPEC }))}
+          />
+        )}
 
         {passives.length > 0 && (
           <section id={sectionId('field')} className="battlefield panel nav-target">
             <h3>
               {t('play.battlefield')} <span className="muted">({passives.length})</span>
+              {editMark(t('play.battlefield'), passivesSpec)}
             </h3>
             <div className="passive-chips">
               {passives.map((f) => (
@@ -363,6 +418,8 @@ export function PlayView({ api }: { api: SheetApi }) {
           <section key={z} id={sectionId(z)} className={`zone zone-${z} nav-target`}>
             <h3 className="zone-title">
               <span className={`gem gem-${z}`}>{t(`zone.${z}.short`)}</span> {t(`zone.${z}`)}
+              {/* one kind chosen in the filter: the hand is that kind's list, so its Edit sits here */}
+              {!groups && zc.length > 0 && kinds.length === 1 && editMark(t(`zone.${z}`), () => groupSpec(z, kinds[0] as PlayKind, zc))}
             </h3>
             {zc.length === 0 ? (
               <p className="muted empty-zone">{t('play.emptyZone')}</p>
@@ -373,6 +430,7 @@ export function PlayView({ api }: { api: SheetApi }) {
                 <div key={k} id={sectionId(z, k)} className={`kind-group kind-${k} nav-target`}>
                   <h4 className="kind-title">
                     {groupTitle(k, kc)} <span className="muted">({kc.length})</span>
+                    {editMark(`${t(`zone.${z}`)}: ${groupTitle(k, kc)}`, () => groupSpec(z, k, kc))}
                   </h4>
                   <div className={mode === 'cards' ? 'card-grid' : 'card-list'}>{kc.map(renderCard)}</div>
                 </div>
@@ -431,6 +489,7 @@ export function PlayView({ api }: { api: SheetApi }) {
           )
         })()}
       {openPassive && <PassiveZoom api={api} chip={openPassive} onClose={() => setOpenPassive(null)} />}
+      {sectionEdit && <SectionEditor api={api} spec={sectionEdit} onClose={() => setSectionEdit(null)} />}
     </div>
     {sideNav && sections.length > 1 && <SectionNavSide sections={sections} />}
     </div>

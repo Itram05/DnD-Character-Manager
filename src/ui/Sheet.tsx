@@ -26,7 +26,8 @@ export interface SheetApi {
   toast: (m: Omit<ToastMsg, 'id'>) => void
   settings: Settings
   setSettings: (s: Settings) => void
-  go: (tab: Tab) => void
+  /** Opens a tab; with `anchor` (the DOM id of a place in it) the page is scrolled there once the tab is drawn. */
+  go: (tab: Tab, anchor?: string) => void
   /** Slots in the sticky head for the screen's own controls (absent in tests: they render in place). */
   head?: HeadSlots
 }
@@ -188,8 +189,29 @@ export function Sheet(props: { initial: Character; tab: Tab; onTab: (t: Tab) => 
   // the head's slots: callback refs, so the screens re-render (before paint) once the slots exist
   const [tools, setTools] = useState<HTMLElement | null>(null)
   const [chips, setChips] = useState<HTMLElement | null>(null)
-  const api: SheetApi = { c, update, toast, settings: props.settings, setSettings: props.setSettings, go: props.onTab, head: { tools, chips } }
   const tab = props.tab
+  // "Edit" on a section leads to the place where that section is edited: a tab, and a spot in it.
+  // The spot is remembered until the tab is on the screen, then scrolled to, clear of the sticky head.
+  const anchor = useRef<string | null>(null)
+  const toAnchor = useCallback(() => {
+    const id = anchor.current
+    anchor.current = null
+    const el = id ? document.getElementById(id) : null
+    if (!el) return
+    el.style.scrollMarginTop = 'calc(var(--head-h, 0px) + 0.5rem)'
+    el.scrollIntoView({ block: 'start' })
+    el.classList.add('arrived')
+    window.setTimeout(() => el.classList.remove('arrived'), 1600)
+  }, [])
+  useEffect(() => {
+    if (anchor.current) toAnchor()
+  }, [tab, toAnchor])
+  const go = (next: Tab, at?: string) => {
+    anchor.current = at ?? null
+    if (next === tab) toAnchor()
+    else props.onTab(next)
+  }
+  const api: SheetApi = { c, update, toast, settings: props.settings, setSettings: props.setSettings, go, head: { tools, chips } }
 
   if (gone)
     return (

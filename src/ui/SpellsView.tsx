@@ -116,7 +116,7 @@ export function SpellsView({ api }: { api: SheetApi }) {
 
       {c.spells.length > 0 && (
         <>
-          <h3 className="spells-mine">{t('spells.mine')}</h3>
+          <h3 className="spells-mine" id="spells-mine">{t('spells.mine')}</h3>
           {/* the funnel and the active filters live in the sheet's sticky head */}
           <InHead at={api.head?.tools}>
             <FilterButton groups={filterGroups} selected={filter} onChange={setFilter} />

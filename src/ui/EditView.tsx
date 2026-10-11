@@ -46,7 +46,7 @@ export function EditView({ api }: { api: SheetApi }) {
         </p>
       </section>
 
-      <section className="panel">
+      <section className="panel" id="edit-classes">
         <h3>{t('edit.classes')}</h3>
         <p className="hint">{t('edit.classesHint')}</p>
         {c.classes.map((k, i) => {
@@ -91,7 +91,7 @@ export function EditView({ api }: { api: SheetApi }) {
         </button>
       </section>
 
-      <section className="panel">
+      <section className="panel" id="edit-abilities">
         <h3>{t('stats.abilities')}</h3>
         <div className="grid-6">
           {ABILITIES.map((a) => (
@@ -125,7 +125,7 @@ export function EditView({ api }: { api: SheetApi }) {
         <p className="hint">{t('edit.acHint')}</p>
       </section>
 
-      <section className="panel">
+      <section className="panel" id="edit-profs">
         <h3>{t('stats.proficiencies')}</h3>
         <div className="grid-2">
           {(['armor', 'weapons', 'tools', 'languages'] as const).map((k) => (

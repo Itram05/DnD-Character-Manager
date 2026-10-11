@@ -15,6 +15,7 @@ import {
 import { ABILITIES, SKILL_IDS, SKILLS, type Ability, type Attack, type SkillProficiency } from '../model/types'
 import { Dis, fmtMod } from './common'
 import { AttackEditor, blankAttack } from './editors'
+import { EditMark } from './SectionEdit'
 import type { SheetApi } from './Sheet'
 
 const NEXT: Record<SkillProficiency, SkillProficiency> = { none: 'proficient', proficient: 'expertise', expertise: 'none' }
@@ -44,7 +45,10 @@ export function StatsView({ api }: { api: SheetApi }) {
       )}
 
       <section className="panel abilities">
-        <h3>{t('stats.abilities')}</h3>
+        <h3>
+          {t('stats.abilities')}
+          <EditMark api={api} section={t('stats.abilities')} onClick={() => api.go('edit', 'edit-abilities')} />
+        </h3>
         <div className="ability-grid">
           {ABILITIES.map((a) => {
             // the score that counts: the hero's own, with what worn items add or set
@@ -120,7 +124,10 @@ export function StatsView({ api }: { api: SheetApi }) {
 
           {castingStats(c).length > 0 && (
             <section className="panel casting">
-              <h3>{t('stats.spellcasting')}</h3>
+              <h3>
+                {t('stats.spellcasting')}
+                <EditMark api={api} section={t('stats.spellcasting')} onClick={() => api.go('edit', 'edit-classes')} />
+              </h3>
               <table className="breakdown">
                 <thead>
                   <tr>
@@ -150,7 +157,10 @@ export function StatsView({ api }: { api: SheetApi }) {
           )}
 
           <section className="panel profs">
-            <h3>{t('stats.proficiencies')}</h3>
+            <h3>
+              {t('stats.proficiencies')}
+              <EditMark api={api} section={t('stats.proficiencies')} onClick={() => api.go('edit', 'edit-profs')} />
+            </h3>
             <dl>
               {(['armor', 'weapons', 'tools', 'languages'] as const).map((k) =>
                 c.proficiencies[k] ? (
@@ -171,7 +181,7 @@ export function StatsView({ api }: { api: SheetApi }) {
         </div>
       </div>
 
-      <section className="panel attacks">
+      <section className="panel attacks" id="stats-attacks">
         <h3>
           {t('stats.attacks')}
           <button className="btn btn-small" onClick={() => setEditAttack(blankAttack())}>

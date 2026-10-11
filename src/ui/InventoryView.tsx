@@ -160,7 +160,7 @@ export function InventoryView({ api }: { api: SheetApi }) {
 
       <ContainersPanel api={api} />
 
-      <section className="panel items">
+      <section className="panel items" id="gear-items">
         <h3>
           {t('inv.items')}
           <button className="btn btn-small" onClick={() => setEdit(blankItem())}>
