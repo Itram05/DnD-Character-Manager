@@ -1,4 +1,4 @@
-// The marks drawn over a map in the viewer: routes (lines), pins, and the ruler of the scale tool. The
+// The marks drawn over a map in the viewer: routes (lines), pins, tokens, and the ruler of the scale tool. The
 // layer lies over the picture and is drawn in SCREEN pixels: a mark's place follows the picture as it is
 // zoomed and moved, its size does not (see model/mapMarks.ts). The layer takes no pointer events itself:
 // the viewer's stage gets them all and decides what was touched (markTargets + hitTest), so dragging the
@@ -6,15 +6,15 @@
 // screen readers.
 import { t } from '../i18n'
 import type { Box, View } from '../model/images'
-import { inkOn, midway, pinColor, pinIcon, pinsOf, routeColor, routeNumbers, routesOf, segmentHit, toScreen, type Px } from '../model/mapMarks'
-import type { CharacterImage, MapPoint, MapRoute, MapScale, PinIcon } from '../model/types'
+import { inkOn, midway, pinColor, pinIcon, pinsOf, routeColor, routeNumbers, routesOf, segmentHit, toScreen, tokenColor, tokenLabel, tokenPx, tokensOf, type Px } from '../model/mapMarks'
+import type { CharacterImage, MapPoint, MapRoute, MapScale, MapToken, PinIcon } from '../model/types'
 
 /**
  * What is selected on the map (or being dragged). `point`: for a route, the number of one of its points
  * (absent = the route as a whole); for the ruler of the scale tool, its end 0 or 1.
  */
 export interface Sel {
-  kind: 'pin' | 'route' | 'ruler'
+  kind: 'pin' | 'route' | 'token' | 'ruler'
   id: string
   point?: number
 }
@@ -81,6 +81,17 @@ export function PinGlyph({ icon, color, size }: { icon: PinIcon; color: string; 
   )
 }
 
+/** A token: a disc in its colour with its few letters. */
+export function TokenDisc({ token, size }: { token: MapToken; size: number }) {
+  const color = tokenColor(token)
+  const label = tokenLabel(token)
+  return (
+    <span className="token-disc" style={{ width: size, height: size, background: color, color: inkOn(color), borderColor: inkOn(color), fontSize: Math.round(size * ([...label].length > 2 ? 0.36 : 0.44)) }}>
+      {label}
+    </span>
+  )
+}
+
 /** Where a mark is touched: the middle of what is drawn (a "pin" stands above its place), and how near counts. */
 export interface Target extends Px {
   r: number
@@ -96,7 +107,7 @@ export interface Target extends Px {
 const POINT_REACH = 20
 const LINE_REACH = 14
 
-/** The routes' points, then the pins: everything on the image that can be touched, at its place on the stage. Later = drawn on top. */
+/** The routes' points, then the pins, then the tokens: everything on the image that can be touched, at its place on the stage. Later = drawn on top. */
 export function markTargets(image: CharacterImage, view: View, fit: Box, screen: Box, size: number): Target[] {
   if (!fit.width) return []
   const out: Target[] = []
@@ -109,6 +120,11 @@ export function markTargets(image: CharacterImage, view: View, fit: Box, screen:
   for (const p of pinsOf(image)) {
     const at = toScreen(p, view, fit, screen)
     out.push({ x: at.x, y: pinIcon(p) === 'pin' ? at.y - size * 0.55 : at.y, r, sel: { kind: 'pin', id: p.id }, px: at.x, py: at.y })
+  }
+  const tr = Math.max(tokenPx(size) * 0.62, 20)
+  for (const tk of tokensOf(image)) {
+    const at = toScreen(tk, view, fit, screen)
+    out.push({ ...at, r: tr, sel: { kind: 'token', id: tk.id }, px: at.x, py: at.y })
   }
   return out
 }
@@ -247,6 +263,26 @@ export function MapMarks(props: {
           >
             <PinGlyph icon={icon} color={pinColor(p)} size={size} />
             {(props.names || on) && <span className="map-name">{p.name}</span>}
+          </button>
+        )
+      })}
+      {tokensOf(image).map((tk) => {
+        const s: Sel = { kind: 'token', id: tk.id }
+        const where = place(s, tk)
+        const on = sameSel(sel, s)
+        const side = tokenPx(size)
+        return (
+          <button
+            key={tk.id}
+            type="button"
+            className={`map-mark map-token ${on ? 'sel' : ''} ${drag && sameSel(drag.sel, s) ? 'moving' : ''}`}
+            style={{ transform: `translate(${where.x.toFixed(1)}px, ${where.y.toFixed(1)}px)`, ['--mark' as string]: `${side}px` }}
+            aria-label={t('maps.token.aria', { name: tk.name })}
+            aria-pressed={on}
+            onClick={() => props.onSelect?.(s)}
+          >
+            <TokenDisc token={tk} size={side} />
+            {(props.names || on) && <span className="map-name">{tk.name}</span>}
           </button>
         )
       })}

@@ -1515,6 +1515,10 @@ edge; `y` 0 = top, 1 = bottom), not pixels. `note` is the player's text, `color`
 `star` `flag` `house` `tent` `cross` `danger` `question`. You cannot see the picture, so **you do not place or move
 marks**; you may change a pin's `name` or `note` when the player asks, and you keep everything else as it is.
 
+`tokens` is a list of `{ id, name, x, y, label, color, note }`: where the party, a hero or an NPC **is** on that picture
+right now. `label` is the one to three letters on the token (absent = the initials of `name`). The same rule: you may
+rename a token or change its `note`, you do not move it.
+
 The same entry may have `routes` and `scale`. `routes` is a list of `{ id, name, points, color, perDay }`: `points` is the
 line, a list of `{ x, y }` in order; `perDay` is how far its travellers go in a day. `scale` is `{ a, b, distance, unit,
 perDay }`: from the point `a` to the point `b` (each `{ x, y }`) is `distance` of `unit` in the world (absent `unit` = `mi`),

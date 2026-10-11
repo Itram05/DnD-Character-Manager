@@ -159,6 +159,7 @@ describe('AI-GUIDE.md', () => {
     playPrefs: 'preferences',
     image: 'images',
     pin: 'images',
+    token: 'images',
     route: 'images',
     mapPoint: 'images',
     mapScale: 'images',

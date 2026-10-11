@@ -4,13 +4,13 @@
 // of the screen, under the thumb.
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { t } from '../i18n'
-import { DEFAULT_PIN_COLOR, DEFAULT_UNIT, MARK_COLORS, PIN_ICONS, isMarkColor, pinColor, pinIcon, routeColor, scaleUnit } from '../model/mapMarks'
-import type { MapPin, MapPoint, MapRoute, MapScale } from '../model/types'
-import { PinGlyph } from './MapMarks'
+import { DEFAULT_PIN_COLOR, DEFAULT_UNIT, MARK_COLORS, PIN_ICONS, isMarkColor, pinColor, pinIcon, routeColor, scaleUnit, tokenColor, tokenLabel, TOKEN_LABEL_MAX } from '../model/mapMarks'
+import type { MapPin, MapPoint, MapRoute, MapScale, MapToken } from '../model/types'
+import { PinGlyph, TokenDisc } from './MapMarks'
 
 /** What a tap on the map does in edit mode: "select" picks and moves marks, the others add one. */
-export type Tool = 'select' | 'pin' | 'route' | 'scale'
-export const TOOLS: Tool[] = ['select', 'pin', 'route', 'scale']
+export type Tool = 'select' | 'pin' | 'route' | 'token' | 'scale'
+export const TOOLS: Tool[] = ['select', 'pin', 'route', 'token', 'scale']
 
 function ToolIcon({ tool }: { tool: Tool | 'layers' | 'edit' }) {
   const line = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
@@ -28,6 +28,12 @@ function ToolIcon({ tool }: { tool: Tool | 'layers' | 'edit' }) {
           <path {...line} strokeDasharray="3 3.5" d="M5 19 L9 9 L15 14 L19 5" />
           <circle cx="5" cy="19" r="2.2" fill="currentColor" />
           <circle cx="19" cy="5" r="2.2" fill="currentColor" />
+        </>
+      )}
+      {tool === 'token' && (
+        <>
+          <circle {...line} cx="12" cy="12" r="8.5" />
+          <path {...line} d="M9 16 V8.5 H13 A2.4 2.4 0 0 1 13 13.3 H9" />
         </>
       )}
       {tool === 'scale' && <path {...line} d="M3 15 H21 M3 11 V19 M21 11 V19 M9 13 V17 M15 13 V17" />}
@@ -83,7 +89,7 @@ export function MapBar(props: { edit: boolean; onEdit: (on: boolean) => void; to
  * A text field that changes the character when it is left (or when its panel goes away), not on every
  * key: one edit of a name is one step of Undo.
  */
-export function CommitText(props: { label: string; value: string; onCommit: (s: string) => void; area?: boolean; placeholder?: string; focus?: boolean; inputMode?: 'decimal'; className?: string }) {
+export function CommitText(props: { label: string; value: string; onCommit: (s: string) => void; area?: boolean; placeholder?: string; focus?: boolean; inputMode?: 'decimal'; className?: string; maxLength?: number }) {
   const [text, setText] = useState(props.value)
   const live = useRef({ text, value: props.value, onCommit: props.onCommit })
   live.current = { text, value: props.value, onCommit: props.onCommit }
@@ -104,6 +110,7 @@ export function CommitText(props: { label: string; value: string; onCommit: (s: 
     ref: el,
     value: text,
     placeholder: props.placeholder,
+    maxLength: props.maxLength,
     onChange: (e: { target: { value: string } }) => setText(e.target.value),
     onBlur: commit,
   }
@@ -196,6 +203,36 @@ export function PinPanel(props: { pin: MapPin; edit: boolean; fresh?: boolean; a
           ))}
         </div>
       </div>
+    </PanelShell>
+  )
+}
+
+/** The selected token. Looking: its name and note. Editing: name, the letters on it, note, colour, delete. */
+export function TokenPanel(props: { token: MapToken; edit: boolean; fresh?: boolean; at?: PanelAt; onPatch: (p: Partial<Pick<MapToken, 'name' | 'label' | 'color' | 'note'>>) => void; onDelete: () => void; onClose: () => void }) {
+  const { token } = props
+  if (!props.edit)
+    return (
+      <PanelShell
+        onClose={props.onClose}
+        at={props.at}
+        title={
+          <>
+            <TokenDisc token={token} size={28} />
+            <b>{token.name}</b>
+          </>
+        }
+      >
+        {token.note && <p className="map-note">{token.note}</p>}
+      </PanelShell>
+    )
+  return (
+    <PanelShell onClose={props.onClose} at={props.at} title={<b>{t('maps.token.title')}</b>} className="editing" onDelete={props.onDelete} deleteLabel={t('maps.token.delete')}>
+      <div className="map-fields map-fields-token">
+        <CommitText label={t('common.name')} value={token.name} onCommit={(name) => props.onPatch({ name })} focus={props.fresh} />
+        <CommitText label={t('maps.token.label')} value={token.label ?? ''} placeholder={tokenLabel(token)} maxLength={TOKEN_LABEL_MAX} onCommit={(label) => props.onPatch({ label })} />
+      </div>
+      <CommitText label={t('maps.note')} value={token.note ?? ''} onCommit={(note) => props.onPatch({ note })} area placeholder={t('maps.token.notePlaceholder')} />
+      <ColorChoice label={t('maps.color')} value={tokenColor(token)} onChange={(c) => props.onPatch({ color: c })} />
     </PanelShell>
   )
 }

@@ -4,13 +4,13 @@
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { FIT, addImages, type Box } from '../model/images'
-import { addPin, addRoute, addRoutePoint, patchRoute, setScale } from '../model/mapMarks'
+import { addPin, addRoute, addRoutePoint, addToken, patchRoute, setScale } from '../model/mapMarks'
 import { normalizeCharacter } from '../model/normalize'
 import type { Character, CharacterImage } from '../model/types'
 import { ImagesView } from './ImagesView'
 import { ImageViewer } from './ImageViewer'
 import { MapMarks, markTargets, routeLineAt, routeText, rulerTargets } from './MapMarks'
-import { MapBar, PinPanel, RoutePanel, ScalePanel, parseAmount } from './MapTools'
+import { MapBar, PinPanel, RoutePanel, ScalePanel, TokenPanel, parseAmount } from './MapTools'
 import type { SheetApi } from './Sheet'
 
 const strip = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
@@ -60,6 +60,34 @@ describe('the marks over the picture', () => {
     expect([pin.x, pin.y, pin.px, pin.py]).toEqual([600, 525 - 16.5, 600, 525])
     expect(star.r).toBe(20)
     expect(markTargets(world, FIT, fit, screen, 54)[0].r).toBeCloseTo(33.48)
+  })
+})
+
+describe('tokens', () => {
+  let c = addToken(hero, 'world', { id: 't1', name: 'Party', x: 0.5, y: 0.5 })
+  c = addToken(c, 'world', { id: 't2', name: 'Грав Сращите', x: 0.25, y: 0, color: '#d0583f', note: 'ahead of the others' })
+  const image = c.images![0]
+  it('a disc with the letters at its place, the name under it; a little bigger than a pin, the same at every zoom', () => {
+    const at = (view = FIT) => renderToString(<MapMarks image={image} view={view} fit={fit} screen={screen} size={30} names sel={null} />)
+    const html = at()
+    expect(html).toContain('translate(400.0px, 300.0px)')
+    expect(html).toContain('translate(200.0px, 75.0px)')
+    expect(strip(html)).toBe('Pa Party ГС Грав Сращите')
+    expect(html).toContain('width:36px;height:36px;background:#e0b85c')
+    expect(at({ scale: 3, x: 0, y: 0 })).toContain('width:36px;height:36px;background:#e0b85c')
+    expect(html).toContain('aria-label="Token: Party"')
+  })
+  it('can be touched at its centre', () => {
+    expect(markTargets(image, FIT, fit, screen, 30).map((x) => [x.sel.kind, x.sel.id, x.x, x.y])).toEqual([['token', 't1', 400, 300], ['token', 't2', 200, 75]])
+  })
+  it('the panel: looking shows the name and the note; editing has name, letters, note, colours, delete', () => {
+    const look = renderToString(<TokenPanel token={image.tokens![1]} edit={false} onPatch={noop} onDelete={noop} onClose={noop} />)
+    expect(strip(look)).toBe('ГС Грав Сращите ✕ ahead of the others')
+    const edit = renderToString(<TokenPanel token={image.tokens![0]} edit onPatch={noop} onDelete={noop} onClose={noop} />)
+    expect(strip(edit)).toContain('Token Delete token ✕ Name Letters Note')
+    expect(edit).toContain('value="Party"')
+    // no letters of its own: the field shows the initials it uses as what an empty field means
+    expect(edit).toMatch(/placeholder="Pa" maxLength="3"|maxLength="3"[^>]*placeholder="Pa"|placeholder="Pa"[^>]*maxLength="3"/)
   })
 })
 
@@ -192,7 +220,7 @@ describe('the bar under the picture', () => {
   })
   it('editing: the tools, Undo, Done', () => {
     const html = renderToString(<MapBar edit onEdit={noop} tool="pin" onTool={noop} onUndo={noop} />)
-    expect(strip(html)).toBe('Move Pin Route Scale ↶ Undo Done')
+    expect(strip(html)).toBe('Move Pin Route Token Scale ↶ Undo Done')
     expect(html).toMatch(/class="map-tool on[^"]*" aria-pressed="true" title="Pin"/)
   })
   it('Undo is off when there is nothing to take back', () => {

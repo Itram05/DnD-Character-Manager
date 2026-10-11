@@ -2,7 +2,7 @@
 // Move: drag (when zoomed in). Next / previous: the arrows, the arrow keys, or a sideways swipe while the
 // picture is not zoomed. Close: Esc or ✕. The arithmetic is in model/images.ts (tested without a browser).
 //
-// Marks on the map (pins, routes): drawn over the picture by MapMarks, changed through model/mapMarks.ts.
+// Marks on the map (pins, routes, tokens): drawn over the picture by MapMarks, changed through model/mapMarks.ts.
 // The viewer opens LOOKING: a tap on a mark shows its name and note, and nothing can be moved, so
 // dragging the map never drags a pin. "Edit map" in the bar under the picture turns editing on: then a
 // drag that starts on a mark moves the mark (a drag anywhere else still moves the map, two fingers still
@@ -17,26 +17,33 @@ import {
   addPin,
   addRoute,
   addRoutePoint,
+  addToken,
+  freeTokenColor,
   hitTest,
   marksCount,
   movePin,
   moveRoutePoint,
+  moveToken,
   nextName,
+  nextTokenName,
   patchPin,
   patchRoute,
+  patchToken,
   pinsOf,
   removePin,
   removeRoute,
   removeRoutePoint,
+  removeToken,
   routesOf,
   scaleUnit,
   setScale,
   toPoint,
   toScreen,
+  tokensOf,
 } from '../model/mapMarks'
 import type { Character, CharacterImage, MapPoint } from '../model/types'
 import { MapMarks, markTargets, routeLineAt, routeText, rulerTargets, sameMark, type Drag, type Sel, type Target } from './MapMarks'
-import { MapBar, PinPanel, RoutePanel, ScalePanel, ToolHint, type PanelAt, type Tool } from './MapTools'
+import { MapBar, PinPanel, RoutePanel, ScalePanel, TokenPanel, ToolHint, type PanelAt, type Tool } from './MapTools'
 import type { SheetApi } from './Sheet'
 
 const TAP_MS = 300
@@ -78,8 +85,8 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
   const max = maxScale(natural, fit)
 
   // the latest values for the event handlers (they are attached once)
-  const live = useRef({ view, fit, screen, max, index, count, image, edit, tool, sel, ruler, markSize, onClose, update: api?.update })
-  live.current = { view, fit, screen, max, index, count, image, edit, tool, sel, ruler, markSize, onClose, update: api?.update }
+  const live = useRef({ view, fit, screen, max, index, count, image, edit, tool, sel, ruler, markSize, onClose, update: api?.update, heroName: api?.c.name ?? '' })
+  live.current = { view, fit, screen, max, index, count, image, edit, tool, sel, ruler, markSize, onClose, update: api?.update, heroName: api?.c.name ?? '' }
   const setView = useCallback((v: View) => {
     live.current.view = v
     setViewState(v)
@@ -126,6 +133,7 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
       const s = live.current.sel
       if (!s) return
       if (s.kind === 'pin') change((c, im) => removePin(c, im, s.id))
+      else if (s.kind === 'token') change((c, im) => removeToken(c, im, s.id))
       else if (s.kind === 'route') {
         if (pointOnly && s.point !== undefined) {
           const n = s.point
@@ -163,6 +171,13 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
       )
       change((c, im) => addPin(c, im, { id, name, ...at }))
       select({ kind: 'pin', id }, toScreen(at, l.view, l.fit, l.screen).y)
+      setFresh(id)
+    } else if (l.tool === 'token') {
+      const id = newId()
+      const name = nextTokenName(l.image, { party: t('maps.token.party'), token: t('maps.token.word') }, l.heroName)
+      const color = freeTokenColor(l.image)
+      change((c, im) => addToken(c, im, { id, name, ...at, color }))
+      select({ kind: 'token', id }, toScreen(at, l.view, l.fit, l.screen).y)
       setFresh(id)
     } else if (l.tool === 'route') {
       const current = l.sel?.kind === 'route' ? routesOf(l.image).find((r) => r.id === l.sel!.id) : undefined
@@ -380,6 +395,7 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
       const s = moved.sel
       if (s.kind === 'ruler') return setRuler(l.ruler.map((p, i) => (i === s.point ? moved.at : p)))
       if (s.kind === 'pin') change((c, im) => movePin(c, im, s.id, moved.at))
+      else if (s.kind === 'token') change((c, im) => moveToken(c, im, s.id, moved.at))
       else if (s.point !== undefined) change((c, im) => moveRoutePoint(c, im, s.id, s.point!, moved.at))
       // a route's panel stays where it is while its points are moved about
       if (s.kind === 'route' && sameMark(l.sel, s)) setSel(s)
@@ -427,7 +443,8 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
       return
     }
     // not zoomed: a sideways swipe turns the page
-    if (!l.edit && l.view.scale <= 1.01 && Math.abs(dx) > SWIPE && Math.abs(dx) > Math.abs(dy) * 1.5) go(dx < 0 ? 1 : -1)
+    // (not while editing, and not when the swipe began on a mark: that was an attempt to move it)
+    if (!l.edit && !g.hit && l.view.scale <= 1.01 && Math.abs(dx) > SWIPE && Math.abs(dx) > Math.abs(dy) * 1.5) go(dx < 0 ? 1 : -1)
   }
 
   if (!image) return null
@@ -436,6 +453,7 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
   const missing = ready && !loaded.url
   const zoomed = view.scale > 1.01
   const pin = sel?.kind === 'pin' ? pinsOf(image).find((p) => p.id === sel.id) : undefined
+  const token = sel?.kind === 'token' ? tokensOf(image).find((x) => x.id === sel.id) : undefined
   const route = sel?.kind === 'route' ? routesOf(image).find((r) => r.id === sel.id) : undefined
   const scaling = edit && tool === 'scale'
   const aspect = natural.width ? natural : fit
@@ -527,6 +545,17 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
           at={panelAt}
           onPatch={(patch) => change((c, im) => patchRoute(c, im, route.id, patch))}
           onDeletePoint={() => removeSel(true)}
+          onDelete={() => removeSel()}
+          onClose={() => select(null)}
+        />
+      ) : token ? (
+        <TokenPanel
+          key={token.id}
+          token={token}
+          edit={edit}
+          fresh={fresh === token.id}
+          at={panelAt}
+          onPatch={(patch) => change((c, im) => patchToken(c, im, token.id, patch))}
           onDelete={() => removeSel()}
           onClose={() => select(null)}
         />

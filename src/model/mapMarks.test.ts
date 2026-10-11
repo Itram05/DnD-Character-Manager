@@ -6,10 +6,14 @@ import { exportWithImages, exportWithoutImages, memoryImageStore } from './image
 import {
   DEFAULT_PIN_COLOR,
   DEFAULT_ROUTE_COLOR,
+  DEFAULT_TOKEN_COLOR,
   addPin,
   addRoute,
   addRoutePoint,
+  addToken,
   formatAmount,
+  freeTokenColor,
+  initials,
   hitTest,
   inkOn,
   isMarkColor,
@@ -18,9 +22,12 @@ import {
   midway,
   movePin,
   moveRoutePoint,
+  moveToken,
   nextName,
+  nextTokenName,
   patchPin,
   patchRoute,
+  patchToken,
   pathLength,
   pinColor,
   pinIcon,
@@ -28,6 +35,7 @@ import {
   removePin,
   removeRoute,
   removeRoutePoint,
+  removeToken,
   routeColor,
   routeDays,
   routeLength,
@@ -37,6 +45,9 @@ import {
   setScale,
   toPoint,
   toScreen,
+  tokenColor,
+  tokenLabel,
+  tokensOf,
 } from './mapMarks'
 import { importCharacterJson, normalizeCharacter } from './normalize'
 import { characterToJson } from './storage'
@@ -161,6 +172,71 @@ describe('pins', () => {
     expect(inkOn('#f1ece0')).toBe('#1b1622')
     expect(inkOn('#2a2433')).toBe('#ffffff')
     expect([isMarkColor('#D0583F'), isMarkColor('#fff'), isMarkColor('red'), isMarkColor(7)]).toEqual([true, false, false, false])
+  })
+})
+
+describe('tokens', () => {
+  const words = { party: 'Party', token: 'Token' }
+  it('the first token of a map is the party, the second the hero, then "Token 3"', () => {
+    let c = hero()
+    expect(nextTokenName(world(c), words, 'Grav')).toBe('Party')
+    c = addToken(c, 'world', { id: 't1', name: 'Party', x: 0.5, y: 0.5 })
+    expect(nextTokenName(world(c), words, 'Grav')).toBe('Grav')
+    c = addToken(c, 'world', { id: 't2', name: 'Grav', x: 0.4, y: 0.5 })
+    expect(nextTokenName(world(c), words, 'Grav')).toBe('Token 3')
+    // another map starts again with the party
+    expect(nextTokenName(imagesOf(c)[1], words, 'Grav')).toBe('Party')
+  })
+  it('a token: on its image, the default colour not written, letters from the name', () => {
+    const c = addToken(hero(), 'world', { id: 't1', name: 'Party', x: 0.5, y: 0.25, color: DEFAULT_TOKEN_COLOR })
+    expect(world(c).tokens).toEqual([{ id: 't1', name: 'Party', x: 0.5, y: 0.25 }])
+    expect([tokenColor(world(c).tokens![0]), tokenLabel(world(c).tokens![0])]).toEqual([DEFAULT_TOKEN_COLOR, 'Pa'])
+    expect(marksCount(world(c))).toBe(1)
+  })
+  it('initials: two words give two capitals, one word its first two letters; Cyrillic too', () => {
+    expect([initials('Grav Srashtite'), initials('Party'), initials('Грав Сращите'), initials('борик'), initials('Token 3'), initials('  '), initials('X')]).toEqual(['GS', 'Pa', 'ГС', 'бо', 'T3', '?', 'X'])
+  })
+  it('each new token gets a colour no other token of the map has', () => {
+    let c = hero()
+    const seen: string[] = []
+    for (let i = 0; i < 4; i++) {
+      const color = freeTokenColor(world(c))
+      seen.push(color)
+      c = addToken(c, 'world', { id: `t${i}`, name: `T${i}`, x: 0.1 * i, y: 0.1, color })
+    }
+    expect(seen[0]).toBe(DEFAULT_TOKEN_COLOR)
+    expect(new Set(seen).size).toBe(4)
+  })
+  it('rename, letters (3 at most), note, colour; what is a default again leaves the file', () => {
+    let c = addToken(hero(), 'world', { id: 't1', name: 'Party', x: 0.5, y: 0.5 })
+    c = patchToken(c, 'world', 't1', { name: 'Borik', label: 'BRKX', note: ' on the horse ', color: '#4F93DB' })
+    expect(world(c).tokens![0]).toEqual({ id: 't1', name: 'Borik', x: 0.5, y: 0.5, label: 'BRK', note: 'on the horse', color: '#4f93db' })
+    // the name's own initials as a label are no label; an empty note is no note
+    c = patchToken(c, 'world', 't1', { label: 'Bo', note: '', color: DEFAULT_TOKEN_COLOR })
+    expect(world(c).tokens![0]).toEqual({ id: 't1', name: 'Borik', x: 0.5, y: 0.5 })
+    expect(patchToken(c, 'world', 't1', { name: ' ' })).toBe(c)
+  })
+  it('move and delete; the last token takes the field with it', () => {
+    let c = addToken(hero(), 'world', { id: 't1', name: 'Party', x: 0.5, y: 0.5 })
+    c = moveToken(c, 'world', 't1', { x: 0.25, y: 2 })
+    expect(tokensOf(world(c))[0]).toMatchObject({ x: 0.25, y: 1 })
+    expect(moveToken(c, 'world', 't1', { x: 0.25, y: 1 })).toBe(c)
+    c = removeToken(c, 'world', 't1')
+    expect('tokens' in world(c)).toBe(false)
+    expect(removeToken(c, 'world', 't1')).toBe(c)
+  })
+  it('in a file: round trip unchanged; a long label is cut and it says so; unknown fields stay', () => {
+    const tokens = [
+      { id: 't1', name: 'Party', x: 0.42, y: 0.4 },
+      { id: 't2', name: 'Грав Сращите', x: 0.5, y: 0.37, label: 'Г', color: '#d0583f', note: 'ahead of the others' },
+    ]
+    const r = read({ tokens })
+    expect(r.warnings).toEqual([])
+    expect(r.character.images![0].tokens).toEqual(tokens)
+    expect(normalizeCharacter(JSON.parse(characterToJson(r.character))).character.images).toEqual(r.character.images)
+    const bad = read({ tokens: [{ name: '', x: 0.1, y: 0.1, label: 'HORSE', mount: true }] })
+    expect(bad.character.images![0].tokens![0]).toMatchObject({ name: 'Token 1', label: 'HOR', mount: true })
+    expect(bad.warnings).toEqual(['images[0].tokens[0].label: "HORSE" is too long for a token; cut to "HOR".', 'images[0].tokens[0].mount: not a field this app uses; kept unchanged.'])
   })
 })
 

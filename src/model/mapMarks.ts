@@ -11,7 +11,7 @@
 // zooming moves them apart, it does not make them bigger or smaller. toScreen / toPoint below convert
 // between a place on the picture and a place on the screen for the viewer's current zoom and position.
 import { imagesOf, type Box, type View } from './images'
-import type { Character, CharacterImage, MapPin, MapPoint, MapRoute, MapScale, PinIcon } from './types'
+import type { Character, CharacterImage, MapPin, MapPoint, MapRoute, MapScale, MapToken, PinIcon } from './types'
 import { PIN_ICONS } from './types'
 
 export { PIN_ICONS }
@@ -79,7 +79,7 @@ export function hitTest<T extends Px & { r: number }>(targets: readonly T[], x: 
 
 // ---------------- the marks on an image ----------------
 
-type ListKey = 'pins' | 'routes'
+type ListKey = 'pins' | 'routes' | 'tokens'
 
 /** Changes one image of the character; nothing changes when the image is not there or `fn` returns it as it is. */
 export function updateImage(c: Character, imageId: string, fn: (im: CharacterImage) => CharacterImage): Character {
@@ -152,6 +152,84 @@ export function movePin(c: Character, imageId: string, pinId: string, to: MapPoi
 
 export function removePin(c: Character, imageId: string, pinId: string): Character {
   return updateImage(c, imageId, (im) => (pinsOf(im).some((p) => p.id === pinId) ? withList(im, 'pins', pinsOf(im).filter((p) => p.id !== pinId)) : im))
+}
+
+// ----- tokens: where the party, a hero, an NPC or a horse is -----
+
+export const DEFAULT_TOKEN_COLOR = '#e0b85c'
+export const tokensOf = (im: CharacterImage): MapToken[] => im.tokens ?? []
+export const tokenColor = (tk: MapToken) => tk.color ?? DEFAULT_TOKEN_COLOR
+const TOKEN_DEFAULTS = { color: DEFAULT_TOKEN_COLOR }
+/** A token's label is short: it has to fit on the token. */
+export const TOKEN_LABEL_MAX = 3
+
+/** The letters a token shows when it has no label of its own: "Grav Srashtite" -> "GS", "Party" -> "Pa". */
+export function initials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean)
+  if (!words.length) return '?'
+  const first = (w: string) => [...w][0] ?? ''
+  if (words.length === 1) return [...words[0]].slice(0, 2).join('')
+  return (first(words[0]) + first(words[1])).toUpperCase()
+}
+export const tokenLabel = (tk: MapToken) => tk.label ?? initials(tk.name)
+
+/** The first colour of the palette no token of the image has yet (so a second token does not look like the first); the default when all are taken. */
+export function freeTokenColor(im: CharacterImage): string {
+  const taken = new Set(tokensOf(im).map(tokenColor))
+  return [DEFAULT_TOKEN_COLOR, ...MARK_COLORS].find((col) => !taken.has(col)) ?? DEFAULT_TOKEN_COLOR
+}
+
+export function addToken(c: Character, imageId: string, token: { id: string; name: string } & MapPoint & Partial<MapToken>): Character {
+  return updateImage(c, imageId, (im) => {
+    if (tokensOf(im).some((x) => x.id === token.id)) return im
+    const { id, name, x, y, ...rest } = token
+    return withList(im, 'tokens', [...tokensOf(im), tidy({ id, name: name.trim() || 'Token', ...mapPoint({ x, y }), ...rest }, TOKEN_DEFAULTS)])
+  })
+}
+
+/** Renames a token, changes its label (at most 3 letters; empty or the name's own initials = none), colour or note. */
+export function patchToken(c: Character, imageId: string, tokenId: string, patch: Partial<Pick<MapToken, 'name' | 'label' | 'color' | 'note'>>): Character {
+  return updateImage(c, imageId, (im) => {
+    const old = tokensOf(im).find((x) => x.id === tokenId)
+    if (!old) return im
+    const next = { ...old, ...patch }
+    next.name = (patch.name ?? old.name).trim() || old.name
+    if (next.note !== undefined) next.note = next.note.trim()
+    if (next.label !== undefined) {
+      next.label = [...next.label.trim()].slice(0, TOKEN_LABEL_MAX).join('')
+      if (next.label === initials(next.name)) next.label = undefined
+    }
+    if (next.color !== undefined && !isMarkColor(next.color)) next.color = old.color
+    else if (next.color) next.color = next.color.toLowerCase()
+    const clean = tidy(next, TOKEN_DEFAULTS)
+    if (JSON.stringify(clean) === JSON.stringify(old)) return im
+    return withList(im, 'tokens', tokensOf(im).map((x) => (x.id === tokenId ? clean : x)))
+  })
+}
+
+export function moveToken(c: Character, imageId: string, tokenId: string, to: MapPoint): Character {
+  const at = mapPoint(to)
+  return updateImage(c, imageId, (im) => {
+    const old = tokensOf(im).find((x) => x.id === tokenId)
+    if (!old || (old.x === at.x && old.y === at.y)) return im
+    return withList(im, 'tokens', tokensOf(im).map((x) => (x.id === tokenId ? { ...x, ...at } : x)))
+  })
+}
+
+export function removeToken(c: Character, imageId: string, tokenId: string): Character {
+  return updateImage(c, imageId, (im) => (tokensOf(im).some((x) => x.id === tokenId) ? withList(im, 'tokens', tokensOf(im).filter((x) => x.id !== tokenId)) : im))
+}
+
+/**
+ * The name a new token gets: the first on a map is the party; the second is the hero, if no token has
+ * that name yet; after that "Token 3"...
+ */
+export function nextTokenName(im: CharacterImage, words: { party: string; token: string }, heroName: string): string {
+  const taken = tokensOf(im).map((x) => x.name)
+  if (!taken.length) return words.party
+  const hero = heroName.trim()
+  if (hero && !taken.includes(hero)) return hero
+  return nextName(words.token, taken)
 }
 
 // ----- routes -----
@@ -325,6 +403,8 @@ export function nextName(word: string, taken: readonly string[]): string {
 
 /** The side of a pin in screen pixels. Fixed: it does not change with the zoom. */
 export const MARK_PX = { small: 22, medium: 30, large: 40, huge: 54 } as const
+/** A token is a little bigger than a pin of the same setting: it carries letters. */
+export const tokenPx = (pinPx: number) => Math.round(pinPx * 1.2)
 
 /** How many marks an image carries, for the grid of the Images tab. */
-export const marksCount = (im: CharacterImage): number => pinsOf(im).length + routesOf(im).length
+export const marksCount = (im: CharacterImage): number => pinsOf(im).length + routesOf(im).length + tokensOf(im).length

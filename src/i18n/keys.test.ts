@@ -41,8 +41,8 @@ describe('i18n keys', () => {
       'money.coin.': ['pp', 'gp', 'ep', 'sp', 'cp'],
       'prefs.attackOrder.': ['file', 'name'],
       'prefs.phoneStart.': ['all', 'action', 'bonus', 'reaction', 'other'],
-      'maps.tool.': ['select', 'pin', 'route', 'scale'],
-      'maps.hint.': ['select', 'pin', 'route', 'scale'],
+      'maps.tool.': ['select', 'pin', 'route', 'token', 'scale'],
+      'maps.hint.': ['select', 'pin', 'route', 'token', 'scale'],
       'maps.icon.': ['pin', 'dot', 'star', 'flag', 'house', 'tent', 'cross', 'danger', 'question'],
       'rules.': ['turn', 'actions', 'conditions', 'rest', 'concentration', 'dying', 'changes', 'about'],
     }

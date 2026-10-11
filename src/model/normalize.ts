@@ -39,6 +39,7 @@ import {
   type MapPoint,
   type MapRoute,
   type MapScale,
+  type MapToken,
   PIN_ICONS,
   type ClassEntry,
   type Container,
@@ -192,7 +193,8 @@ export const KNOWN = {
   sessionNote: ['id', 'date', 'title', 'text'],
   xpEntry: ['id', 'date', 'kind', 'amount', 'groupXp', 'players'],
   timer: ['id', 'name', 'days', 'start', 'note'],
-  image: ['id', 'name', 'width', 'height', 'bytes', 'thumb', 'data', 'pins', 'routes', 'scale'],
+  image: ['id', 'name', 'width', 'height', 'bytes', 'thumb', 'data', 'pins', 'routes', 'tokens', 'scale'],
+  token: ['id', 'name', 'x', 'y', 'label', 'color', 'note'],
   route: ['id', 'name', 'color', 'points', 'perDay'],
   mapPoint: ['x', 'y'],
   mapScale: ['a', 'b', 'distance', 'unit', 'perDay'],
@@ -988,6 +990,20 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     keep(o, pin, KNOWN.pin, p)
     return pin
   }
+  const readToken = (o: Obj, id: string, p: string, i: number): MapToken => {
+    const token: MapToken = { id, name: r.str(o.name, `${p}.name`).trim() || `Token ${i + 1}`, ...mapXY(o, p) }
+    const label = r.str(o.label, `${p}.label`).trim()
+    if (label) {
+      token.label = [...label].slice(0, 3).join('')
+      if (token.label !== label) warnings.push(`${p}.label: "${label}" is too long for a token; cut to "${token.label}".`)
+    }
+    const color = markColor(o.color, `${p}.color`)
+    if (color) token.color = color
+    const note = r.str(o.note, `${p}.note`).trim()
+    if (note) token.note = note
+    keep(o, token, KNOWN.token, p)
+    return token
+  }
   /** A point of a route or an end of the scale: only x and y. */
   const plainPoint = (v: unknown, p: string): MapPoint | null => {
     if (!isObj(v)) {
@@ -1070,6 +1086,10 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     if (im.routes !== undefined && im.routes !== null) {
       const routes = markList(im.routes, `${p}.routes`, readRoute).filter((x) => x.points.length)
       if (routes.length) image.routes = routes
+    }
+    if (im.tokens !== undefined && im.tokens !== null) {
+      const tokens = markList(im.tokens, `${p}.tokens`, readToken)
+      if (tokens.length) image.tokens = tokens
     }
     if (im.scale !== undefined && im.scale !== null) {
       const scale = readScale(im.scale, `${p}.scale`)
