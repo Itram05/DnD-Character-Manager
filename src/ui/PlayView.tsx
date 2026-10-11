@@ -61,10 +61,19 @@ function attackFaces(c: Character): CardFace[] {
       text: [a.damageType, a.notes].filter(Boolean).join(' · '),
       tapped: false,
       tags: attackTags(a),
+      // Two parts that never break inside: "+10 to hit" and the damage. With Disadvantage the DIS mark stands
+      // in place of the words "to hit": the card is 181 px wide, and "+10 to hit DIS · 1d8+7" pushed the damage
+      // to a second line (2026-10-11).
       stat: (
-        <>
-          <b>{fmtMod(s.toHit - exh.d20Penalty)}</b> {t('card.toHit')} <Dis on={exh.attacksSavesDisadvantage} /> · <b>{dmg}</b>
-        </>
+        <span className="atk-stat">
+          <span className="atk-part">
+            <b>{fmtMod(s.toHit - exh.d20Penalty)}</b> {exh.attacksSavesDisadvantage ? <Dis on /> : t('card.toHit')}
+          </span>{' '}
+          <span className="atk-sep">·</span>{' '}
+          <span className="atk-part">
+            <b>{dmg}</b>
+          </span>
+        </span>
       ),
     }
   })

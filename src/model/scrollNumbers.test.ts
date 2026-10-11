@@ -59,7 +59,7 @@ describe('the scroll card', () => {
   })
   it('2014 Exhaustion 3 marks Disadvantage', () => {
     const c = hero([{ name: 'Spell Scroll (Fireball)' }], { exhaustion: 3, exhaustionRules: '2014' }).character
-    expect(scrollCardOf(c).stat).toBe('DC 15 · +7 to hit (DIS)')
+    expect(scrollCardOf(c).stat).toBe('DC 15 · +7 DIS')
   })
 })
 

@@ -90,3 +90,18 @@ describe('the card, the Stats row and the breakdown agree, and Exhaustion comes 
     expect(strip(sheet(c, 'play'))).toContain('Dagger A ⚔ Attack +1 to hit')
   })
 })
+
+// 2026-10-11: with Disadvantage (2014 Exhaustion 3+) the card said "+7 to hit DIS · 2d10", too long for a
+// card: the damage went to a second line. The DIS mark now stands where the words "to hit" were.
+describe('the stat line of an attack card', () => {
+  it('without Disadvantage: "+7 to hit · 2d10", each part in a piece that does not break', () => {
+    const html = sheet(hero([]), 'play')
+    expect(strip(html)).toContain('+7 to hit · 2d10')
+    expect(html).toMatch(/<span class="atk-part"><b>\+7<\/b>(<!-- -->| )*to hit<\/span>/)
+  })
+  it('with Disadvantage: DIS in place of "to hit"', () => {
+    const text = strip(sheet(hero([], { exhaustion: 3, exhaustionRules: '2014' }), 'play'))
+    expect(text).toContain('Fire Bolt A ⚔ Attack +7 DIS · 2d10 Fire')
+    expect(text).not.toContain('to hit DIS')
+  })
+})

@@ -416,13 +416,13 @@ export function spendPower(c: Character, powerId: string, delta = 1): Character 
 
 /**
  * "DC 15 · +7 to hit": the scroll's own save DC and spell attack, not the reader's. Exhaustion counts on the
- * attack like on every attack card: the 2024 minus is taken off, 2014 level 3+ is marked "DIS".
+ * attack like on every attack card: the 2024 minus is taken off, 2014 level 3+ says "DIS" in place of "to hit".
  */
 export function scrollStat(c: Character, n: ScrollInfo['numbers']): string | undefined {
   const exh = exhaustionEffects(c)
   const parts: string[] = []
   if (n.saveDc !== undefined) parts.push(`DC ${n.saveDc}`)
-  if (n.attack !== undefined) parts.push(`${signed(n.attack - exh.d20Penalty)} to hit${exh.attacksSavesDisadvantage ? ' (DIS)' : ''}`)
+  if (n.attack !== undefined) parts.push(`${signed(n.attack - exh.d20Penalty)} ${exh.attacksSavesDisadvantage ? 'DIS' : 'to hit'}`)
   return parts.length ? parts.join(' · ') : undefined
 }
 

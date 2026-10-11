@@ -1486,6 +1486,19 @@ tr.clickable:hover {
   font-size: 0.95rem;
   font-variant-numeric: tabular-nums;
 }
+/* an attack's "+10 to hit · 1d8+7": each part stays whole; if the card is ever too narrow, the damage moves down as one piece */
+.atk-stat {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.3em;
+}
+.atk-part {
+  white-space: nowrap;
+}
+.atk-part .dis-mark {
+  margin: 0 0 0 0.1rem;
+}
 .card-text {
   flex: 1;
   font-size: 0.78rem;
