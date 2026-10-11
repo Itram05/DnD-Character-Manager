@@ -5,14 +5,13 @@ import { carriedWeight, itemWeight, itemsIn } from '../model/containers'
 import { isPinned, togglePin } from '../model/crafting'
 import { playHiddenReason } from '../model/itemPanel'
 import { MAX_ATTUNED, attunedCount, setAttunement, usesMax } from '../model/rules'
-import type { Item, Money } from '../model/types'
-import { NumberField, Pips } from './common'
+import type { Item } from '../model/types'
+import { Pips } from './common'
 import { ContainersPanel, StackDialog, bagOf, groupItems } from './ContainersPanel'
 import { CraftingPanel } from './CraftingPanel'
 import { ItemEditor, blankItem } from './editors'
+import { MoneyPanel } from './MoneyPanel'
 import type { SheetApi } from './Sheet'
-
-const COINS: (keyof Money)[] = ['pp', 'gp', 'ep', 'sp', 'cp']
 
 export function InventoryView({ api }: { api: SheetApi }) {
   const { c, update, toast } = api
@@ -124,21 +123,7 @@ export function InventoryView({ api }: { api: SheetApi }) {
 
   return (
     <div className="inventory">
-      <section className="panel money">
-        <h3>{t('inv.money')}</h3>
-        <div className="coins">
-          {COINS.map((k) => (
-            <NumberField
-              key={k}
-              className={`coin coin-${k}`}
-              label={k.toUpperCase()}
-              value={c.inventory.money[k]}
-              min={0}
-              onChange={(n) => update((x) => ({ ...x, inventory: { ...x.inventory, money: { ...x.inventory.money, [k]: Math.max(0, Math.floor(n)) } } }))}
-            />
-          ))}
-        </div>
-      </section>
+      <MoneyPanel api={api} />
 
       {attunable.length > 0 && (
         <section className="panel attunement">

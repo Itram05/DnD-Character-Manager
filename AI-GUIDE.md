@@ -604,7 +604,8 @@ item's name. A passive power is a chip. An item with at least one active power h
 ### money
 
 `inventory.money`: `{ "cp": 0, "sp": 14, "ep": 0, "gp": 43, "pp": 0 }`. All five of `cp` `sp` `ep` `gp` `pp`, each a
-number ≥ 0.
+number ≥ 0. The app shows only gold until the player chooses other coins in the Money panel; coins it does not show keep
+their amounts and are named in one line under it. Write the amounts as the sheet has them; do not convert them to gold.
 
 ### roleplay
 
@@ -1484,6 +1485,12 @@ dc, note, containerId }`: `inputs` is a list of `{ name, quantity }`, `output` i
 
 `{ "gear": { "view": "hybrid", "groupBy": "container", "show": { "quantity": true, "weight": true, "category": true, "tags": true, "charges": true } } }`.
 `view`: `hybrid`, `tiles` or `rows`. `groupBy`: `container`, `category` or `none`. These are the defaults; write them as they are.
+
+The player's own display choices may sit next to `gear` in an exported file. **Do not write them in a new file** (absent means
+the app's default) and **keep them unchanged** when you edit an exported one:
+
+- `money`: `{ "coins": ["gp"] }`. `coins` lists the coins the Money panel shows, any of `pp` `gp` `ep` `sp` `cp`. Absent = gold
+  only. It only hides rows: every amount stays in `inventory.money`, and you still write all five there.
 
 ### images
 

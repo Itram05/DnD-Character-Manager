@@ -282,6 +282,16 @@ export interface Money {
   pp: number
 }
 
+/** The five coins, most valuable first: the order the Gear tab shows them in. */
+export const COINS = ['pp', 'gp', 'ep', 'sp', 'cp'] as const
+export type Coin = (typeof COINS)[number]
+
+/** The player's choices for the Money panel. Every field is optional: absent = the default (see prefs.ts). */
+export interface MoneyPrefs {
+  /** The coins the Money panel shows. Absent = gold only. A hidden coin keeps its amount; the panel says so in one line. */
+  coins?: Coin[]
+}
+
 export interface SessionNote {
   id: string
   date: string
@@ -464,6 +474,6 @@ export interface Character {
   /** Items pinned as counters in Play, in the order shown. */
   playCounters: PlayCounter[]
   /** The player's choices for how the sheet looks, per character. */
-  preferences: { gear: GearPrefs }
+  preferences: { gear: GearPrefs; money?: MoneyPrefs }
   updatedAt: string
 }

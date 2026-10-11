@@ -72,7 +72,7 @@ Class table column names = the table header in lowercase with dashes: `rages`, `
 | `timers` | list of [day timers](#timers) | [] | |
 | `recipes` | list of [recipes](#recipes) | [] | Your crafting recipes. None are built in. |
 | `playCounters` | list of `{ "name" }` | [] | Items shown as counters in Play, in this order. See [recipes](#recipes). |
-| `preferences` | `{ gear }` | see [preferences](#preferences) | How the sheet looks for this character. |
+| `preferences` | `{ gear, money? }` | see [preferences](#preferences) | How the sheet looks for this character. |
 | `updatedAt` | ISO date | now | Set by the app. |
 
 ## classes
@@ -311,6 +311,12 @@ Inputs, the output and counters name items **by name**, not by id: case and extr
 ```
 
 `gear.view`: `hybrid`, `tiles` or `rows` (the layout of the coming Gear redesign; stored, not used yet). `gear.groupBy`: `container`, `category` or `none`. `gear.show`: which details a row shows. Missing fields get these defaults.
+
+Optional groups (since 2026-10-11). Each is written only once the player changes something in it; an absent group or field means the default, and a file without them is unchanged by a round trip. A version 3 app from before a group existed keeps it unchanged (with a "not a field this app uses" line in the import dialog).
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `money.coins` | list of `pp`, `gp`, `ep`, `sp`, `cp` | `["gp"]` | The coins the Money panel of the Gear tab shows, each with its total, an amount field and − / + (take the amount from the total, add it to it). A hidden coin keeps its amount in `inventory.money`; the panel names hidden coins that are not 0 in one line. Stored most valuable first; unknown names are dropped with a warning; an empty list means the default. Taking more than there is is refused (nothing changes, a message says how much there is). |
 
 **Potions and scrolls** are ordinary items; the Play screen only reads their name (src/model/consumables.ts). An item **without `charges`** is a *scroll* if its name contains "scroll" (not "scroll case/tube"); the spell is taken from "Scroll of X", "Spell Scroll of X", "Spell Scroll (X)", "Scroll: X" or "X scroll", and its text from the character's spells, then the SRD, then the item's `description`. Otherwise it is a *potion* if its name contains "potion", "elixir" or "philter". A potion whose name also says "healing" is a *healing potion* (Healing / Greater / Superior / Supreme, from the name): a counter in the Concentration panel, not a card; its dice come from `description`, else the standard 2d4+2 / 4d4+4 / 8d4+8 / 10d4+20. Every other potion is a card in the scroll group with "Use".
 

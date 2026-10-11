@@ -154,6 +154,7 @@ describe('AI-GUIDE.md', () => {
     preferences: 'preferences',
     gearPrefs: 'preferences',
     gearShow: 'preferences',
+    moneyPrefs: 'preferences',
     image: 'images',
     recipe: 'recipes',
     recipePart: 'recipes',

@@ -15,6 +15,7 @@ import { newId } from './id'
 import {
   ABILITIES,
   ACTIVATIONS,
+  COINS,
   CURRENT_SCHEMA_VERSION,
   DEFAULT_GEAR_PREFS,
   GEAR_GROUPINGS,
@@ -167,7 +168,8 @@ export const KNOWN = {
   item: ['id', 'name', 'quantity', 'equipped', 'requiresAttunement', 'attuned', 'weight', 'armor', 'acBonus', 'saveBonus', 'spellDcBonus', 'spellAttackBonus', 'charges', 'activation', 'description', 'powers', 'tags', 'containerId', 'category'],
   container: ['id', 'name', 'icon', 'color', 'capacity', 'weightless', 'extradimensional', 'itemId'],
   category: ['id', 'name', 'icon', 'color'],
-  preferences: ['gear'],
+  preferences: ['gear', 'money'],
+  moneyPrefs: ['coins'],
   gearPrefs: ['view', 'groupBy', 'show'],
   gearShow: GEAR_SHOW_FIELDS,
   armor: ['base', 'dexCap'],
@@ -988,6 +990,29 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
   keep(showRaw, gear.show, KNOWN.gearShow, 'preferences.gear.show')
   keep(gearRaw, gear, KNOWN.gearPrefs, 'preferences.gear')
   const preferences: Character['preferences'] = { gear }
+  // Optional groups (since 2026-10-11): written only when the file has them, so a file without them is
+  // unchanged by a round trip, and an absent choice always means "the app's default" (prefs.ts).
+  const prefGroup = (name: string): Obj | undefined => {
+    const v = prefRaw[name]
+    if (v === undefined || v === null) return undefined
+    if (isObj(v)) return v
+    warnings.push(`preferences.${name}: expected an object, ignored.`)
+    return undefined
+  }
+  const moneyPrefRaw = prefGroup('money')
+  if (moneyPrefRaw) {
+    const m: NonNullable<Character['preferences']['money']> = {}
+    if (moneyPrefRaw.coins !== undefined && moneyPrefRaw.coins !== null) {
+      const listed = r.arr(moneyPrefRaw.coins, 'preferences.money.coins').map((x) => String(x).toLowerCase().trim())
+      const bad = listed.filter((x) => !(COINS as readonly string[]).includes(x))
+      if (bad.length) warnings.push(`preferences.money.coins: ${bad.map((x) => `"${x}"`).join(', ')} not one of ${COINS.join(', ')}; ignored.`)
+      const coins = COINS.filter((k) => listed.includes(k))
+      if (coins.length) m.coins = coins
+      else warnings.push('preferences.money.coins: no coin to show; using the default (gp).')
+    }
+    keep(moneyPrefRaw, m, KNOWN.moneyPrefs, 'preferences.money')
+    preferences.money = m
+  }
   keep(prefRaw, preferences, KNOWN.preferences, 'preferences')
 
   const conditions = r

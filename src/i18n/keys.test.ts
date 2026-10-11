@@ -38,6 +38,7 @@ describe('i18n keys', () => {
       'gearPrefs.group.': ['container', 'category', 'none'],
       'gearPrefs.show.': ['quantity', 'weight', 'category', 'tags', 'charges'],
       'box.err.': ['notFound', 'last', 'noPlace', 'intoItself', 'amount', 'isContainer', 'notSame', 'itemTaken'],
+      'money.coin.': ['pp', 'gp', 'ep', 'sp', 'cp'],
       'rules.': ['turn', 'actions', 'conditions', 'rest', 'concentration', 'dying', 'changes', 'about'],
     }
     const missing = Object.entries(families).flatMap(([p, ks]) => ks.map((k) => p + k).filter((k) => !(k in en)))

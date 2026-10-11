@@ -2343,23 +2343,64 @@ body.untap-step .card:not(.tapped) {
 .feature-group h3 .glyph {
   color: var(--fc);
 }
-.coins {
+.coin-rows {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0.4rem;
+  gap: 0.5rem;
 }
-.coin > span {
-  text-align: center;
+/* one coin: name, total, then the amount with − and + right next to each other (one thumb on a phone) */
+.coin-row {
+  display: grid;
+  grid-template-columns: 2.4rem minmax(4.5rem, 9rem) minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: center;
 }
-.coin input {
-  text-align: center;
-  padding: 0.3rem;
+.coin-name {
+  font-weight: 700;
+  color: var(--muted);
 }
-.coin-gp > span {
+.coin-gp .coin-name {
   color: var(--f-item);
 }
-.coin-pp > span {
+.coin-pp .coin-name {
   color: var(--f-spell);
+}
+.coin-total {
+  width: 100%;
+  min-width: 0;
+  text-align: right;
+  font-weight: 700;
+  font-size: 1.05rem;
+  padding: 0.45rem 0.5rem;
+}
+.coin-step {
+  display: flex;
+  gap: 0.35rem;
+  justify-content: flex-end;
+  min-width: 0;
+}
+.coin-amount {
+  flex: 1 1 4rem;
+  min-width: 3.5rem;
+  max-width: 8rem;
+  text-align: right;
+  padding: 0.45rem 0.5rem;
+}
+.coin-btn {
+  flex: 0 0 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.coins-hidden {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+}
+.coin-choice {
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.5rem;
 }
 .attune-count {
   font-size: 0.8rem;
