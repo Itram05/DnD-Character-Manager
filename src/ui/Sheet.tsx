@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { t } from '../i18n'
 import { dropUnlisted, exportWithImages, imageStore } from '../model/imageStore'
+import { creaturePrefs } from '../model/creatures'
 import { characterSession, fileNameFor, loadCharacter, type Elsewhere, type Settings } from '../model/storage'
 import type { Character } from '../model/types'
 import { Toasts, useMediaQuery, type HeadSlots, type ToastMsg } from './common'
+import { CreaturesView } from './Creatures'
 import { EditView } from './EditView'
 import { FeaturesView } from './FeaturesView'
 import { ImagesView } from './ImagesView'
@@ -15,9 +17,16 @@ import { StatsView } from './StatsView'
 import { StoryView } from './StoryView'
 import { TopBar } from './vitals'
 
-export type Tab = 'play' | 'stats' | 'spells' | 'gear' | 'features' | 'story' | 'images' | 'level' | 'edit'
-const TABS: Tab[] = ['play', 'stats', 'spells', 'gear', 'features', 'story', 'images', 'level', 'edit']
+export type Tab = 'play' | 'stats' | 'spells' | 'gear' | 'features' | 'creatures' | 'story' | 'images' | 'level' | 'edit'
+/** Every tab, in the order shown. App.tsx reads the same list for its routes. */
+export const TABS: Tab[] = ['play', 'stats', 'spells', 'gear', 'features', 'creatures', 'story', 'images', 'level', 'edit']
 const MOBILE_MAIN: Tab[] = ['play', 'stats', 'spells', 'gear']
+
+/**
+ * The tabs this hero's tab row has. The Creatures tab is the hero's choice (preferences.creatures.where):
+ * with "play" the creatures live only in the section of the Play screen. Its address still works.
+ */
+export const shownTabs = (c: Pick<Character, 'preferences'>): Tab[] => (creaturePrefs(c).where === 'play' ? TABS.filter((x) => x !== 'creatures') : TABS)
 
 export interface SheetApi {
   c: Character
@@ -233,7 +242,7 @@ export function Sheet(props: { initial: Character; tab: Tab; onTab: (t: Tab) => 
         <div className="head-row">
           {wide && (
             <nav className="tabs-top" aria-label={t('nav.sections')}>
-              {TABS.map((x) => (
+              {shownTabs(c).map((x) => (
                 <button key={x} className={`tab ${tab === x ? 'active' : ''}`} onClick={() => props.onTab(x)} aria-current={tab === x ? 'page' : undefined}>
                   {t(`tab.${x}`)}
                 </button>
@@ -254,6 +263,7 @@ export function Sheet(props: { initial: Character; tab: Tab; onTab: (t: Tab) => 
         {tab === 'spells' && <SpellsView api={api} />}
         {tab === 'gear' && <InventoryView api={api} />}
         {tab === 'features' && <FeaturesView api={api} />}
+        {tab === 'creatures' && <CreaturesView api={api} />}
         {tab === 'story' && <StoryView api={api} />}
         {tab === 'images' && <ImagesView api={api} />}
         {tab === 'level' && <LevelUpView api={api} />}
@@ -281,7 +291,9 @@ export function Sheet(props: { initial: Character; tab: Tab; onTab: (t: Tab) => 
       {!wide && moreOpen && (
         <div className="more-sheet" onClick={() => setMoreOpen(false)}>
           <div className="more-panel" onClick={(e) => e.stopPropagation()}>
-            {(['features', 'story', 'images', 'level', 'edit'] as Tab[]).map((x) => (
+            {shownTabs(c)
+              .filter((x) => !MOBILE_MAIN.includes(x))
+              .map((x) => (
               <button
                 key={x}
                 className="btn btn-block"
@@ -316,6 +328,7 @@ const TAB_ICON: Record<Tab, string> = {
   spells: '✦',
   gear: '⚒',
   features: '❖',
+  creatures: '♞',
   story: '✎',
   images: '▦',
   level: '⇪',

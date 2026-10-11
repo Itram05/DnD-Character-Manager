@@ -18,7 +18,17 @@ describe('i18n keys', () => {
   })
   it('dynamic key families are complete', () => {
     const families: Record<string, string[]> = {
-      'tab.': ['play', 'stats', 'spells', 'gear', 'features', 'story', 'images', 'level', 'edit'],
+      'tab.': ['play', 'stats', 'spells', 'gear', 'features', 'creatures', 'story', 'images', 'level', 'edit'],
+      'creature.act.': ['passive', 'action', 'bonus', 'reaction', 'free', 'special'],
+      'creature.group.': ['traits', 'actions', 'bonus', 'reactions', 'other'],
+      'creature.field.': ['skills', 'vulnerabilities', 'resistances', 'immunities', 'senses', 'languages', 'cr'],
+      'creature.placeholder.': ['skills', 'vulnerabilities', 'resistances', 'immunities', 'senses', 'languages'],
+      'creature.edit.add.': ['passive', 'action', 'bonus', 'reaction'],
+      'prefs.creatures.where.': ['both', 'play', 'tab'],
+      'prefs.creatures.row.': ['bar', 'ac', 'speed', 'attack', 'conditions', 'uses', 'note'],
+      'prefs.creatures.longRest.': ['full', 'uses', 'none'],
+      'prefs.creatures.shortRest.': ['uses', 'none'],
+      'rest.creatures.': ['full', 'uses'],
       'zone.': ['all', 'action', 'bonus', 'reaction', 'other', 'action.short', 'bonus.short', 'reaction.short', 'other.short'],
       'act.': ['passive', 'action', 'bonus', 'reaction', 'free', 'special'],
       'recharge.': ['short', 'long', 'dawn', 'other', 'none'],

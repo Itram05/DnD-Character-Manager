@@ -238,6 +238,15 @@ export function loadItemsOpen(): boolean {
 
 export const saveItemsOpen = (open: boolean) => safeSet(ITEMS_OPEN_KEY, open ? '1' : '0')
 
+const CREATURES_OPEN_KEY = `${PREFIX}.phoneCreaturesOpen`
+
+/** Whether the phone's "Creatures" section (Play) is unfolded. Default: folded into one line with a Hit Point bar per creature. */
+export function loadCreaturesOpen(): boolean {
+  return safeGet(CREATURES_OPEN_KEY) === '1'
+}
+
+export const saveCreaturesOpen = (open: boolean) => safeSet(CREATURES_OPEN_KEY, open ? '1' : '0')
+
 const IMAGE_MAX_SIDE_KEY = `${PREFIX}.imageMaxSide`
 const IMAGE_MAX_SIDES = [1600, 2400, 3200, 0] as const
 

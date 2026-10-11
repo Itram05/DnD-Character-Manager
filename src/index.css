@@ -1165,7 +1165,7 @@ tr.clickable:hover {
 .play {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: 'mana' 'conc' 'counters' 'items' 'hands' 'field' 'empty';
+  grid-template-areas: 'mana' 'conc' 'creatures' 'counters' 'items' 'hands' 'field' 'empty';
   gap: 0 0.8rem;
 }
 .play > .play-items {
@@ -1196,14 +1196,14 @@ tr.clickable:hover {
 @media (min-width: 900px) {
   .play {
     grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) 2fr;
-    grid-template-areas: 'mana conc field' 'counters counters counters' 'items items items' 'hands hands hands' 'empty empty empty';
+    grid-template-areas: 'mana conc field' 'creatures creatures creatures' 'counters counters counters' 'items items items' 'hands hands hands' 'empty empty empty';
     align-items: start;
   }
   .play > .battlefield {
     margin-top: 0;
   }
   .play:not(:has(.mana)) {
-    grid-template-areas: 'conc field field' 'counters counters counters' 'items items items' 'hands hands hands' 'empty empty empty';
+    grid-template-areas: 'conc field field' 'creatures creatures creatures' 'counters counters counters' 'items items items' 'hands hands hands' 'empty empty empty';
   }
 }
 @media (max-width: 899px) {
@@ -5326,4 +5326,508 @@ details summary {
   .coin-amount {
     max-width: none;
   }
+}
+
+/* ---------------- creatures: the Play section, a creature's window, the stat block, the tab (Creatures.tsx) ---------------- */
+
+:root {
+  --f-creature: #7fb069;
+}
+:root[data-theme='light'] {
+  --f-creature: #4c7d3a;
+}
+.play > .play-creatures {
+  grid-area: creatures;
+  margin-top: 0.6rem;
+}
+.play > .play-creatures.collapsible {
+  padding: 0.35rem 0.6rem;
+}
+.play-creatures h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.cr-minis {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  margin-right: 0.3rem;
+}
+.cr-minis .cr-bar {
+  width: 26px;
+  height: 6px;
+}
+.cr-rows {
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+}
+.play-creatures.collapsible.open .cr-rows {
+  margin-top: 0.35rem;
+}
+.cr-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.3rem;
+  min-width: 0;
+}
+.cr-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.2rem 0.6rem;
+  align-items: center;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--f-creature) 50%, var(--line));
+  border-left: 4px solid var(--f-creature);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--f-creature) 8%, var(--panel));
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--t);
+}
+.cr-main:hover {
+  background: color-mix(in srgb, var(--f-creature) 16%, var(--panel));
+}
+.cr-row.cr-down .cr-main {
+  opacity: 0.6;
+  border-left-color: var(--muted);
+}
+.cr-name {
+  font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.cr-name .glyph,
+.creature-block h3 .glyph,
+.cr-title {
+  color: var(--f-creature);
+}
+.cr-name .glyph {
+  margin-right: 0.3rem;
+}
+.cr-label {
+  color: var(--muted);
+  font-weight: 500;
+}
+.cr-hp {
+  white-space: nowrap;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.cr-hp b {
+  font-size: 1.15rem;
+  color: var(--text);
+}
+.cr-bar {
+  grid-column: 1 / -1;
+  display: block;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--line);
+  overflow: hidden;
+}
+.cr-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--good);
+  transition: width var(--t);
+}
+.cr-bar.cr-mid > span {
+  background: var(--accent);
+}
+.cr-bar.cr-low > span,
+.cr-bar.cr-down > span {
+  background: var(--danger);
+}
+.cr-line {
+  grid-column: 1 / -1;
+  font-size: 0.8rem;
+  color: var(--muted);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.cr-cond {
+  display: inline-block;
+  font-size: 0.72rem;
+  padding: 0 0.4rem;
+  margin-right: 0.25rem;
+  border-radius: 999px;
+  border: 1px solid var(--warn);
+  color: var(--warn);
+}
+.cr-cond.down {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.cr-use {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-right: 0.6rem;
+  white-space: nowrap;
+}
+.cr-use .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--accent);
+}
+.cr-use .dot.full {
+  background: var(--accent);
+}
+.cr-note {
+  font-style: italic;
+}
+.cr-pin {
+  align-self: center;
+  opacity: 0.35;
+  filter: grayscale(1);
+}
+.cr-pin.on {
+  opacity: 1;
+  filter: none;
+}
+.cr-empty {
+  margin: 0.3rem 0 0;
+}
+
+/* a creature's window */
+.modal.creature-panel {
+  border-top: 3px solid var(--f-creature);
+}
+.cr-sub {
+  margin: 0 0 0.3rem;
+  font-size: 0.82rem;
+}
+.creature-panel .hp-big .cur {
+  font-size: 2.4rem;
+}
+.creature-panel .cr-hp-area > .cr-bar {
+  margin: 0.15rem 0 0.5rem;
+  height: 7px;
+}
+.cr-entry {
+  display: grid;
+  grid-template-columns: minmax(70px, 1fr) repeat(3, auto);
+  gap: 0.4rem;
+  align-items: stretch;
+}
+.cr-entry .big-input {
+  font-size: 1.4rem;
+  min-height: 48px;
+  min-width: 0;
+}
+.cr-entry .btn {
+  min-height: 48px;
+  white-space: nowrap;
+}
+@media (max-width: 420px) {
+  .cr-entry {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .cr-entry .big-input {
+    grid-column: 1 / -1;
+  }
+  .cr-entry .btn {
+    padding-left: 0.3rem;
+    padding-right: 0.3rem;
+  }
+}
+.cr-down-note {
+  margin: 0 0 0.4rem;
+  text-align: center;
+}
+.cr-conds-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.6rem 0 0.3rem;
+}
+.cr-conds-row .cond-chip {
+  cursor: pointer;
+}
+.cr-note-shown {
+  margin: 0.2rem 0;
+  font-style: italic;
+  color: var(--muted);
+}
+.cr-own {
+  margin: 0.3rem 0 0.6rem;
+}
+.cr-own.open {
+  padding: 0.4rem 0.6rem 0.2rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-2);
+}
+.cr-own-body {
+  margin-top: 0.4rem;
+}
+.cr-own-cond {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+}
+.cr-own-cond input {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  color: inherit;
+  font: inherit;
+}
+
+/* the stat block */
+.statblock {
+  margin-top: 0.4rem;
+}
+.sb-chips {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+  gap: 0.35rem;
+}
+.sb-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.3rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-2);
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-align: center;
+  min-width: 0;
+}
+.sb-chip b {
+  font-size: 1.05rem;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.sb-chip-wide {
+  grid-column: span 2;
+}
+.sb-chip-wide b {
+  font-size: 0.92rem;
+}
+.sb-hitdice {
+  margin: 0.3rem 0 0;
+  font-size: 0.78rem;
+}
+.sb-abilities {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}
+.sb-ability {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.25rem 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-2);
+  line-height: 1.2;
+}
+.sb-ab-name {
+  font-size: 0.66rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+.sb-ability b {
+  font-size: 1.05rem;
+}
+.sb-ab-mod {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.sb-ab-save {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.sb-ab-save.own {
+  color: var(--accent);
+  font-weight: 700;
+}
+.sb-legend {
+  margin: 0.2rem 0 0.4rem;
+  font-size: 0.72rem;
+}
+.sb-lines {
+  margin: 0.4rem 0;
+  display: grid;
+  gap: 0.15rem;
+  font-size: 0.86rem;
+}
+.sb-lines > div {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.sb-lines dt {
+  font-weight: 700;
+}
+.sb-lines dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sb-lines .sb-extra dt {
+  color: var(--f-creature);
+}
+.sb-group-title {
+  margin: 0.7rem 0 0.3rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 0.15rem;
+}
+.sb-act {
+  padding: 0.45rem 0.6rem;
+  margin-bottom: 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-2);
+}
+.sb-act.spent {
+  opacity: 0.6;
+}
+.sb-act-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.6rem;
+}
+.sb-act-nums {
+  color: var(--accent);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.sb-roll {
+  margin-left: auto;
+}
+.sb-act-uses {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+}
+.sb-act .rich {
+  font-size: 0.86rem;
+}
+.sb-act .rich p {
+  margin: 0.25rem 0 0;
+}
+
+/* the Creatures tab and the same list in a window */
+.cl-actions,
+.cb-put,
+.creature-presets,
+.creature-add-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.6rem;
+}
+.cl-actions {
+  margin: 0.4rem 0 0.6rem;
+}
+.creature-block {
+  margin-top: 0.7rem;
+  border-left: 4px solid var(--f-creature);
+}
+.creature-library-modal .creature-block {
+  background: var(--bg-2);
+}
+.cb-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.3rem 0.6rem;
+}
+.cb-head h3 {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.cb-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.creature-block .cr-rows {
+  margin: 0.5rem 0;
+}
+.cb-put {
+  margin-top: 0.5rem;
+}
+.cb-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+}
+.cb-count input {
+  width: 58px;
+  min-height: 36px;
+  text-align: center;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  color: inherit;
+  font: inherit;
+}
+.cb-toggle {
+  margin-left: auto;
+}
+
+/* the stat block's editor */
+.creature-abilities-editor,
+.creature-extra-editor {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.5rem 0.7rem;
+  margin: 0.6rem 0;
+}
+.creature-abilities-editor legend,
+.creature-extra-editor legend {
+  padding: 0 0.3rem;
+  font-weight: 700;
+}
+.creature-extra-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
+  gap: 0 0.5rem;
+  align-items: end;
+}
+.creature-extra-row .mini-btn {
+  margin-bottom: 0.7rem;
+}
+.creature-action-sum {
+  font-size: 0.8rem;
+}
+.creature-add-actions {
+  margin-top: 0.4rem;
+}
+.creature-presets {
+  margin: 0.2rem 0 0.4rem;
+}
+.creature-inplay-note {
+  color: var(--warn);
 }
