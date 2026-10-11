@@ -156,9 +156,33 @@ export function characterToJson(c: Character): string {
   return JSON.stringify(c, null, 2)
 }
 
-export function fileNameFor(c: Character): string {
-  const base = c.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'character'
-  return `${base}.json`
+// Cyrillic to Latin, letter by letter: the official Bulgarian (streamlined) system, plus the letters only
+// Russian, Ukrainian and Serbian have, so those names get a readable file name too.
+const CYRILLIC: Record<string, string> = {
+  а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ж: 'zh', з: 'z', и: 'i', й: 'y', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p',
+  р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'h', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'sht', ъ: 'a', ь: 'y', ю: 'yu', я: 'ya',
+  ы: 'y', э: 'e', ё: 'yo', є: 'ye', і: 'i', ї: 'yi', ґ: 'g', ђ: 'dj', ј: 'j', љ: 'lj', њ: 'nj', ћ: 'c', џ: 'dz',
+}
+
+/**
+ * The file name of an exported character: its name in lowercase Latin letters, digits and hyphens.
+ * Cyrillic is transliterated ("Грав Сращите" -> grav-srashtite.json; until 2026-10-11 such a name gave
+ * character.json, the same file for every hero), accents are dropped ("Émile" -> emile), and letters of any
+ * other script are kept as they are. Latin only where it can be had: such a name survives every chat,
+ * archive and old file system it is sent through.
+ */
+export function fileNameFor(c: Pick<Character, 'name'>): string {
+  // the official rule's one exception: -ия at the end of a word is -ia (София -> Sofia)
+  const lower = c.name.toLowerCase().replace(/ия(?![\p{L}\p{N}])/gu, 'иa')
+  const latin = [...lower].map((ch) => CYRILLIC[ch] ?? ch).join('')
+  const base = latin
+    .normalize('NFKD')
+    .replace(/\p{M}+/gu, '')
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 80)
+    .replace(/-$/, '')
+  return `${base || 'character'}.json`
 }
 
 /** Re-normalizes (e.g. after an app update) without touching storage. */
