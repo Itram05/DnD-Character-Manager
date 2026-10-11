@@ -25,6 +25,8 @@ import {
   GEAR_GROUPINGS,
   GEAR_SHOW_FIELDS,
   GEAR_VIEWS,
+  MAP_LAYERS,
+  MARK_SIZES,
   PHONE_STARTS,
   RECHARGES,
   SKILL_IDS,
@@ -180,7 +182,8 @@ export const KNOWN = {
   item: ['id', 'name', 'quantity', 'equipped', 'requiresAttunement', 'attuned', 'weight', 'armor', 'acBonus', 'saveBonus', 'spellDcBonus', 'spellAttackBonus', 'abilityScores', 'saveDc', 'spellAttack', 'charges', 'activation', 'description', 'powers', 'tags', 'containerId', 'category'],
   container: ['id', 'name', 'icon', 'color', 'capacity', 'weightless', 'extradimensional', 'itemId'],
   category: ['id', 'name', 'icon', 'color'],
-  preferences: ['gear', 'money', 'play'],
+  preferences: ['gear', 'money', 'play', 'maps'],
+  mapPrefs: ['size', 'names', 'hide'],
   moneyPrefs: ['coins'],
   playPrefs: ['attackOrder', 'phoneStart', 'editButtons'],
   gearPrefs: ['view', 'groupBy', 'show'],
@@ -1242,6 +1245,23 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     if (has(playPrefRaw.editButtons)) p.editButtons = r.bool(playPrefRaw.editButtons, true)
     keep(playPrefRaw, p, KNOWN.playPrefs, 'preferences.play')
     preferences.play = p
+  }
+  const mapPrefRaw = prefGroup('maps')
+  if (mapPrefRaw) {
+    const m: NonNullable<Character['preferences']['maps']> = {}
+    // the default ("medium", names shown, nothing hidden) is read, not written
+    const size = r.oneOf(mapPrefRaw.size, MARK_SIZES, 'preferences.maps.size', 'medium', { s: 'small', m: 'medium', l: 'large', xl: 'huge', big: 'large' })
+    if (size !== 'medium') m.size = size
+    if (mapPrefRaw.names !== undefined && mapPrefRaw.names !== null && !r.bool(mapPrefRaw.names, true)) m.names = false
+    if (mapPrefRaw.hide !== undefined && mapPrefRaw.hide !== null) {
+      const listed = r.arr(mapPrefRaw.hide, 'preferences.maps.hide').map((x) => String(x).toLowerCase().trim())
+      const bad = listed.filter((x) => !(MAP_LAYERS as readonly string[]).includes(x))
+      if (bad.length) warnings.push(`preferences.maps.hide: ${bad.map((x) => `"${x}"`).join(', ')} not one of ${MAP_LAYERS.join(', ')}; ignored.`)
+      const hide = MAP_LAYERS.filter((l) => listed.includes(l))
+      if (hide.length) m.hide = hide
+    }
+    keep(mapPrefRaw, m, KNOWN.mapPrefs, 'preferences.maps')
+    if (Object.keys(m).length) preferences.maps = m
   }
   keep(prefRaw, preferences, KNOWN.preferences, 'preferences')
 

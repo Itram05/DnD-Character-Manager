@@ -43,6 +43,8 @@ describe('i18n keys', () => {
       'prefs.phoneStart.': ['all', 'action', 'bonus', 'reaction', 'other'],
       'maps.tool.': ['select', 'pin', 'route', 'token', 'scale'],
       'maps.hint.': ['select', 'pin', 'route', 'token', 'scale'],
+      'maps.layer.': ['pins', 'routes', 'tokens'],
+      'maps.size.': ['small', 'medium', 'large', 'huge'],
       'maps.icon.': ['pin', 'dot', 'star', 'flag', 'house', 'tent', 'cross', 'danger', 'question'],
       'rules.': ['turn', 'actions', 'conditions', 'rest', 'concentration', 'dying', 'changes', 'about'],
     }

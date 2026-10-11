@@ -5,7 +5,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { t } from '../i18n'
 import { DEFAULT_PIN_COLOR, DEFAULT_UNIT, MARK_COLORS, PIN_ICONS, isMarkColor, pinColor, pinIcon, routeColor, scaleUnit, tokenColor, tokenLabel, TOKEN_LABEL_MAX } from '../model/mapMarks'
-import type { MapPin, MapPoint, MapRoute, MapScale, MapToken } from '../model/types'
+import { MAP_LAYERS, MARK_SIZES } from '../model/prefs'
+import type { MapLayer, MapPin, MapPoint, MapPrefs, MapRoute, MapScale, MapToken, MarkSize } from '../model/types'
 import { PinGlyph, TokenDisc } from './MapMarks'
 
 /** What a tap on the map does in edit mode: "select" picks and moves marks, the others add one. */
@@ -56,10 +57,16 @@ function BarButton(props: { label: string; on?: boolean; disabled?: boolean; onC
  * The bar under the picture. Looking (the default): one button that turns editing on. Editing: the tools,
  * Undo and "Done". Nothing on the map can be moved or added while looking.
  */
-export function MapBar(props: { edit: boolean; onEdit: (on: boolean) => void; tool: Tool; onTool: (t: Tool) => void; onUndo?: () => void; hint?: string }) {
+export function MapBar(props: { edit: boolean; onEdit: (on: boolean) => void; tool: Tool; onTool: (t: Tool) => void; onUndo?: () => void; hint?: string; layersOpen?: boolean; onLayers?: () => void; hidden?: number }) {
   if (!props.edit)
     return (
       <div className="map-bar" role="toolbar" aria-label={t('maps.bar')}>
+        {props.onLayers && (
+          <BarButton label={t('maps.layers')} on={props.layersOpen} onClick={props.onLayers} className="map-tool-layers">
+            <ToolIcon tool="layers" />
+            {!!props.hidden && <i className="map-tool-badge">{t('maps.layers.hiddenBadge', { n: props.hidden })}</i>}
+          </BarButton>
+        )}
         <span className="map-bar-hint">{props.hint}</span>
         <BarButton label={t('maps.edit')} onClick={() => props.onEdit(true)} className="map-tool-edit">
           <ToolIcon tool="edit" />
@@ -360,6 +367,43 @@ export function ScalePanel(props: { scale?: MapScale; ruler: readonly MapPoint[]
           </button>
         )}
       </div>
+    </PanelShell>
+  )
+}
+
+/**
+ * What is shown on the maps: the three layers, the names, the size of the marks. The choices are the
+ * character's (preferences.maps): they hold for every map and travel in the file.
+ */
+export function LayersPanel(props: { prefs: Required<MapPrefs>; counts: Record<MapLayer, number>; onLayer: (l: MapLayer, shown: boolean) => void; onNames: (on: boolean) => void; onSize: (s: MarkSize) => void; onClose: () => void }) {
+  const { prefs } = props
+  return (
+    <PanelShell onClose={props.onClose} title={<b>{t('maps.layers.title')}</b>} className="map-layers">
+      <div className="map-checks">
+        {MAP_LAYERS.map((l) => (
+          <label key={l} className="map-check">
+            <input type="checkbox" checked={!prefs.hide.includes(l)} onChange={(e) => props.onLayer(l, e.target.checked)} />
+            <span>
+              {t(`maps.layer.${l}`)} <small>{t('maps.layer.count', { n: props.counts[l] })}</small>
+            </span>
+          </label>
+        ))}
+        <label className="map-check">
+          <input type="checkbox" checked={prefs.names} onChange={(e) => props.onNames(e.target.checked)} />
+          <span>{t('maps.names')}</span>
+        </label>
+      </div>
+      <div className="map-field">
+        <span>{t('maps.size')}</span>
+        <div className="map-sizes" role="group" aria-label={t('maps.size')}>
+          {MARK_SIZES.map((s) => (
+            <button key={s} type="button" className={`map-btn ${prefs.size === s ? 'on' : ''}`} aria-pressed={prefs.size === s} onClick={() => props.onSize(s)}>
+              {t(`maps.size.${s}`)}
+            </button>
+          ))}
+        </div>
+      </div>
+      <p className="map-panel-hint">{t('maps.layers.hint')}</p>
     </PanelShell>
   )
 }

@@ -4719,6 +4719,66 @@ details summary {
   background: rgb(40 34 54 / 0.85);
   font-size: 0.9rem;
 }
+.map-tool-layers {
+  position: relative;
+  border-color: rgb(255 255 255 / 0.22);
+  background: rgb(40 34 54 / 0.85);
+  min-width: 52px;
+}
+.map-tool-layers.on {
+  background: #e0b85c;
+}
+.map-tool-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 18px;
+  padding: 1px 4px;
+  border-radius: 9px;
+  background: #f0a24a;
+  color: #1b1622;
+  font-size: 0.66rem;
+  font-style: normal;
+  font-weight: 800;
+}
+.map-checks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.15rem 0.6rem;
+}
+.map-check {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 38px;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+.map-check input {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  accent-color: #e0b85c;
+}
+.map-check small {
+  color: #9d95ab;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+.map-sizes {
+  display: flex;
+  gap: 0.3rem;
+}
+.map-sizes .map-btn {
+  flex: 1 1 0;
+  padding: 0 0.3rem;
+}
+.map-btn.on {
+  border-color: #e0b85c;
+  background: #e0b85c;
+  color: #1b1622;
+  font-weight: 700;
+}
 .map-done {
   flex: 0 0 auto;
   height: 42px;

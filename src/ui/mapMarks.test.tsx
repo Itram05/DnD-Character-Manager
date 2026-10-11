@@ -6,11 +6,13 @@ import { describe, expect, it } from 'vitest'
 import { FIT, addImages, type Box } from '../model/images'
 import { addPin, addRoute, addRoutePoint, addToken, patchRoute, setScale } from '../model/mapMarks'
 import { normalizeCharacter } from '../model/normalize'
+import { DEFAULT_MAP_PREFS, setLayerShown, setMapPref, shownMarks } from '../model/prefs'
 import type { Character, CharacterImage } from '../model/types'
 import { ImagesView } from './ImagesView'
 import { ImageViewer } from './ImageViewer'
 import { MapMarks, markTargets, routeLineAt, routeText, rulerTargets } from './MapMarks'
-import { MapBar, PinPanel, RoutePanel, ScalePanel, TokenPanel, parseAmount } from './MapTools'
+import { LayersPanel, MapBar, PinPanel, RoutePanel, ScalePanel, TokenPanel, parseAmount } from './MapTools'
+import { PrefsPanel } from './PrefsPanel'
 import type { SheetApi } from './Sheet'
 
 const strip = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
@@ -228,10 +230,54 @@ describe('the bar under the picture', () => {
   })
 })
 
+describe('layers and the size of the marks', () => {
+  let c = addRoute(marked, 'world', { id: 'r1', name: 'North road', points: [{ x: 0, y: 0 }, { x: 0.75, y: 1 }] })
+  c = addToken(c, 'world', { id: 't1', name: 'Party', x: 0.5, y: 0.5 })
+  const image = c.images![0]
+  const layer = (im: CharacterImage, size = 30, names = true) => renderToString(<MapMarks image={im} view={FIT} fit={fit} screen={screen} size={size} names={names} sel={null} />)
+  const kinds = (html: string) => ({ pins: (html.match(/class="map-mark map-pin/g) ?? []).length, routes: (html.match(/class="map-route /g) ?? []).length, tokens: (html.match(/class="map-mark map-token/g) ?? []).length })
+
+  it('each layer is hidden on its own; what is hidden cannot be touched either', () => {
+    expect(kinds(layer(image))).toEqual({ pins: 2, routes: 1, tokens: 1 })
+    expect(kinds(layer(shownMarks(image, ['pins'])))).toEqual({ pins: 0, routes: 1, tokens: 1 })
+    expect(kinds(layer(shownMarks(image, ['routes', 'tokens'])))).toEqual({ pins: 2, routes: 0, tokens: 0 })
+    expect(kinds(layer(shownMarks(image, ['pins', 'routes', 'tokens'])))).toEqual({ pins: 0, routes: 0, tokens: 0 })
+    expect(markTargets(shownMarks(image, ['pins', 'routes']), FIT, fit, screen, 30).map((x) => x.sel.kind)).toEqual(['token'])
+  })
+  it('the four sizes: pins 22, 30, 40 and 54 px, tokens a fifth more', () => {
+    for (const [size, token] of [[22, 26], [30, 36], [40, 48], [54, 65]]) {
+      const html = layer(image, size)
+      expect(html).toContain(`<svg class="pin-glyph" width="${size}" height="${size}"`)
+      expect(html).toContain(`width:${token}px;height:${token}px`)
+    }
+  })
+  it('names off: only the letters on the tokens are left', () => {
+    expect(strip(layer(image, 30, false))).toBe('Pa')
+  })
+  it('the viewer draws what the character chose', () => {
+    const view = (x: Character) => renderToString(<ImageViewer characterId={x.id} images={x.images!} index={0} onIndex={noop} onClose={noop} api={api(x)} />)
+    // (the server render does not know the size of the screen, so no mark is drawn; the bar tells)
+    expect(strip(view(setLayerShown(setLayerShown(c, 'pins', false), 'tokens', false)))).toContain('−2 Layers Hidden: pins, tokens. Edit map')
+    expect(strip(view(c))).toContain('Layers Tap a mark to read it. Edit map')
+  })
+  it('the Layers panel: three layers with their counts, names, the four sizes', () => {
+    const html = renderToString(<LayersPanel prefs={{ ...DEFAULT_MAP_PREFS, hide: ['routes'], size: 'large' }} counts={{ pins: 2, routes: 1, tokens: 1 }} onLayer={noop} onNames={noop} onSize={noop} onClose={noop} />)
+    expect(strip(html)).toContain('Pins (2 on this map) Routes (1 on this map) Tokens (1 on this map) Names next to the marks')
+    expect(strip(html)).toContain('Small Medium Large Huge')
+    expect(html.match(/type="checkbox" checked=""/g)).toHaveLength(3) // pins, tokens, names; routes is off
+    expect(html).toMatch(/class="map-btn on" aria-pressed="true">Large/)
+  })
+  it('the same choices are on the Edit tab, under "How this sheet looks"', () => {
+    const s = strip(renderToString(<PrefsPanel api={api(setMapPref(c, 'size', 'huge'))} />))
+    expect(s).toContain('Marks on the maps (Images tab) Size of pins and tokens Small Medium Large Huge Names next to the marks Show pins Show routes Show tokens')
+    expect(renderToString(<PrefsPanel api={api(setMapPref(c, 'size', 'huge'))} />)).toContain('<option value="huge" selected="">Huge</option>')
+  })
+})
+
 describe('the viewer and the tab', () => {
   it('opens looking: the bar offers "Edit map", and there is no tool, panel or hint', () => {
     const html = renderToString(<ImageViewer characterId={marked.id} images={marked.images!} index={0} onIndex={noop} onClose={noop} api={api(marked)} />)
-    expect(strip(html)).toContain('Tap a mark to read it. Edit map')
+    expect(strip(html)).toContain('Layers Tap a mark to read it. Edit map')
     expect(html).not.toContain('map-bar editing')
     expect(html).not.toContain('map-panel')
   })

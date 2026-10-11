@@ -1503,6 +1503,9 @@ the app's default) and **keep them unchanged** when you edit an exported one:
   `attackOrder`: `file` (default: the attack cards follow the order of `attacks`, so **write the hero's main attack
   first**) or `name` (A to Z). `phoneStart`: what a phone opens the Play screen with: `all` (default, every hand) or one
   hand, `action`, `bonus`, `reaction`, `other`. `editButtons`: `false` hides the small Edit button of each Play section.
+- `maps`: `{ "size": "large", "names": false, "hide": ["routes"] }`, each field on its own: how the marks on the
+  player's maps are drawn (section "images" below). `size`: `small`, `medium` (default), `large`, `huge`. `names`:
+  `false` stops writing names next to the marks. `hide`: the layers not drawn, any of `pins` `routes` `tokens`.
 
 ### images
 

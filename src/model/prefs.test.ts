@@ -1,7 +1,8 @@
 // preferences.play (2026-10-11): the order of the attack cards and what a phone opens Play with.
+// preferences.maps (2026-10-11): which marks the maps show, how big, with names or without.
 import { describe, expect, it } from 'vitest'
 import { normalizeCharacter } from './normalize'
-import { DEFAULT_PLAY_PREFS, orderAttacks, phoneStartFilter, playPrefs, setPlayPref } from './prefs'
+import { DEFAULT_MAP_PREFS, DEFAULT_PLAY_PREFS, layerShown, mapPrefs, orderAttacks, phoneStartFilter, playPrefs, setLayerShown, setMapPref, setPlayPref, shownMarks } from './prefs'
 import { characterToJson } from './storage'
 
 type Obj = Record<string, unknown>
@@ -74,5 +75,62 @@ describe('preferences.play in a file', () => {
     const r = read({ play: { sectionOrder: ['mana', 'attacks'] } })
     expect(r.character.preferences.play).toEqual({ sectionOrder: ['mana', 'attacks'] })
     expect(r.warnings).toEqual(['preferences.play.sectionOrder: not a field this app uses; kept unchanged.'])
+  })
+})
+
+describe('preferences.maps: what the maps show', () => {
+  const c = read().character
+  it('without the group: every layer shown, names on, medium marks; nothing in the file', () => {
+    expect(mapPrefs(c)).toEqual({ size: 'medium', names: true, hide: [] })
+    expect(c.preferences.maps).toBeUndefined()
+    expect(JSON.parse(characterToJson(c)).preferences.maps).toBeUndefined()
+  })
+  it('a choice is stored; the default again removes it, and the empty group with it', () => {
+    const big = setMapPref(c, 'size', 'huge')
+    expect(big.preferences.maps).toEqual({ size: 'huge' })
+    const quiet = setMapPref(big, 'names', false)
+    expect(quiet.preferences.maps).toEqual({ size: 'huge', names: false })
+    const back = setMapPref(setMapPref(quiet, 'size', DEFAULT_MAP_PREFS.size), 'names', true)
+    expect(back.preferences.maps).toBeUndefined()
+    expect(back.preferences.gear).toEqual(c.preferences.gear)
+    expect(setMapPref(c, 'size', 'medium')).toBe(c)
+  })
+  it('layers: hidden ones are listed, in a fixed order; all shown again = no field', () => {
+    let x = setLayerShown(c, 'tokens', false)
+    x = setLayerShown(x, 'pins', false)
+    expect(x.preferences.maps).toEqual({ hide: ['pins', 'tokens'] })
+    expect([layerShown(x, 'pins'), layerShown(x, 'routes'), layerShown(x, 'tokens')]).toEqual([false, true, false])
+    expect(setLayerShown(x, 'pins', false)).toBe(x)
+    x = setLayerShown(setLayerShown(x, 'pins', true), 'tokens', true)
+    expect(x.preferences.maps).toBeUndefined()
+  })
+  it('a hidden layer is not drawn, and nothing is taken off the image', () => {
+    const image = { id: 'm', name: 'M', width: 10, height: 10, pins: [{ id: 'p', name: 'P', x: 0, y: 0 }], routes: [{ id: 'r', name: 'R', points: [{ x: 0, y: 0 }] }], tokens: [{ id: 't', name: 'T', x: 0, y: 0 }], scale: { a: { x: 0, y: 0 }, b: { x: 1, y: 0 }, distance: 5 } }
+    const drawn = shownMarks(image, ['pins', 'tokens'])
+    expect(Object.keys(drawn)).toEqual(['id', 'name', 'width', 'height', 'routes', 'scale'])
+    expect(image.pins).toHaveLength(1)
+    expect(shownMarks(image, [])).toBe(image)
+  })
+  it('in a file: round trip unchanged, no warning', () => {
+    const r = read({ maps: { size: 'large', names: false, hide: ['routes'] } })
+    expect(r.warnings).toEqual([])
+    const again = normalizeCharacter(JSON.parse(characterToJson(r.character)))
+    expect(again.warnings).toEqual([])
+    expect(again.character.preferences.maps).toEqual({ size: 'large', names: false, hide: ['routes'] })
+  })
+  it('the defaults written out in a file are read and not written back', () => {
+    const r = read({ maps: { size: 'medium', names: true, hide: [] } })
+    expect(r.warnings).toEqual([])
+    expect(r.character.preferences.maps).toBeUndefined()
+  })
+  it('a word it does not know means the default, and it says so; a field it does not know is kept', () => {
+    const r = read({ maps: { size: 'gigantic', hide: ['pins', 'clouds'], grid: true } })
+    expect(mapPrefs(r.character)).toMatchObject({ size: 'medium', names: true, hide: ['pins'] })
+    expect(r.character.preferences.maps).toEqual({ hide: ['pins'], grid: true })
+    expect(r.warnings).toEqual([
+      'preferences.maps.size: "gigantic" is not one of small, medium, large, huge; using "medium".',
+      'preferences.maps.hide: "clouds" not one of pins, routes, tokens; ignored.',
+      'preferences.maps.grid: not a field this app uses; kept unchanged.',
+    ])
   })
 })

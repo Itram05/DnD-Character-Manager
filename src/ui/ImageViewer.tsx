@@ -7,11 +7,14 @@
 // dragging the map never drags a pin. "Edit map" in the bar under the picture turns editing on: then a
 // drag that starts on a mark moves the mark (a drag anywhere else still moves the map, two fingers still
 // pinch), and a tap on the map adds what the chosen tool adds. Every change is one step of Undo.
+// "Layers" (in the bar, while looking) shows and hides pins, routes and tokens and sets the size of the
+// marks: the character's own choices (preferences.maps), for all of its maps.
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { t } from '../i18n'
 import { FIT, clampView, fitSize, maxScale, stepIndex, zoomAt, type Box, type View } from '../model/images'
 import { imageStore } from '../model/imageStore'
 import { newId } from '../model/id'
+import { DEFAULT_MAP_PREFS, mapPrefs, setLayerShown, setMapPref, shownMarks } from '../model/prefs'
 import {
   MARK_PX,
   addPin,
@@ -41,9 +44,9 @@ import {
   toScreen,
   tokensOf,
 } from '../model/mapMarks'
-import type { Character, CharacterImage, MapPoint } from '../model/types'
+import type { Character, CharacterImage, MapLayer, MapPoint } from '../model/types'
 import { MapMarks, markTargets, routeLineAt, routeText, rulerTargets, sameMark, type Drag, type Sel, type Target } from './MapMarks'
-import { MapBar, PinPanel, RoutePanel, ScalePanel, TokenPanel, ToolHint, type PanelAt, type Tool } from './MapTools'
+import { LayersPanel, MapBar, PinPanel, RoutePanel, ScalePanel, TokenPanel, ToolHint, type PanelAt, type Tool } from './MapTools'
 import type { SheetApi } from './Sheet'
 
 const TAP_MS = 300
@@ -77,7 +80,12 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
   const [drag, setDrag] = useState<Drag | null>(null)
   // the mark made by the last tap: its name field takes the keyboard
   const [fresh, setFresh] = useState<string | null>(null)
-  const markSize = MARK_PX.medium
+  const [layersOpen, setLayersOpen] = useState(false)
+  // the character's choices for the marks: which layers are shown, how big, with names or without
+  const prefs = api ? mapPrefs(api.c) : DEFAULT_MAP_PREFS
+  const markSize = MARK_PX[prefs.size]
+  // what is drawn and can be touched: the image without its hidden layers
+  const shown = image ? shownMarks(image, prefs.hide) : image
 
   // the picture's own size: from the entry, or (a hand-written file without it) from the loaded picture
   const natural: Box = image?.width && image.height ? { width: image.width, height: image.height } : measured && measured.id === image?.id ? measured : { width: 0, height: 0 }
@@ -85,8 +93,8 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
   const max = maxScale(natural, fit)
 
   // the latest values for the event handlers (they are attached once)
-  const live = useRef({ view, fit, screen, max, index, count, image, edit, tool, sel, ruler, markSize, onClose, update: api?.update, heroName: api?.c.name ?? '' })
-  live.current = { view, fit, screen, max, index, count, image, edit, tool, sel, ruler, markSize, onClose, update: api?.update, heroName: api?.c.name ?? '' }
+  const live = useRef({ view, fit, screen, max, index, count, image, shown, edit, tool, sel, ruler, markSize, onClose, update: api?.update, heroName: api?.c.name ?? '' })
+  live.current = { view, fit, screen, max, index, count, image, shown, edit, tool, sel, ruler, markSize, onClose, update: api?.update, heroName: api?.c.name ?? '' }
   const setView = useCallback((v: View) => {
     live.current.view = v
     setViewState(v)
@@ -125,6 +133,7 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
   const select = useCallback((s: Sel | null, y?: number) => {
     setSel(s)
     setFresh(null)
+    if (s) setLayersOpen(false)
     if (s && y !== undefined) setPanelAt(y > live.current.screen.height / 2 ? 'top' : 'bottom')
   }, [])
   /** Deletes what is selected: a pin, or a route. With `pointOnly`, just the selected point of the route. */
@@ -169,14 +178,14 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
         t('maps.pin.word'),
         pinsOf(l.image).map((p) => p.name),
       )
-      change((c, im) => addPin(c, im, { id, name, ...at }))
+      change((c, im) => addPin(setLayerShown(c, 'pins', true), im, { id, name, ...at }))
       select({ kind: 'pin', id }, toScreen(at, l.view, l.fit, l.screen).y)
       setFresh(id)
     } else if (l.tool === 'token') {
       const id = newId()
       const name = nextTokenName(l.image, { party: t('maps.token.party'), token: t('maps.token.word') }, l.heroName)
       const color = freeTokenColor(l.image)
-      change((c, im) => addToken(c, im, { id, name, ...at, color }))
+      change((c, im) => addToken(setLayerShown(c, 'tokens', true), im, { id, name, ...at, color }))
       select({ kind: 'token', id }, toScreen(at, l.view, l.fit, l.screen).y)
       setFresh(id)
     } else if (l.tool === 'route') {
@@ -191,7 +200,7 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
           t('maps.route.word'),
           routesOf(l.image).map((r) => r.name),
         )
-        change((c, im) => addRoute(c, im, { id, name, points: [at] }))
+        change((c, im) => addRoute(setLayerShown(c, 'routes', true), im, { id, name, points: [at] }))
         select({ kind: 'route', id, point: 0 })
         setPanelAt('bottom')
       }
@@ -202,6 +211,7 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
   }
   const setEditing = (on: boolean) => {
     setEdit(on)
+    setLayersOpen(false)
     setToolState('select')
     setRuler([])
     setDrag(null)
@@ -311,14 +321,14 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
     if (!l.image) return []
     // with the scale tool in hand only its ruler can be touched: a tap anywhere else sets an end of it
     if (l.edit && l.tool === 'scale') return rulerTargets(l.ruler, l.view, l.fit, l.screen)
-    return markTargets(l.image, l.view, l.fit, l.screen, l.markSize)
+    return l.shown ? markTargets(l.shown, l.view, l.fit, l.screen, l.markSize) : []
   }
   /** What is under a place of the stage: a mark, else the line of a route. */
   const hitAt = (x: number, y: number): Target | null => {
     const l = live.current
     const hit = hitTest(targets(), x, y)
-    if (hit || !l.image || (l.edit && l.tool === 'scale')) return hit
-    return routeLineAt(l.image, l.view, l.fit, l.screen, x, y)
+    if (hit || !l.shown || (l.edit && l.tool === 'scale')) return hit
+    return routeLineAt(l.shown, l.view, l.fit, l.screen, x, y)
   }
   const stopDrag = () => {
     gesture.current.drag = null
@@ -452,9 +462,13 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
   const src = (ready && loaded.url) || image.thumb
   const missing = ready && !loaded.url
   const zoomed = view.scale > 1.01
-  const pin = sel?.kind === 'pin' ? pinsOf(image).find((p) => p.id === sel.id) : undefined
-  const token = sel?.kind === 'token' ? tokensOf(image).find((x) => x.id === sel.id) : undefined
-  const route = sel?.kind === 'route' ? routesOf(image).find((r) => r.id === sel.id) : undefined
+  // (from what is shown: a mark of a layer that has just been hidden is not selected any more)
+  const marks = shown ?? image
+  const pin = sel?.kind === 'pin' ? pinsOf(marks).find((p) => p.id === sel.id) : undefined
+  const token = sel?.kind === 'token' ? tokensOf(marks).find((x) => x.id === sel.id) : undefined
+  const route = sel?.kind === 'route' ? routesOf(marks).find((r) => r.id === sel.id) : undefined
+  const counts: Record<MapLayer, number> = { pins: pinsOf(image).length, routes: routesOf(image).length, tokens: tokensOf(image).length }
+  const hiddenHint = prefs.hide.length ? t('maps.layers.hidden', { list: prefs.hide.map((l) => t(`maps.layer.${l}`).toLowerCase()).join(', ') }) : undefined
   const scaling = edit && tool === 'scale'
   const aspect = natural.width ? natural : fit
   const percent = natural.width && fit.width ? Math.round(((fit.width * view.scale) / natural.width) * 100) : null
@@ -513,7 +527,7 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
           !missing && <p className="viewer-note">{t('common.loading')}</p>
         )}
         {missing && <p className="viewer-note viewer-missing">{t('images.missingLong')}</p>}
-        <MapMarks image={image} view={view} fit={fit} screen={screen} aspect={aspect} size={markSize} names sel={sel} drag={drag} editing={edit} ruler={scaling ? ruler : null} onSelect={select} />
+        <MapMarks image={marks} view={view} fit={fit} screen={screen} aspect={aspect} size={markSize} names={prefs.names} sel={sel} drag={drag} editing={edit} ruler={scaling ? ruler : null} onSelect={select} />
       </div>
       {scaling ? (
         <ScalePanel
@@ -570,6 +584,15 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
           onDelete={() => removeSel()}
           onClose={() => select(null)}
         />
+      ) : layersOpen && api ? (
+        <LayersPanel
+          prefs={prefs}
+          counts={counts}
+          onLayer={(l, on) => api.update((c) => setLayerShown(c, l, on))}
+          onNames={(on) => api.update((c) => setMapPref(c, 'names', on))}
+          onSize={(s) => api.update((c) => setMapPref(c, 'size', s))}
+          onClose={() => setLayersOpen(false)}
+        />
       ) : (
         edit && <ToolHint tool={tool} />
       )}
@@ -584,7 +607,7 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
         </>
       )}
       </div>
-      {api && <MapBar edit={edit} onEdit={setEditing} tool={tool} onTool={setTool} onUndo={api.undo} hint={marksCount(image) ? t('maps.lookHint') : undefined} />}
+      {api && <MapBar edit={edit} onEdit={setEditing} tool={tool} onTool={setTool} onUndo={api.undo} hint={hiddenHint ?? (marksCount(image) ? t('maps.lookHint') : undefined)} layersOpen={layersOpen} onLayers={() => (setLayersOpen(!layersOpen), setSel(null))} hidden={prefs.hide.length} />}
     </div>
   )
 }
