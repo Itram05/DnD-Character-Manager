@@ -8,6 +8,7 @@ import type { Character } from '../model/types'
 import { CreatureEditor } from './CreatureEditor'
 import { CreaturePanel, CreaturesSection, CreaturesView, hpTone } from './Creatures'
 import { PlayView } from './PlayView'
+import { PrefsPanel } from './PrefsPanel'
 import type { SheetApi } from './Sheet'
 import { shownTabs } from './Sheet'
 import { StatBlock, actionLine, rollToast } from './StatBlock'
@@ -222,5 +223,19 @@ describe('a creature\'s window', () => {
   it('keeps a condition toggled from the model on the row and in the window', () => {
     const x = toggleCreatureCondition(c, 'burya', 'frightened')
     expect(strip(renderToString(<CreaturePanel api={api(x)} instanceId="burya" onClose={() => {}} onEdit={() => {}} />))).toContain('Frightened ✕ Conditions (1)')
+  })
+})
+
+describe('"How this sheet looks": creatures', () => {
+  it('has the choices, showing what is in force', () => {
+    const html = renderToString(<PrefsPanel api={api(setPinned(setCreaturePref(c, 'longRest', 'uses'), 'm2', false))} />)
+    const text = strip(html)
+    expect(text).toContain('Creatures are shown')
+    expect(text).toContain('In Play and on their own tab')
+    expect(text).toContain('On your Long Rest, creatures in play')
+    expect(html).toMatch(/<option value="uses" selected="">Regain uses only<\/option>/)
+    expect(text).toContain('Hit Point bar')
+    expect(text).toContain('Roll button on a creature\'s attacks and damage')
+    expect(text).toContain('1 of 2 creatures in play are shown in the Play section.')
   })
 })

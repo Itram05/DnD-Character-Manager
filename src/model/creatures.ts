@@ -43,10 +43,15 @@ export function creaturePrefs(c: Pick<Character, 'preferences'>): CreaturePrefsI
   return { ...DEFAULT_CREATURE_PREFS, ...(c.preferences.creatures ?? {}) }
 }
 
+// the order the importer writes the choices in; the setters keep it, so an export reads back character for character
+const PREF_ORDER = ['where', 'pinned', 'row', 'rolls', 'longRest', 'shortRest']
+
 function withCreaturePrefs(c: Character, prefs: CreaturePrefs): Character {
   const { creatures: _old, ...rest } = c.preferences
   void _old
-  return { ...c, preferences: Object.keys(prefs).length ? { ...rest, creatures: prefs } : rest }
+  const src = prefs as Record<string, unknown>
+  const inOrder = Object.fromEntries([...PREF_ORDER.filter((k) => src[k] !== undefined), ...Object.keys(src).filter((k) => !PREF_ORDER.includes(k) && src[k] !== undefined)].map((k) => [k, src[k]])) as CreaturePrefs
+  return { ...c, preferences: Object.keys(inOrder).length ? { ...rest, creatures: inOrder } : rest }
 }
 
 /** Sets one creature preference; the default is stored as "absent" (and an empty group is removed). */
@@ -296,9 +301,23 @@ function tidyInstance(i: CreatureInstance): CreatureInstance {
 
 /** The character with this list of creatures: the field is absent when the list is empty, and pins to creatures that are gone are dropped. */
 function withCreatures(c: Character, list: Creature[]): Character {
-  const { creatures: _old, ...rest } = c
-  void _old
-  let next: Character = list.length ? { ...c, creatures: list } : (rest as Character)
+  // the field stands where the importer puts it (before `recipes`), so an export reads back character for character
+  const out: Record<string, unknown> = {}
+  let placed = !list.length
+  for (const [key, value] of Object.entries(c)) {
+    if (key === 'creatures') {
+      if (list.length) out.creatures = list
+      placed = true
+      continue
+    }
+    if (key === 'recipes' && !placed) {
+      out.creatures = list
+      placed = true
+    }
+    out[key] = value
+  }
+  if (!placed) out.creatures = list
+  let next = out as unknown as Character
   const pinned = next.preferences.creatures?.pinned
   if (pinned) {
     const alive = new Set(creaturesInPlay(next).map((x) => x.instance.id))

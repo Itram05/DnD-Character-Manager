@@ -70,13 +70,13 @@ export function StatBlock(props: {
               <b>{Number.isNaN(hp) ? '?' : hp}</b>
             </div>
           )}
-          <div className="sb-chip sb-chip-wide">
-            <span>{t('vitals.speed')}</span>
-            <b>{k.speed || '—'}</b>
-          </div>
           <div className="sb-chip">
             <span>{t('creature.initiative')}</span>
             <b>{fmtMod(creatureInitiative(k))}</b>
+          </div>
+          <div className="sb-chip sb-chip-wide">
+            <span>{t('vitals.speed')}</span>
+            <b>{k.speed || '—'}</b>
           </div>
         </div>
       )}

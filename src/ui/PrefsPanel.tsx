@@ -1,7 +1,8 @@
 import { t } from '../i18n'
+import { creaturePrefs, creaturesInPlay, creaturesShownInPlay, pinAll, setCreaturePref, setRowField } from '../model/creatures'
 import { setCoinShown, shownCoins } from '../model/money'
 import { ATTACK_ORDERS, MAP_LAYERS, MARK_SIZES, PHONE_STARTS, layerShown, mapPrefs, playPrefs, setLayerShown, setMapPref, setPlayPref } from '../model/prefs'
-import { COINS, type AttackOrder, type MarkSize, type PhoneStart } from '../model/types'
+import { COINS, CREATURE_LONG_RESTS, CREATURE_PLACES, CREATURE_ROW_FIELDS, CREATURE_SHORT_RESTS, type AttackOrder, type CreatureLongRest, type CreaturePlace, type CreatureShortRest, type MarkSize, type PhoneStart } from '../model/types'
 import { Check, Select } from './common'
 import type { SheetApi } from './Sheet'
 
@@ -18,6 +19,9 @@ export function PrefsPanel({ api }: { api: SheetApi }) {
   const play = playPrefs(c)
   const coins = shownCoins(c)
   const maps = mapPrefs(c)
+  const creatures = creaturePrefs(c)
+  const inPlay = creaturesInPlay(c).length
+  const shownInPlay = creaturesShownInPlay(c).length
   return (
     <section className="panel prefs-panel" id={PREFS_PANEL_ID}>
       <h3>{t('prefs.title')}</h3>
@@ -50,6 +54,31 @@ export function PrefsPanel({ api }: { api: SheetApi }) {
         ))}
       </div>
       <p className="hint">{t('prefs.maps.hint')}</p>
+
+      <h4 id="prefs-creatures">{t('prefs.creatures')}</h4>
+      <div className="grid-2">
+        <Select<CreaturePlace> label={t('prefs.creatures.where')} value={creatures.where} options={CREATURE_PLACES.map((v) => ({ value: v, label: t(`prefs.creatures.where.${v}`) }))} onChange={(v) => update((x) => setCreaturePref(x, 'where', v))} />
+        <Select<CreatureLongRest> label={t('prefs.creatures.longRest')} value={creatures.longRest} options={CREATURE_LONG_RESTS.map((v) => ({ value: v, label: t(`prefs.creatures.longRest.${v}`) }))} onChange={(v) => update((x) => setCreaturePref(x, 'longRest', v))} />
+        <Select<CreatureShortRest> label={t('prefs.creatures.shortRest')} value={creatures.shortRest} options={CREATURE_SHORT_RESTS.map((v) => ({ value: v, label: t(`prefs.creatures.shortRest.${v}`) }))} onChange={(v) => update((x) => setCreaturePref(x, 'shortRest', v))} />
+      </div>
+      <p className="hint">{t('prefs.creatures.row')}:</p>
+      <div className="checks">
+        {CREATURE_ROW_FIELDS.map((f) => (
+          <Check key={f} label={t(`prefs.creatures.row.${f}`)} checked={creatures.row.includes(f)} onChange={(on) => update((x) => setRowField(x, f, on))} />
+        ))}
+      </div>
+      <Check label={t('prefs.creatures.rolls')} checked={creatures.rolls} onChange={(on) => update((x) => setCreaturePref(x, 'rolls', on))} />
+      {inPlay > 0 && creatures.where !== 'tab' && (
+        <p className="hint">
+          {shownInPlay < inPlay ? t('prefs.creatures.pinnedN', { shown: shownInPlay, all: inPlay }) : t('prefs.creatures.pinnedAll')}{' '}
+          {shownInPlay < inPlay && (
+            <button className="link-btn" onClick={() => update(pinAll)}>
+              {t('creature.showAll')}
+            </button>
+          )}
+        </p>
+      )}
+      <p className="hint">{t('prefs.creatures.hint')}</p>
     </section>
   )
 }

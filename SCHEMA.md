@@ -328,7 +328,7 @@ Optional groups (since 2026-10-11). Each is written only once the player changes
 | `maps.size` | `small`, `medium`, `large`, `huge` | `medium` | How big pins and tokens are on every map of the character: a pin is 22, 30, 40 or 54 px on screen, a token a fifth more. The size is the same at every zoom. |
 | `maps.names` | true / false | true | Names written next to pins, tokens and routes (a route's with its length). Off: a mark says its name only when tapped; tokens keep their letters. |
 | `maps.hide` | list of `pins`, `routes`, `tokens` | `[]` (absent) | The layers that are not drawn. A hidden layer keeps its marks in `images`; they cannot be touched while hidden. Adding a mark with a tool shows its layer again, in the same step of Undo. Unknown names are dropped with a warning. |
-| `creatures.where` | `both`, `play`, `tab` | `both` | Where the hero's [creatures](#creatures) are: a section of the Play screen and a Creatures tab, only the section, or only the tab. With `play` the tab is not in the tab row (the section then has "All stat blocks", the same list in a window, and is shown even when empty, so there is a way to add the first creature); with `tab` Play has no section. With `both` the section is shown once a creature is in play. |
+| `creatures.where` | `both`, `play`, `tab` | `both` | Where the hero's [creatures](#creatures) are: a section of the Play screen and a Creatures tab, only the section, or only the tab. With `play` the tab is not in the tab row (its address still opens it) and the section is shown even when empty, so there is a way to add the first creature; with `tab` Play has no section. With `both` the section is shown once a creature is in play. In every case "Add" on the section opens the list of stat blocks in a window: the same list as the tab. |
 | `creatures.pinned` | list of ids of creatures in play | absent = all | The creatures in play that the Play section shows; the others are only on the Creatures tab. Set with the pin on a creature's row. A creature put in play is added to the list; one removed from play leaves it; all shown again removes the field. Ids that are not a creature in play are dropped with a warning. An empty list = none shown. |
 | `creatures.row` | list of `bar`, `ac`, `speed`, `attack`, `conditions`, `uses`, `note` | `["bar", "ac", "speed", "attack", "conditions"]` | What a creature's row shows besides its name and Hit Points: the Hit Point bar, Armor Class, speed, its first attack with the numbers, its conditions, its limited actions as dots, the note. Stored in this order; unknown names are dropped with a warning. |
 | `creatures.rolls` | true / false | true | A Roll button on every action of a creature that has an attack bonus or damage dice. Only `false` is written. |
@@ -575,7 +575,7 @@ with its own Hit Points, conditions, spent uses and note. Three mammoths are one
 
 **Nothing of a stat block is worked out from an edition's rules.** Every number is typed or copied and can be changed in
 the stat block's editor; the app works out only the ability modifiers, and uses the modifier where `saves` or `initiative`
-give nothing. The one built-in block ("Mammoth (SRD 5.2.1)" in the Add window) is copied into the character and is then
+give nothing. The one built-in block ("Mammoth (SRD 5.2.1)", next to "New stat block") is copied into the character and is then
 the player's like any other.
 
 | Field | Type | Default | Notes |
@@ -637,8 +637,10 @@ What the app does with them:
   left as it is, with a reminder. This is the app's own rule: the SRD gives a mount no rest of its own.
 - **Roll** on an action rolls d20 + `toHit` and the damage (`damage` + `damageBonus`); a natural 20 rolls the damage dice
   twice. It only shows the result; nothing is applied anywhere.
-- **Fields the app writes in one order** (the order of the tables above), with every empty optional field left out, so
-  an exported character reads back character for character.
+- **Fields the app writes in one order** (the order of the tables above), with every empty optional field left out;
+  `creatures` itself stands before `recipes`. So an exported character reads back character for character.
+- **A stat block is never looked up.** Nothing links a creature to a spell or a feature yet: casting Find Steed does
+  not put a steed in play. A field the app does not know on a creature (a later `spellId`) is kept, like everywhere.
 
 A version 3 app from before creatures keeps `creatures` and `preferences.creatures` unchanged (with a "not a field this
 app uses" line in the import dialog), so a file is not damaged by a round trip through an older copy.

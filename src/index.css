@@ -5591,8 +5591,8 @@ details summary {
   margin-top: 0.4rem;
 }
 .sb-chips {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.35rem;
 }
 .sb-chip {
@@ -5608,6 +5608,7 @@ details summary {
   color: var(--muted);
   text-align: center;
   min-width: 0;
+  flex: 1 1 60px;
 }
 .sb-chip b {
   font-size: 1.05rem;
@@ -5615,7 +5616,7 @@ details summary {
   overflow-wrap: anywhere;
 }
 .sb-chip-wide {
-  grid-column: span 2;
+  flex: 2 1 120px;
 }
 .sb-chip-wide b {
   font-size: 0.92rem;
@@ -5830,4 +5831,16 @@ details summary {
 }
 .creature-inplay-note {
   color: var(--warn);
+}
+
+/* the tenth tab (Creatures): on a narrow computer window the tabs stand closer, so the row scrolls sideways
+   no sooner than it did with nine */
+@media (min-width: 900px) and (max-width: 1099px) {
+  .tabs-top {
+    gap: 0.1rem;
+  }
+  .tabs-top .tab {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
 }
