@@ -4,6 +4,7 @@ import { t } from '../i18n'
 import { abilityScoreView, evalFormula } from '../model/rules'
 import { ABILITIES, type CasterType, type ClassEntry } from '../model/types'
 import { Check, Confirm, NumberField, Select, TextField } from './common'
+import { PrefsPanel } from './PrefsPanel'
 import type { SheetApi } from './Sheet'
 import { downloadJson } from './Sheet'
 
@@ -138,6 +139,8 @@ export function EditView({ api }: { api: SheetApi }) {
         </div>
         <Check label={t('edit.joat')} checked={c.proficiencies.jackOfAllTrades} onChange={(jackOfAllTrades) => update((x) => ({ ...x, proficiencies: { ...x.proficiencies, jackOfAllTrades } }))} />
       </section>
+
+      <PrefsPanel api={api} />
 
       <section className="panel">
         <h3>{t('edit.file')}</h3>

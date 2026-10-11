@@ -17,12 +17,14 @@ import {
   ABILITIES,
   ABILITY_SCORE_MODES,
   ACTIVATIONS,
+  ATTACK_ORDERS,
   COINS,
   CURRENT_SCHEMA_VERSION,
   DEFAULT_GEAR_PREFS,
   GEAR_GROUPINGS,
   GEAR_SHOW_FIELDS,
   GEAR_VIEWS,
+  PHONE_STARTS,
   RECHARGES,
   SKILL_IDS,
   SOURCE_TYPES,
@@ -171,8 +173,9 @@ export const KNOWN = {
   item: ['id', 'name', 'quantity', 'equipped', 'requiresAttunement', 'attuned', 'weight', 'armor', 'acBonus', 'saveBonus', 'spellDcBonus', 'spellAttackBonus', 'abilityScores', 'saveDc', 'spellAttack', 'charges', 'activation', 'description', 'powers', 'tags', 'containerId', 'category'],
   container: ['id', 'name', 'icon', 'color', 'capacity', 'weightless', 'extradimensional', 'itemId'],
   category: ['id', 'name', 'icon', 'color'],
-  preferences: ['gear', 'money'],
+  preferences: ['gear', 'money', 'play'],
   moneyPrefs: ['coins'],
+  playPrefs: ['attackOrder', 'phoneStart', 'editButtons'],
   gearPrefs: ['view', 'groupBy', 'show'],
   gearShow: GEAR_SHOW_FIELDS,
   armor: ['base', 'dexCap'],
@@ -1083,6 +1086,23 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     }
     keep(moneyPrefRaw, m, KNOWN.moneyPrefs, 'preferences.money')
     preferences.money = m
+  }
+  const playPrefRaw = prefGroup('play')
+  if (playPrefRaw) {
+    const p: NonNullable<Character['preferences']['play']> = {}
+    // an unknown word falls back to "absent" (the default), with a warning from oneOf
+    const has = (v: unknown) => v !== undefined && v !== null && v !== ''
+    if (has(playPrefRaw.attackOrder)) {
+      const v = r.oneOf(playPrefRaw.attackOrder, [...ATTACK_ORDERS, ''] as const, 'preferences.play.attackOrder', '', { alphabetical: 'name', 'a-z': 'name', az: 'name' })
+      if (v) p.attackOrder = v
+    }
+    if (has(playPrefRaw.phoneStart)) {
+      const v = r.oneOf(playPrefRaw.phoneStart, [...PHONE_STARTS, ''] as const, 'preferences.play.phoneStart', '', { none: 'all', 'bonus action': 'bonus', free: 'other' })
+      if (v) p.phoneStart = v
+    }
+    if (has(playPrefRaw.editButtons)) p.editButtons = r.bool(playPrefRaw.editButtons, true)
+    keep(playPrefRaw, p, KNOWN.playPrefs, 'preferences.play')
+    preferences.play = p
   }
   keep(prefRaw, preferences, KNOWN.preferences, 'preferences')
 

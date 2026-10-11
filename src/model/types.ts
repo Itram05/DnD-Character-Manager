@@ -318,6 +318,21 @@ export interface MoneyPrefs {
   coins?: Coin[]
 }
 
+export const ATTACK_ORDERS = ['file', 'name'] as const
+export type AttackOrder = (typeof ATTACK_ORDERS)[number]
+export const PHONE_STARTS = ['all', 'action', 'bonus', 'reaction', 'other'] as const
+export type PhoneStart = (typeof PHONE_STARTS)[number]
+
+/** The player's choices for the Play screen. Every field is optional: absent = the default (prefs.ts). */
+export interface PlayPrefs {
+  /** The order of the attack cards: "file" = as they are in `attacks` (default), "name" = A to Z. */
+  attackOrder?: AttackOrder
+  /** What a phone opens Play with: "all" = every hand (default), or one hand as a filter that can be taken off. */
+  phoneStart?: PhoneStart
+  /** The small Edit button on each section of the Play screen. Absent = shown. */
+  editButtons?: boolean
+}
+
 export interface SessionNote {
   id: string
   date: string
@@ -500,6 +515,6 @@ export interface Character {
   /** Items pinned as counters in Play, in the order shown. */
   playCounters: PlayCounter[]
   /** The player's choices for how the sheet looks, per character. */
-  preferences: { gear: GearPrefs; money?: MoneyPrefs }
+  preferences: { gear: GearPrefs; money?: MoneyPrefs; play?: PlayPrefs }
   updatedAt: string
 }

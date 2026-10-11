@@ -31,11 +31,12 @@ describe('the sticky head', () => {
     expect(html).not.toContain('filter-btn')
     expect(html).not.toContain('view-toggle')
   })
-  it('Play brings Cards/List, the funnel and the phone\'s "Action ✕"; Spells only the funnel', () => {
+  it('Play brings Cards/List and the funnel, with no filter on; Spells only the funnel', () => {
     const play = sheet('play')
     expect(play).toContain('view-toggle')
     expect(play).toContain('filter-btn')
-    expect(strip(play)).toContain('Action ✕')
+    // since 2026-10-11 a phone opens Play with every hand (preferences.play.phoneStart)
+    expect(strip(play)).not.toContain('Action ✕')
     const spells = sheet('spells')
     expect(spells).toContain('filter-btn')
     expect(spells).not.toContain('view-toggle')

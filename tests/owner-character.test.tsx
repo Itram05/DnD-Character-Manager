@@ -5,6 +5,7 @@ import { renderToString } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import { importCharacterJson } from '../src/model/normalize'
 import { manaRows, playCards, playHealingPotions, playPassivePowers as passiveChips, useCard } from '../src/model/play'
+import { setPlayPref } from '../src/model/prefs'
 import { longRest } from '../src/model/rest'
 import { spellDcView } from '../src/model/rules'
 import { pointsToSlot, slotToPoints, sorceryFeature, sorceryPoints } from '../src/model/sorcery'
@@ -329,15 +330,19 @@ describe.skipIf(!HAVE_COPY_FILE)("owner's character: item powers and tags", asyn
   it('the Play screen shows the powers, their cost, the passive chips and the funnel filter', () => {
     const raw = renderToString(<PlayView api={apiFor(c)} />)
     const html = strip(raw)
-    // (server render = phone width: only the Action hand is open)
+    // (server render = phone width; since 2026-10-11 a phone opens with every hand unless the hero's preference says otherwise)
     for (const s of ['Detect Thoughts', '1 ch.', 'Truesight 60 ft', '+3 spell attack']) expect(html).toContain(s)
     const echo = playCards(c).find((x) => x.name === 'Temporal Echo')!
     const card = strip(renderToString(<GameCard card={echo} mode="cards" onOpen={() => {}} onUse={() => {}} />))
     expect(card).toContain('all ch.')
     expect(card).toContain('Staff of Ages')
-    // the phone's Action hand is an active filter: funnel with 1, and "Action ✕" in the row under it
-    expect(raw).toMatch(/class="filter-badge">1</)
-    expect(html).toContain('Action ✕')
+    // no filter is on by default: no badge on the funnel, no "Action ✕"
+    expect(raw).not.toContain('filter-badge')
+    expect(html).not.toContain('Action ✕')
+    // with the preference, the phone's Action hand is an active filter: funnel with 1, and "Action ✕" in the row under it
+    const actionFirst = renderToString(<PlayView api={apiFor(setPlayPref(c, 'phoneStart', 'action'))} />)
+    expect(actionFirst).toMatch(/class="filter-badge">1</)
+    expect(strip(actionFirst)).toContain('Action ✕')
     // the panel is closed: no category chips on the screen
     expect(raw).not.toContain('filter-panel')
     // opened: every group, Damage with its arrow, types folded

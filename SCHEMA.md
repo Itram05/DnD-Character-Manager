@@ -72,7 +72,7 @@ Class table column names = the table header in lowercase with dashes: `rages`, `
 | `timers` | list of [day timers](#timers) | [] | |
 | `recipes` | list of [recipes](#recipes) | [] | Your crafting recipes. None are built in. |
 | `playCounters` | list of `{ "name" }` | [] | Items shown as counters in Play, in this order. See [recipes](#recipes). |
-| `preferences` | `{ gear, money? }` | see [preferences](#preferences) | How the sheet looks for this character. |
+| `preferences` | `{ gear, money?, play? }` | see [preferences](#preferences) | How the sheet looks for this character. |
 | `updatedAt` | ISO date | now | Set by the app. |
 
 ## classes
@@ -319,6 +319,11 @@ Optional groups (since 2026-10-11). Each is written only once the player changes
 | Field | Type | Default | Notes |
 |---|---|---|---|
 | `money.coins` | list of `pp`, `gp`, `ep`, `sp`, `cp` | `["gp"]` | The coins the Money panel of the Gear tab shows, each with its total, an amount field and − / + (take the amount from the total, add it to it). A hidden coin keeps its amount in `inventory.money`; the panel names hidden coins that are not 0 in one line. Stored most valuable first; unknown names are dropped with a warning; an empty list means the default. Taking more than there is is refused (nothing changes, a message says how much there is). |
+| `play.attackOrder` | `file` or `name` | `file` | The order of the attack cards on the Play screen (and in an item's panel): as they are in `attacks`, or A to Z. Until 2026-10-11 they were always A to Z, which puts Latin names before Cyrillic ones. Other cards are not affected: features and items A to Z, spells by level, then A to Z. |
+| `play.phoneStart` | `all`, `action`, `bonus`, `reaction`, `other` | `all` | What a phone (a window under 900 px) opens the Play screen with: every hand, or one hand as an active filter. Until 2026-10-11 it was always `action`, which kept Bonus Actions and Reactions off the screen until the filter was taken off. A computer always opens with every hand. |
+| `play.editButtons` | true / false | true | The small Edit button on each section of the Play screen. |
+
+All of these are set on the Edit tab, under "How this sheet looks"; the coins also in the Money panel. Choosing a default again removes the field from the file.
 
 **Potions and scrolls** are ordinary items; the Play screen only reads their name (src/model/consumables.ts). An item **without `charges`** is a *scroll* if its name contains "scroll" (not "scroll case/tube"); the spell is taken from "Scroll of X", "Spell Scroll of X", "Spell Scroll (X)", "Scroll: X" or "X scroll", and its text from the character's spells, then the SRD, then the item's `description`. Otherwise it is a *potion* if its name contains "potion", "elixir" or "philter". A potion whose name also says "healing" is a *healing potion* (Healing / Greater / Superior / Supreme, from the name): a counter in the Concentration panel, not a card; its dice come from `description`, else the standard 2d4+2 / 4d4+4 / 8d4+8 / 10d4+20. Every other potion is a card in the scroll group with "Use".
 

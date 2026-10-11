@@ -1498,6 +1498,10 @@ the app's default) and **keep them unchanged** when you edit an exported one:
 
 - `money`: `{ "coins": ["gp"] }`. `coins` lists the coins the Money panel shows, any of `pp` `gp` `ep` `sp` `cp`. Absent = gold
   only. It only hides rows: every amount stays in `inventory.money`, and you still write all five there.
+- `play`: `{ "attackOrder": "name", "phoneStart": "action", "editButtons": false }`, each field on its own.
+  `attackOrder`: `file` (default: the attack cards follow the order of `attacks`, so **write the hero's main attack
+  first**) or `name` (A to Z). `phoneStart`: what a phone opens the Play screen with: `all` (default, every hand) or one
+  hand, `action`, `bonus`, `reaction`, `other`. `editButtons`: `false` hides the small Edit button of each Play section.
 
 ### images
 

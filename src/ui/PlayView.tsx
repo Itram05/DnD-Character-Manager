@@ -28,6 +28,7 @@ import { MAX_CREATED_SLOT_LEVEL, SLOT_COST, canPointsToSlot, canSlotToPoints, po
 import { attackStats, exhaustionEffects } from '../model/rules'
 import { HEALING_DICE, HEALING_NAME, healingDice, isScroll, potionLabel, readScroll, scrollInfo, type HealingTier } from '../model/consumables'
 import { attackTags } from '../model/tags'
+import { orderAttacks, phoneStartFilter } from '../model/prefs'
 import { filterOptions, matchesFilter, selectedKinds, selectedZones } from '../model/filter'
 import type { Character, Item } from '../model/types'
 import { Dis, InHead, Modal, Pips, RichText, fmtMod, useMediaQuery } from './common'
@@ -98,8 +99,8 @@ export function PlayView({ api }: { api: SheetApi }) {
   const wide = useMediaQuery('(min-width: 900px)')
   // the side column with the sections needs room next to the cards; narrower windows get a button in the head
   const sideNav = useMediaQuery('(min-width: 1100px)')
-  // a phone starts on the Action hand (all four hands stacked are a long scroll); it shows as an active filter
-  const [filter, setFilter] = useState<string[]>(wide ? [] : ['zone:action'])
+  // a phone starts on what the character's preference says: every hand (default), or one hand as an active filter
+  const [filter, setFilter] = useState<string[]>(() => (wide ? [] : phoneStartFilter(c)))
   const [open, setOpen] = useState<CardFace | null>(null)
   const [flexOpen, setFlexOpen] = useState(false)
   const [openPassive, setOpenPassive] = useState<PassiveChip | null>(null)
@@ -109,8 +110,10 @@ export function PlayView({ api }: { api: SheetApi }) {
   const srd = useSrdForScrolls(c)
 
   const allCards: CardFace[] = useMemo(() => {
-    const all: CardFace[] = [...attackFaces(c), ...playCards(c, srd)]
-    return all.sort((a, b) => ORDER[a.kind] - ORDER[b.kind] || (a.spellLevel ?? 0) - (b.spellLevel ?? 0) || a.name.localeCompare(b.name))
+    // attacks come in the order the character asks for (preferences.play.attackOrder); the sort is stable,
+    // so among themselves they keep it, and every other kind is A to Z (spells by level first)
+    const all: CardFace[] = [...orderAttacks(c, attackFaces(c)), ...playCards(c, srd)]
+    return all.sort((a, b) => ORDER[a.kind] - ORDER[b.kind] || (a.kind === 'attack' && b.kind === 'attack' ? 0 : (a.spellLevel ?? 0) - (b.spellLevel ?? 0) || a.name.localeCompare(b.name)))
   }, [c, srd])
   const potions = playHealingPotions(c)
   const healingRows = healingPotionRows(c)
@@ -415,7 +418,7 @@ export function PlayView({ api }: { api: SheetApi }) {
           // the same faces as in the hands (by key), so a card spent here shows spent there
           const faces: CardFace[] = [
             ...view.cards.map((x) => allCards.find((y) => y.key === x.key) ?? x),
-            ...attackFaces(c).filter((a) => view.attacks.some((x) => x.id === a.id)),
+            ...orderAttacks(c, attackFaces(c)).filter((a) => view.attacks.some((x) => x.id === a.id)),
           ]
           return (
             <ItemPanel
