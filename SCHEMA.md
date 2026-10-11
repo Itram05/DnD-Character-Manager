@@ -443,7 +443,8 @@ Maps of the campaign and other pictures (the Images tab), in the order shown. Op
 | `bytes` | Size of the picture in bytes. Computed from `data` on import. |
 | `thumb` | A small preview (data URL, about 320 px) for the grid. Made on import when missing. |
 | `data` | **Only in exported files:** the picture itself, as a data URL of a JPEG, PNG, WebP or GIF (`data:image/jpeg;base64,...`). |
-| `pins` | Optional. What the player pinned on this picture: see "Marks on a map" below. Absent when there are none. |
+| `pins`, `routes` | Optional. What the player marked on this picture: see "Marks on a map" below. Each is absent when there are none. |
+| `scale` | Optional. What a distance on this picture is in the world; with it routes show their length. See below. |
 
 Where the pictures live: the character in the browser (localStorage, about 5 MB for everything) keeps only the list above
 without `data`; the pictures are in the browser's IndexedDB. **Export** puts each picture into its entry as `data`,
@@ -483,6 +484,32 @@ one size at every zoom: zooming in moves the marks apart, it does not enlarge th
 | `color` | Optional `#rrggbb`. Absent = red (`#d0583f`). Anything else is dropped with a warning. |
 | `icon` | Optional shape: `pin` (default; it points at the place with its tip), `dot`, `star`, `flag`, `house`, `tent`, `cross`, `danger`, `question` (these sit on the place with their centre). |
 
+```json
+"routes": [
+  { "id": "route-north", "name": "The north road", "points": [ { "x": 0.1, "y": 0.2 }, { "x": 0.4, "y": 0.35 }, { "x": 0.8, "y": 0.3 } ], "color": "#a274e0", "perDay": 48 }
+],
+"scale": { "a": { "x": 0.24359, "y": 0.77502 }, "b": { "x": 0.75641, "y": 0.86669 }, "distance": 48, "unit": "mi", "perDay": 24 }
+```
+
+| Field of a route | Notes |
+|---|---|
+| `id`, `name` | As for a pin. "Route 1"... when the name is missing. Any number of routes on one map. |
+| `points` | The line, in order: a list of `{ x, y }`. At least one; a route without points is dropped with a warning. |
+| `color` | Optional `#rrggbb`. Absent = orange (`#f0a24a`). |
+| `perDay` | Optional number above 0: how far those who take this route go in a day, in the unit of the map's scale (a ship, horses). Absent = the scale's own `perDay`. |
+
+| Field of `scale` | Notes |
+|---|---|
+| `a`, `b` | Two different places on the picture, each `{ x, y }`: the ends of a distance the player knows (the map's own scale bar, two towns). |
+| `distance` | How far it is from `a` to `b` in the world. A number above 0. |
+| `unit` | Optional text written after a length. Absent = `mi`. |
+| `perDay` | Optional number above 0: a day of travel in that unit (24 miles is the usual pace on foot, and what the app proposes for a new scale in miles). Absent = routes show their length but no days. |
+
+A scale that cannot measure (the same point twice, no distance) is dropped with a warning. **Without a scale a route shows
+no numbers at all.** With one, its length is the sum of its stretches, measured on the picture's own proportions
+(`width` × `height`), divided by the length of `a`–`b` and multiplied by `distance`; days = length ÷ `perDay`. Lengths are
+straight lines between the points: a winding road needs more points. Under 10 the app shows one decimal, above it whole numbers.
+
 The marks live on the image, so **"Export without images" writes no marks either**; importing that file over the same
 character ("Replace existing") keeps the images and their marks, like the pictures. A version 3 app from before the marks
 keeps them unchanged (with a "not a field this app uses" line in the import dialog).
@@ -503,7 +530,7 @@ Blank lines separate paragraphs.
 | 2 | New optional fields: `tags` (spells, features, items, item powers) and `powers` (items). Unknown fields are kept instead of dropped. | None needed: every version 1 field means the same in version 2, so a version 1 file imports unchanged and is exported as version 2. Item descriptions are **not** split into powers automatically (that would be guessing at rules text); add powers on the Gear tab or in the file. |
 | 3 | New fields: `partySize`, `xpLog` (experience log) and `timers` (day timers). Items: `spellDcBonus`, `spellAttackBonus`. | A version 2 file gets `partySize` 5 and empty `xpLog` and `timers`; `xp` keeps its value. A passive item power named like "+1 spell save DC" / "+3 spell attack" becomes the item's `spellDcBonus` / `spellAttackBonus` (its text goes to the item's `description`); if the item counted before but is not equipped, it is equipped, so the DC and spell attack stay the same. This conversion runs on every import, so version 3 files saved before these fields existed are converted too. Attacks: `itemId` (see attacks); a missing `itemId` is filled in on every import, the same way. Inventory (2026-10-01): `containers`, `categories`, item `containerId` and `category`, top-level `preferences`; crafting (2026-10-01): top-level `recipes` and `playCounters`. A file without containers gets one Backpack with every item in it, on every import. These are optional additions, so the version stayed 3: a version 3 app without containers opens such a file and keeps the new fields unchanged. |
 
-Added without a new version (optional fields, older files read the same): `exhaustionRules`, `images`, feature `poolId` and `cost` (2026-10-03); the marks on a map, image `pins` (2026-10-11).
+Added without a new version (optional fields, older files read the same): `exhaustionRules`, `images`, feature `poolId` and `cost` (2026-10-03); the marks on a map, image `pins`, `routes` and `scale` (2026-10-11).
 
 **Careful with older copies of the app:** a copy from before the Images tab keeps `images` as an unknown field, pictures included, and then
 cannot save the character (the browser's localStorage is too small); give it a file exported without images.

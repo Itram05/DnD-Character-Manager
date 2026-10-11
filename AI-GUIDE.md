@@ -1515,6 +1515,12 @@ edge; `y` 0 = top, 1 = bottom), not pixels. `note` is the player's text, `color`
 `star` `flag` `house` `tent` `cross` `danger` `question`. You cannot see the picture, so **you do not place or move
 marks**; you may change a pin's `name` or `note` when the player asks, and you keep everything else as it is.
 
+The same entry may have `routes` and `scale`. `routes` is a list of `{ id, name, points, color, perDay }`: `points` is the
+line, a list of `{ x, y }` in order; `perDay` is how far its travellers go in a day. `scale` is `{ a, b, distance, unit,
+perDay }`: from the point `a` to the point `b` (each `{ x, y }`) is `distance` of `unit` in the world (absent `unit` = `mi`),
+and `perDay` is a day of travel in that unit. The app works out the length of a route and the days from these; you do not
+write lengths anywhere. You may rename a route or change a `perDay` when asked; you do not add, move or remove points.
+
 - **You never write images**, and a new file has no `images` field at all.
 - **Editing an exported file: copy every entry character for character.** A shortened or re-typed `data` is a
   destroyed picture. An `images` field that is present replaces the hero's pictures, even when it is `[]`.

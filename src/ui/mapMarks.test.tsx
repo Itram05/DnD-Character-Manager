@@ -4,13 +4,13 @@
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { FIT, addImages, type Box } from '../model/images'
-import { addPin } from '../model/mapMarks'
+import { addPin, addRoute, addRoutePoint, patchRoute, setScale } from '../model/mapMarks'
 import { normalizeCharacter } from '../model/normalize'
 import type { Character, CharacterImage } from '../model/types'
 import { ImagesView } from './ImagesView'
 import { ImageViewer } from './ImageViewer'
-import { MapMarks, markTargets } from './MapMarks'
-import { MapBar, PinPanel } from './MapTools'
+import { MapMarks, markTargets, routeLineAt, routeText, rulerTargets } from './MapMarks'
+import { MapBar, PinPanel, RoutePanel, ScalePanel, parseAmount } from './MapTools'
 import type { SheetApi } from './Sheet'
 
 const strip = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
@@ -63,6 +63,101 @@ describe('the marks over the picture', () => {
   })
 })
 
+describe('routes over the picture', () => {
+  // 1600 x 900: a route 1200 px across and 900 px down = 1500 px; the ruler is 400 px = 100 mi
+  let c = addRoute(hero, 'world', { id: 'r1', name: 'North road', points: [{ x: 0, y: 0 }] })
+  c = addRoutePoint(c, 'world', 'r1', { x: 0.75, y: 1 })
+  const noScale = c.images![0]
+  c = setScale(c, 'world', { a: { x: 0.25, y: 0 }, b: { x: 0.5, y: 0 }, distance: 100, perDay: 25 })
+  const measured = c.images![0]
+  const layer = (image: CharacterImage, over: Partial<Parameters<typeof MapMarks>[0]> = {}) => renderToString(<MapMarks image={image} view={FIT} fit={fit} screen={screen} aspect={{ width: 1600, height: 900 }} size={30} names sel={null} {...over} />)
+
+  it('a line through its points, in screen pixels, with its name half way', () => {
+    const html = layer(noScale)
+    expect(html).toContain('points="0.0,75.0 600.0,525.0"')
+    expect(html).toContain('translate(300.0px, 300.0px)')
+    expect(strip(html)).toBe('North road')
+  })
+  it('without a scale there are no numbers; with one, the length and the days', () => {
+    expect(routeText(noScale.routes![0], noScale.scale, { width: 1600, height: 900 })).toBe('')
+    expect(strip(layer(measured))).toBe('North road · 375 mi · 15 days')
+  })
+  it('the numbers do not depend on the zoom or the size on screen', () => {
+    expect(strip(layer(measured, { view: { scale: 3, x: 40, y: -90 } }))).toBe('North road · 375 mi · 15 days')
+    expect(strip(layer(measured, { fit: { width: 390, height: 219.375 }, screen: { width: 390, height: 700 } }))).toBe('North road · 375 mi · 15 days')
+  })
+  it('one day is "1 day"; a route with its own day of travel uses it', () => {
+    const own = patchRoute(c, 'world', 'r1', { perDay: 375 }).images![0]
+    expect(strip(layer(own))).toBe('North road · 375 mi · 1 day')
+  })
+  it('a point being dragged: the line and the length follow the finger', () => {
+    const html = layer(measured, { drag: { sel: { kind: 'route', id: 'r1', point: 1 }, at: { x: 1, y: 0 } } })
+    expect(html).toContain('points="0.0,75.0 800.0,75.0"')
+    expect(strip(html)).toBe('North road · 400 mi · 16 days')
+  })
+  it('its points can be touched, and its line between them', () => {
+    const targets = markTargets(noScale, FIT, fit, screen, 30)
+    expect(targets.map((x) => [x.sel.kind, x.sel.point, x.x, x.y])).toEqual([['route', 0, 0, 75], ['route', 1, 600, 525]])
+    expect(routeLineAt(noScale, FIT, fit, screen, 300, 305)).toMatchObject({ sel: { kind: 'route', id: 'r1' }, segment: 0, px: 300, py: 305 })
+    expect(routeLineAt(noScale, FIT, fit, screen, 300, 100)).toBeNull()
+  })
+  it('the ruler of the scale tool is drawn only while that tool is in hand', () => {
+    expect(layer(measured)).not.toContain('map-ruler')
+    const html = layer(measured, { ruler: [measured.scale!.a, measured.scale!.b] })
+    expect(html).toContain('class="map-ruler"')
+    expect(html).toContain('points="200.0,75.0 400.0,75.0"')
+    expect(rulerTargets([measured.scale!.a, measured.scale!.b], FIT, fit, screen).map((x) => [x.sel.kind, x.sel.point, x.x])).toEqual([['ruler', 0, 200], ['ruler', 1, 400]])
+  })
+})
+
+describe('the panel of a route', () => {
+  const route = { id: 'r1', name: 'North road', points: [{ x: 0, y: 0 }, { x: 0.75, y: 1 }] }
+  const base = { route, numbers: '375 mi · 15 days', onPatch: noop, onDeletePoint: noop, onDelete: noop, onClose: noop }
+  it('looking: the name, the length and the days', () => {
+    const html = renderToString(<RoutePanel {...base} edit={false} />)
+    expect(strip(html)).toBe('North road 375 mi · 15 days ✕')
+    expect(html).not.toContain('Delete')
+  })
+  it('a map without a scale says why there are no numbers', () => {
+    expect(strip(renderToString(<RoutePanel {...base} numbers="" edit={false} />))).toBe('North road No distances yet: this map has no scale. ✕')
+  })
+  it('editing with the Route tool: how to add points, Finish, delete; the fields are behind Details', () => {
+    const html = renderToString(<RoutePanel {...base} edit adding point={1} />)
+    const s = strip(html)
+    expect(s).toContain('Finish')
+    expect(s).toContain('each tap is the next point')
+    expect(s).toContain('Details ▾ Delete this point Delete route')
+    expect(html).not.toContain('<input')
+  })
+  it('"Delete this point" only when a point is selected', () => {
+    expect(strip(renderToString(<RoutePanel {...base} edit />))).not.toContain('Delete this point')
+  })
+})
+
+describe('the scale tool', () => {
+  const base = { onSave: noop, onRemove: noop, onRestart: noop, onClose: noop }
+  it('step by step: first one end, then the other, then the distance', () => {
+    expect(strip(renderToString(<ScalePanel {...base} ruler={[]} />))).toContain('Tap one end of a distance you know')
+    expect(strip(renderToString(<ScalePanel {...base} ruler={[{ x: 0, y: 0 }]} />))).toContain('Now tap the other end.')
+    const html = renderToString(<ScalePanel {...base} ruler={[{ x: 0, y: 0 }, { x: 1, y: 0 }]} />)
+    expect(strip(html)).toContain('How far is it from one white dot to the other?')
+    // a new scale: no distance yet (Save is off), miles, the usual 24 a day
+    expect(html.match(/<input[^>]*value="([^"]*)"/g)?.map((x) => /value="([^"]*)"/.exec(x)![1])).toEqual(['', 'mi', '24'])
+    expect(html).toMatch(/<button type="button" class="map-btn map-btn-primary" disabled="">Save scale/)
+    expect(html).not.toContain('Remove scale')
+  })
+  it('a map that has a scale: its own numbers, and a way to remove it', () => {
+    const html = renderToString(<ScalePanel {...base} scale={{ a: { x: 0, y: 0 }, b: { x: 1, y: 0 }, distance: 300, unit: 'km' }} ruler={[{ x: 0, y: 0 }, { x: 1, y: 0 }]} />)
+    expect(html.match(/<input[^>]*value="([^"]*)"/g)?.map((x) => /value="([^"]*)"/.exec(x)![1])).toEqual(['300', 'km', ''])
+    expect(html).toContain('Remove scale')
+    expect(html).not.toMatch(/disabled="">Save scale/)
+  })
+  it('an amount typed with a comma is a number; nothing, zero and words are not', () => {
+    expect([parseAmount('24'), parseAmount(' 7,5 '), parseAmount('12.5')]).toEqual([24, 7.5, 12.5])
+    expect([parseAmount(''), parseAmount('0'), parseAmount('-4'), parseAmount('far')]).toEqual([undefined, undefined, undefined, undefined])
+  })
+})
+
 describe('the panel of a pin', () => {
   const pin = world.pins![0]
   it('looking: the name and the note, nothing to change', () => {
@@ -97,7 +192,7 @@ describe('the bar under the picture', () => {
   })
   it('editing: the tools, Undo, Done', () => {
     const html = renderToString(<MapBar edit onEdit={noop} tool="pin" onTool={noop} onUndo={noop} />)
-    expect(strip(html)).toBe('Move Pin ↶ Undo Done')
+    expect(strip(html)).toBe('Move Pin Route Scale ↶ Undo Done')
     expect(html).toMatch(/class="map-tool on[^"]*" aria-pressed="true" title="Pin"/)
   })
   it('Undo is off when there is nothing to take back', () => {

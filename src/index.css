@@ -4595,8 +4595,26 @@ details summary {
   outline-offset: 2px;
   border-radius: 6px;
 }
-.viewer-stage.editing.tool-pin {
+.viewer-stage.editing.tool-pin,
+.viewer-stage.editing.tool-route,
+.viewer-stage.editing.tool-scale {
   cursor: crosshair;
+}
+.map-lines {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+}
+/* the name of a route, half way along it */
+.map-route-name .map-name {
+  top: 6px;
+  max-width: min(22rem, 80vw);
+}
+.map-name small {
+  font-size: inherit;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
 }
 .viewer-stage.moving-mark {
   cursor: grabbing;
@@ -4730,6 +4748,45 @@ details summary {
 }
 .map-row {
   flex-direction: row;
+}
+.map-route-dot {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgb(255 255 255 / 0.7);
+}
+.map-route-title {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+.map-route-title small {
+  font-size: 0.82rem;
+  color: #d9d2e6;
+  font-variant-numeric: tabular-nums;
+}
+.map-panel-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: #b9b1c6;
+}
+/* the three short fields of the scale side by side */
+.map-fields {
+  display: grid;
+  grid-template-columns: 1fr 0.8fr 1fr;
+  gap: 0.4rem;
+  align-items: end;
+}
+.map-btn.map-btn-primary {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  border-color: #e0b85c;
+  background: #e0b85c;
+  color: #1b1622;
+  font-weight: 700;
 }
 .map-panel-head {
   display: flex;

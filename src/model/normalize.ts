@@ -37,6 +37,8 @@ import {
   type CharacterImage,
   type MapPin,
   type MapPoint,
+  type MapRoute,
+  type MapScale,
   PIN_ICONS,
   type ClassEntry,
   type Container,
@@ -190,7 +192,10 @@ export const KNOWN = {
   sessionNote: ['id', 'date', 'title', 'text'],
   xpEntry: ['id', 'date', 'kind', 'amount', 'groupXp', 'players'],
   timer: ['id', 'name', 'days', 'start', 'note'],
-  image: ['id', 'name', 'width', 'height', 'bytes', 'thumb', 'data', 'pins'],
+  image: ['id', 'name', 'width', 'height', 'bytes', 'thumb', 'data', 'pins', 'routes', 'scale'],
+  route: ['id', 'name', 'color', 'points', 'perDay'],
+  mapPoint: ['x', 'y'],
+  mapScale: ['a', 'b', 'distance', 'unit', 'perDay'],
   pin: ['id', 'name', 'x', 'y', 'note', 'color', 'icon'],
   recipe: ['id', 'name', 'inputs', 'output', 'time', 'tool', 'dc', 'note', 'containerId'],
   recipePart: ['name', 'quantity'],
@@ -983,6 +988,59 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     keep(o, pin, KNOWN.pin, p)
     return pin
   }
+  /** A point of a route or an end of the scale: only x and y. */
+  const plainPoint = (v: unknown, p: string): MapPoint | null => {
+    if (!isObj(v)) {
+      warnings.push(`${p}: expected a point { x, y }, ignored.`)
+      return null
+    }
+    const point = mapXY(v, p)
+    keep(v, point, KNOWN.mapPoint, p)
+    return point
+  }
+  /** A day's travel: a number above 0, or nothing. */
+  const perDayOf = (v: unknown, p: string): number | undefined => {
+    if (v === undefined || v === null || v === '') return undefined
+    const n = r.num(v, p, 0)
+    if (n > 0) return n
+    warnings.push(`${p}: a day's travel must be above 0, ignored.`)
+    return undefined
+  }
+  const readRoute = (o: Obj, id: string, p: string, i: number): MapRoute => {
+    const route: MapRoute = { id, name: r.str(o.name, `${p}.name`).trim() || `Route ${i + 1}`, points: [] }
+    const color = markColor(o.color, `${p}.color`)
+    if (color) route.color = color
+    route.points = r
+      .arr(o.points, `${p}.points`)
+      .map((x, j) => plainPoint(x, `${p}.points[${j}]`))
+      .filter((x): x is MapPoint => !!x)
+    if (!route.points.length) warnings.push(`${p}: a route without points, dropped.`)
+    const perDay = perDayOf(o.perDay, `${p}.perDay`)
+    if (perDay) route.perDay = perDay
+    keep(o, route, KNOWN.route, p)
+    return route
+  }
+  const readScale = (v: unknown, p: string): MapScale | null => {
+    if (!isObj(v)) {
+      warnings.push(`${p}: expected an object, ignored.`)
+      return null
+    }
+    const a = plainPoint(v.a, `${p}.a`)
+    const b = plainPoint(v.b, `${p}.b`)
+    const distance = r.num(v.distance, `${p}.distance`, 0)
+    if (!a || !b || (a.x === b.x && a.y === b.y) || !(distance > 0)) {
+      warnings.push(`${p}: a scale needs two different points (a, b) and a distance above 0; dropped, routes show no numbers.`)
+      return null
+    }
+    const scale: MapScale = { a, b, distance }
+    const unit = r.str(v.unit, `${p}.unit`).trim()
+    // "mi" is the default: read, not written
+    if (unit && unit !== 'mi') scale.unit = unit
+    const perDay = perDayOf(v.perDay, `${p}.perDay`)
+    if (perDay) scale.perDay = perDay
+    keep(v, scale, KNOWN.mapScale, p)
+    return scale
+  }
   r.arr(raw.images, 'images').forEach((im, i) => {
     const p = `images[${i}]`
     if (!isObj(im)) return warnings.push(`${p}: expected an object, ignored.`)
@@ -1008,6 +1066,14 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     if (im.thumb !== undefined && im.thumb !== null) {
       if (parseImageDataUrl(im.thumb)) image.thumb = im.thumb as string
       else warnings.push(`${p}.thumb: not an image data URL, ignored.`)
+    }
+    if (im.routes !== undefined && im.routes !== null) {
+      const routes = markList(im.routes, `${p}.routes`, readRoute).filter((x) => x.points.length)
+      if (routes.length) image.routes = routes
+    }
+    if (im.scale !== undefined && im.scale !== null) {
+      const scale = readScale(im.scale, `${p}.scale`)
+      if (scale) image.scale = scale
     }
     if (im.pins !== undefined && im.pins !== null) {
       const pins = markList(im.pins, `${p}.pins`, readPin)

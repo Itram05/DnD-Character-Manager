@@ -2,7 +2,7 @@
 // Move: drag (when zoomed in). Next / previous: the arrows, the arrow keys, or a sideways swipe while the
 // picture is not zoomed. Close: Esc or ✕. The arithmetic is in model/images.ts (tested without a browser).
 //
-// Marks on the map (pins...): drawn over the picture by MapMarks, changed through model/mapMarks.ts.
+// Marks on the map (pins, routes): drawn over the picture by MapMarks, changed through model/mapMarks.ts.
 // The viewer opens LOOKING: a tap on a mark shows its name and note, and nothing can be moved, so
 // dragging the map never drags a pin. "Edit map" in the bar under the picture turns editing on: then a
 // drag that starts on a mark moves the mark (a drag anywhere else still moves the map, two fingers still
@@ -12,10 +12,31 @@ import { t } from '../i18n'
 import { FIT, clampView, fitSize, maxScale, stepIndex, zoomAt, type Box, type View } from '../model/images'
 import { imageStore } from '../model/imageStore'
 import { newId } from '../model/id'
-import { MARK_PX, addPin, marksCount, hitTest, movePin, nextName, patchPin, pinsOf, removePin, toPoint, toScreen } from '../model/mapMarks'
+import {
+  MARK_PX,
+  addPin,
+  addRoute,
+  addRoutePoint,
+  hitTest,
+  marksCount,
+  movePin,
+  moveRoutePoint,
+  nextName,
+  patchPin,
+  patchRoute,
+  pinsOf,
+  removePin,
+  removeRoute,
+  removeRoutePoint,
+  routesOf,
+  scaleUnit,
+  setScale,
+  toPoint,
+  toScreen,
+} from '../model/mapMarks'
 import type { Character, CharacterImage, MapPoint } from '../model/types'
-import { MapMarks, markTargets, sameSel, type Drag, type Sel, type Target } from './MapMarks'
-import { MapBar, PinPanel, ToolHint, type PanelAt, type Tool } from './MapTools'
+import { MapMarks, markTargets, routeLineAt, routeText, rulerTargets, sameMark, type Drag, type Sel, type Target } from './MapMarks'
+import { MapBar, PinPanel, RoutePanel, ScalePanel, ToolHint, type PanelAt, type Tool } from './MapTools'
 import type { SheetApi } from './Sheet'
 
 const TAP_MS = 300
@@ -42,8 +63,10 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
   const [dragging, setDragging] = useState(false)
   // ----- the marks -----
   const [edit, setEdit] = useState(false)
-  const [tool, setTool] = useState<Tool>('select')
+  const [tool, setToolState] = useState<Tool>('select')
   const [sel, setSel] = useState<Sel | null>(null)
+  // the scale tool's ruler: the two points being set, not stored until "Save"
+  const [ruler, setRuler] = useState<MapPoint[]>([])
   const [drag, setDrag] = useState<Drag | null>(null)
   // the mark made by the last tap: its name field takes the keyboard
   const [fresh, setFresh] = useState<string | null>(null)
@@ -55,8 +78,8 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
   const max = maxScale(natural, fit)
 
   // the latest values for the event handlers (they are attached once)
-  const live = useRef({ view, fit, screen, max, index, count, image, edit, tool, sel, markSize, onClose, update: api?.update })
-  live.current = { view, fit, screen, max, index, count, image, edit, tool, sel, markSize, onClose, update: api?.update }
+  const live = useRef({ view, fit, screen, max, index, count, image, edit, tool, sel, ruler, markSize, onClose, update: api?.update })
+  live.current = { view, fit, screen, max, index, count, image, edit, tool, sel, ruler, markSize, onClose, update: api?.update }
   const setView = useCallback((v: View) => {
     live.current.view = v
     setViewState(v)
@@ -76,11 +99,13 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
     [setView],
   )
 
-  // another picture: back to "fits the screen", nothing selected
+  // another picture: back to "fits the screen", nothing selected, no half-set scale
   useEffect(() => {
     setView(FIT)
     setSel(null)
     setDrag(null)
+    setRuler([])
+    setToolState((x) => (x === 'scale' ? 'select' : x))
   }, [image?.id, setView])
 
   const change = useCallback((fn: (c: Character, imageId: string) => Character) => {
@@ -95,12 +120,37 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
     setFresh(null)
     if (s && y !== undefined) setPanelAt(y > live.current.screen.height / 2 ? 'top' : 'bottom')
   }, [])
-  const removeSel = useCallback(() => {
-    const s = live.current.sel
-    if (!s) return
-    change((c, im) => removePin(c, im, s.id))
-    setSel(null)
-  }, [change])
+  /** Deletes what is selected: a pin, or a route. With `pointOnly`, just the selected point of the route. */
+  const removeSel = useCallback(
+    (pointOnly = false) => {
+      const s = live.current.sel
+      if (!s) return
+      if (s.kind === 'pin') change((c, im) => removePin(c, im, s.id))
+      else if (s.kind === 'route') {
+        if (pointOnly && s.point !== undefined) {
+          const n = s.point
+          change((c, im) => removeRoutePoint(c, im, s.id, n))
+          // the route stays in hand (unless that was its last point)
+          return setSel({ kind: 'route', id: s.id })
+        }
+        change((c, im) => removeRoute(c, im, s.id))
+      }
+      setSel(null)
+    },
+    [change],
+  )
+  const setTool = (next: Tool) => {
+    const l = live.current
+    setToolState(next)
+    setFresh(null)
+    // the scale tool starts from the scale the map has
+    if (next === 'scale') {
+      setSel(null)
+      setRuler(l.image?.scale ? [l.image.scale.a, l.image.scale.b] : [])
+    }
+    // the route tool goes on with the route in hand; any other selection would only be in the way
+    else if (next === 'route' && l.sel?.kind !== 'route') setSel(null)
+  }
   /** A tap on the picture in edit mode: the chosen tool adds its mark there. */
   const addAt = (at: MapPoint) => {
     const l = live.current
@@ -114,11 +164,31 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
       change((c, im) => addPin(c, im, { id, name, ...at }))
       select({ kind: 'pin', id }, toScreen(at, l.view, l.fit, l.screen).y)
       setFresh(id)
+    } else if (l.tool === 'route') {
+      const current = l.sel?.kind === 'route' ? routesOf(l.image).find((r) => r.id === l.sel!.id) : undefined
+      if (current) {
+        // the route in hand grows by one point; the panel stays where it is
+        change((c, im) => addRoutePoint(c, im, current.id, at))
+        setSel({ kind: 'route', id: current.id, point: current.points.length })
+      } else {
+        const id = newId()
+        const name = nextName(
+          t('maps.route.word'),
+          routesOf(l.image).map((r) => r.name),
+        )
+        change((c, im) => addRoute(c, im, { id, name, points: [at] }))
+        select({ kind: 'route', id, point: 0 })
+        setPanelAt('bottom')
+      }
+    } else if (l.tool === 'scale') {
+      // two taps set the ruler; a third starts it again from there
+      setRuler(l.ruler.length >= 2 ? [at] : [...l.ruler, at])
     }
   }
   const setEditing = (on: boolean) => {
     setEdit(on)
-    setTool('select')
+    setToolState('select')
+    setRuler([])
     setDrag(null)
     setFresh(null)
   }
@@ -180,7 +250,7 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
       if (e.key === 'Escape') {
         if (l.sel) setSel(null)
         else l.onClose()
-      } else if ((e.key === 'Delete' || e.key === 'Backspace') && l.edit && l.sel) removeSel()
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && l.edit && l.sel) removeSel(true)
       else if (e.key === 'ArrowLeft') go(-1)
       else if (e.key === 'ArrowRight') go(1)
       else if (e.key === '+' || e.key === '=') zoom(BUTTON_ZOOM)
@@ -223,7 +293,17 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
   }
   const targets = () => {
     const l = live.current
-    return l.image ? markTargets(l.image, l.view, l.fit, l.screen, l.markSize) : []
+    if (!l.image) return []
+    // with the scale tool in hand only its ruler can be touched: a tap anywhere else sets an end of it
+    if (l.edit && l.tool === 'scale') return rulerTargets(l.ruler, l.view, l.fit, l.screen)
+    return markTargets(l.image, l.view, l.fit, l.screen, l.markSize)
+  }
+  /** What is under a place of the stage: a mark, else the line of a route. */
+  const hitAt = (x: number, y: number): Target | null => {
+    const l = live.current
+    const hit = hitTest(targets(), x, y)
+    if (hit || !l.image || (l.edit && l.tool === 'scale')) return hit
+    return routeLineAt(l.image, l.view, l.fit, l.screen, x, y)
   }
   const stopDrag = () => {
     gesture.current.drag = null
@@ -245,7 +325,7 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
     const g = gesture.current
     if (pointers.current.size === 1) {
       const at = onStage(e.clientX, e.clientY)
-      const hit = hitTest(targets(), at.x, at.y)
+      const hit = hitAt(at.x, at.y)
       // from the finger to the place the mark marks (a pin is held by its head, its tip is the place):
       // kept for the whole drag, so the mark does not jump when it starts to move
       Object.assign(g, { startX: e.clientX, startY: e.clientY, startAt: e.timeStamp, moved: 0, pinched: false, hit, offX: hit ? hit.px - at.x : 0, offY: hit ? hit.py - at.y : 0 })
@@ -274,7 +354,7 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
     }
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
     g.moved = Math.max(g.moved, Math.hypot(e.clientX - g.startX, e.clientY - g.startY))
-    if (l.edit && g.hit) {
+    if (l.edit && g.hit && g.hit.segment === undefined) {
       // the drag began on a mark: it moves the mark, not the map
       if (g.moved < TAP_MOVE && !g.drag) return
       const at = onStage(e.clientX, e.clientY)
@@ -297,8 +377,13 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
     stopDrag()
     if (g.pinched || e.type === 'pointercancel') return
     if (moved) {
-      change((c, im) => movePin(c, im, moved.sel.id, moved.at))
-      select(moved.sel, onStage(e.clientX, e.clientY).y)
+      const s = moved.sel
+      if (s.kind === 'ruler') return setRuler(l.ruler.map((p, i) => (i === s.point ? moved.at : p)))
+      if (s.kind === 'pin') change((c, im) => movePin(c, im, s.id, moved.at))
+      else if (s.point !== undefined) change((c, im) => moveRoutePoint(c, im, s.id, s.point!, moved.at))
+      // a route's panel stays where it is while its points are moved about
+      if (s.kind === 'route' && sameMark(l.sel, s)) setSel(s)
+      else select(s, onStage(e.clientX, e.clientY).y)
       return
     }
     const dx = e.clientX - g.startX
@@ -307,7 +392,20 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
       // a tap on a mark selects it (its panel opens); looking, a second tap puts it away again
       if (g.hit) {
         g.lastTapAt = 0
-        return select(sameSel(l.sel, g.hit.sel) && !l.edit ? null : g.hit.sel, g.hit.py)
+        const h = g.hit
+        if (h.sel.kind === 'ruler') return
+        // the route tool, on the line of the route in hand: a new point between the two it is tapped between
+        if (l.edit && l.tool === 'route' && h.segment !== undefined && sameMark(l.sel, h.sel)) {
+          const point = toPoint(h.px, h.py, l.view, l.fit, l.screen, true)
+          const at = h.segment + 1
+          if (point) change((c, im) => addRoutePoint(c, im, h.sel.id, point, at))
+          return setSel({ kind: 'route', id: h.sel.id, point: at })
+        }
+        // looking: a route is one thing (its points matter only when editing), and a second tap puts the panel away
+        const s: Sel = l.edit ? h.sel : { kind: h.sel.kind, id: h.sel.id }
+        if (!l.edit && sameMark(l.sel, s)) return select(null)
+        if (s.kind === 'route' && sameMark(l.sel, s)) return setSel(s)
+        return select(s, h.py)
       }
       // editing, with a tool that adds: the tap adds it there (so no double tap to zoom with these tools)
       if (l.edit && l.tool !== 'select') {
@@ -337,7 +435,10 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
   const src = (ready && loaded.url) || image.thumb
   const missing = ready && !loaded.url
   const zoomed = view.scale > 1.01
-  const pin = sel ? pinsOf(image).find((p) => p.id === sel.id) : undefined
+  const pin = sel?.kind === 'pin' ? pinsOf(image).find((p) => p.id === sel.id) : undefined
+  const route = sel?.kind === 'route' ? routesOf(image).find((r) => r.id === sel.id) : undefined
+  const scaling = edit && tool === 'scale'
+  const aspect = natural.width ? natural : fit
   const percent = natural.width && fit.width ? Math.round(((fit.width * view.scale) / natural.width) * 100) : null
 
   return (
@@ -394,9 +495,42 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
           !missing && <p className="viewer-note">{t('common.loading')}</p>
         )}
         {missing && <p className="viewer-note viewer-missing">{t('images.missingLong')}</p>}
-        <MapMarks image={image} view={view} fit={fit} screen={screen} size={markSize} names sel={sel} drag={drag} editing={edit} onSelect={select} />
+        <MapMarks image={image} view={view} fit={fit} screen={screen} aspect={aspect} size={markSize} names sel={sel} drag={drag} editing={edit} ruler={scaling ? ruler : null} onSelect={select} />
       </div>
-      {pin ? (
+      {scaling ? (
+        <ScalePanel
+          key={image.id}
+          scale={image.scale}
+          ruler={ruler}
+          at={ruler.length === 2 && (toScreen(ruler[0], view, fit, screen).y + toScreen(ruler[1], view, fit, screen).y) / 2 > screen.height / 2 ? 'top' : 'bottom'}
+          onSave={(s) => {
+            change((c, im) => setScale(c, im, { a: ruler[0], b: ruler[1], ...s }))
+            setTool('select')
+          }}
+          onRemove={() => {
+            change((c, im) => setScale(c, im, null))
+            setRuler([])
+          }}
+          onRestart={() => setRuler([])}
+          onClose={() => setTool('select')}
+        />
+      ) : route ? (
+        <RoutePanel
+          key={route.id}
+          route={route}
+          numbers={routeText(route, image.scale, aspect)}
+          unit={image.scale ? scaleUnit(image.scale) : undefined}
+          mapPerDay={image.scale?.perDay}
+          point={sel?.point}
+          edit={edit}
+          adding={edit && tool === 'route'}
+          at={panelAt}
+          onPatch={(patch) => change((c, im) => patchRoute(c, im, route.id, patch))}
+          onDeletePoint={() => removeSel(true)}
+          onDelete={() => removeSel()}
+          onClose={() => select(null)}
+        />
+      ) : pin ? (
         <PinPanel
           key={pin.id}
           pin={pin}
@@ -404,7 +538,7 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
           fresh={fresh === pin.id}
           at={panelAt}
           onPatch={(patch) => change((c, im) => patchPin(c, im, pin.id, patch))}
-          onDelete={removeSel}
+          onDelete={() => removeSel()}
           onClose={() => select(null)}
         />
       ) : (

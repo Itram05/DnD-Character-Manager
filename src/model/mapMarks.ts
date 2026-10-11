@@ -11,7 +11,7 @@
 // zooming moves them apart, it does not make them bigger or smaller. toScreen / toPoint below convert
 // between a place on the picture and a place on the screen for the viewer's current zoom and position.
 import { imagesOf, type Box, type View } from './images'
-import type { Character, CharacterImage, MapPin, MapPoint, PinIcon } from './types'
+import type { Character, CharacterImage, MapPin, MapPoint, MapRoute, MapScale, PinIcon } from './types'
 import { PIN_ICONS } from './types'
 
 export { PIN_ICONS }
@@ -79,7 +79,7 @@ export function hitTest<T extends Px & { r: number }>(targets: readonly T[], x: 
 
 // ---------------- the marks on an image ----------------
 
-type ListKey = 'pins'
+type ListKey = 'pins' | 'routes'
 
 /** Changes one image of the character; nothing changes when the image is not there or `fn` returns it as it is. */
 export function updateImage(c: Character, imageId: string, fn: (im: CharacterImage) => CharacterImage): Character {
@@ -154,6 +154,168 @@ export function removePin(c: Character, imageId: string, pinId: string): Charact
   return updateImage(c, imageId, (im) => (pinsOf(im).some((p) => p.id === pinId) ? withList(im, 'pins', pinsOf(im).filter((p) => p.id !== pinId)) : im))
 }
 
+// ----- routes -----
+
+export const DEFAULT_ROUTE_COLOR = '#f0a24a'
+export const routesOf = (im: CharacterImage): MapRoute[] => im.routes ?? []
+export const routeColor = (r: MapRoute) => r.color ?? DEFAULT_ROUTE_COLOR
+const ROUTE_DEFAULTS = { color: DEFAULT_ROUTE_COLOR }
+
+const withRoute = (c: Character, imageId: string, routeId: string, fn: (r: MapRoute) => MapRoute | null): Character =>
+  updateImage(c, imageId, (im) => {
+    const old = routesOf(im).find((r) => r.id === routeId)
+    if (!old) return im
+    const next = fn(old)
+    if (next === old) return im
+    return withList(im, 'routes', next ? routesOf(im).map((r) => (r.id === routeId ? next : r)) : routesOf(im).filter((r) => r.id !== routeId))
+  })
+
+/** A new route that starts at a place (one point; the next taps add the rest). */
+export function addRoute(c: Character, imageId: string, route: { id: string; name: string; points: MapPoint[] } & Partial<MapRoute>): Character {
+  return updateImage(c, imageId, (im) => {
+    if (!route.points.length || routesOf(im).some((r) => r.id === route.id)) return im
+    const { id, name, points, ...rest } = route
+    return withList(im, 'routes', [...routesOf(im), tidy({ id, name: name.trim() || 'Route', points: points.map(mapPoint), ...rest }, ROUTE_DEFAULTS)])
+  })
+}
+
+/** Adds a point to a route: at the end, or with `at` before the point that has that number (0 = a new start). */
+export function addRoutePoint(c: Character, imageId: string, routeId: string, point: MapPoint, at?: number): Character {
+  return withRoute(c, imageId, routeId, (r) => {
+    const points = [...r.points]
+    points.splice(at === undefined ? points.length : Math.max(0, Math.min(points.length, at)), 0, mapPoint(point))
+    return { ...r, points }
+  })
+}
+
+export function moveRoutePoint(c: Character, imageId: string, routeId: string, index: number, to: MapPoint): Character {
+  const p = mapPoint(to)
+  return withRoute(c, imageId, routeId, (r) => (!r.points[index] || (r.points[index].x === p.x && r.points[index].y === p.y) ? r : { ...r, points: r.points.map((x, i) => (i === index ? p : x)) }))
+}
+
+/** Takes a point out of a route. A route's last point takes the route with it. */
+export function removeRoutePoint(c: Character, imageId: string, routeId: string, index: number): Character {
+  return withRoute(c, imageId, routeId, (r) => (!r.points[index] ? r : r.points.length === 1 ? null : { ...r, points: r.points.filter((_, i) => i !== index) }))
+}
+
+/** Renames a route, changes its colour or its own day's travel (0 or less = back to the map's). */
+export function patchRoute(c: Character, imageId: string, routeId: string, patch: Partial<Pick<MapRoute, 'name' | 'color' | 'perDay'>>): Character {
+  return withRoute(c, imageId, routeId, (old) => {
+    const next = { ...old, ...patch }
+    next.name = (patch.name ?? old.name).trim() || old.name
+    if (next.color !== undefined && !isMarkColor(next.color)) next.color = old.color
+    else if (next.color) next.color = next.color.toLowerCase()
+    if (next.perDay !== undefined && !(Number.isFinite(next.perDay) && next.perDay > 0)) next.perDay = undefined
+    const clean = tidy(next, ROUTE_DEFAULTS)
+    return JSON.stringify(clean) === JSON.stringify(old) ? old : clean
+  })
+}
+
+export const removeRoute = (c: Character, imageId: string, routeId: string): Character => withRoute(c, imageId, routeId, () => null)
+
+// ----- the scale of the map, and what a route measures -----
+
+export const DEFAULT_UNIT = 'mi'
+export const scaleUnit = (s: MapScale) => s.unit ?? DEFAULT_UNIT
+
+/**
+ * Sets the scale of a map ("from a to b is 120 mi"), or with null removes it. Not taken when the two
+ * points are the same place or the distance is not above 0: such a scale measures nothing.
+ */
+export function setScale(c: Character, imageId: string, scale: MapScale | null): Character {
+  return updateImage(c, imageId, (im) => {
+    if (!scale) {
+      if (!im.scale) return im
+      const { scale: _dropped, ...rest } = im
+      void _dropped
+      return rest as CharacterImage
+    }
+    const a = mapPoint(scale.a)
+    const b = mapPoint(scale.b)
+    if ((a.x === b.x && a.y === b.y) || !(Number.isFinite(scale.distance) && scale.distance > 0)) return im
+    const next: MapScale = { a, b, distance: scale.distance }
+    const unit = scale.unit?.trim()
+    if (unit && unit !== DEFAULT_UNIT) next.unit = unit
+    if (scale.perDay !== undefined && Number.isFinite(scale.perDay) && scale.perDay > 0) next.perDay = scale.perDay
+    return JSON.stringify(next) === JSON.stringify(im.scale) ? im : { ...im, scale: next }
+  })
+}
+
+/**
+ * The length of a line through the points, in the pixels of `box`. Any box with the picture's proportions
+ * gives the same answer once it is divided by the scale's own length in that box, so the stored size of
+ * the picture does not matter.
+ */
+export function pathLength(points: readonly MapPoint[], box: Box): number {
+  let sum = 0
+  for (let i = 1; i < points.length; i++) sum += Math.hypot((points[i].x - points[i - 1].x) * box.width, (points[i].y - points[i - 1].y) * box.height)
+  return sum
+}
+
+/** How long a route is in the world, in the unit of the scale. Null without a scale (or a picture of unknown proportions). */
+export function routeLength(points: readonly MapPoint[], scale: MapScale | undefined, box: Box): number | null {
+  if (!scale || !box.width || !box.height) return null
+  const ruler = pathLength([scale.a, scale.b], box)
+  return ruler > 0 ? (pathLength(points, box) / ruler) * scale.distance : null
+}
+
+/** Days on the road: the length over a day's travel (the route's own, else the map's). Null when neither is set. */
+export function routeDays(route: Pick<MapRoute, 'perDay'>, scale: MapScale | undefined, length: number | null): number | null {
+  const perDay = route.perDay ?? scale?.perDay
+  return length === null || !perDay || perDay <= 0 ? null : length / perDay
+}
+
+/** A length or a number of days as text: one decimal under 10, whole above ("7.5", "42", "1,240" is not used: no separators). */
+export function formatAmount(n: number): string {
+  if (n < 10) return String(Math.round(n * 10) / 10)
+  return String(Math.round(n))
+}
+
+/** "86 mi" and "3.6 days" for a route, each null when it cannot be known. */
+export function routeNumbers(route: MapRoute, scale: MapScale | undefined, box: Box, points: readonly MapPoint[] = route.points): { length: string | null; days: string | null } {
+  const len = routeLength(points, scale, box)
+  const days = routeDays(route, scale, len)
+  return { length: len === null || !scale ? null : `${formatAmount(len)} ${scaleUnit(scale)}`, days: days === null ? null : formatAmount(days) }
+}
+
+/**
+ * Which stretch of a line a touch is on: the number of the point the stretch starts at, or -1 when the
+ * touch is further than `r` from every stretch. Points and touch in screen pixels.
+ */
+export function segmentHit(points: readonly Px[], x: number, y: number, r: number): number {
+  let best = -1
+  let bestD = r
+  for (let i = 0; i + 1 < points.length; i++) {
+    const a = points[i]
+    const b = points[i + 1]
+    const len2 = (b.x - a.x) ** 2 + (b.y - a.y) ** 2
+    const t = len2 ? Math.min(1, Math.max(0, ((x - a.x) * (b.x - a.x) + (y - a.y) * (b.y - a.y)) / len2)) : 0
+    const d = Math.hypot(x - (a.x + t * (b.x - a.x)), y - (a.y + t * (b.y - a.y)))
+    if (d <= bestD) {
+      best = i
+      bestD = d
+    }
+  }
+  return best
+}
+
+/** The place half way along a line (by length): where a route's name is written. */
+export function midway(points: readonly Px[]): Px | null {
+  if (!points.length) return null
+  let total = 0
+  for (let i = 1; i < points.length; i++) total += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y)
+  let left = total / 2
+  for (let i = 1; i < points.length; i++) {
+    const d = Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y)
+    if (d >= left && d > 0) {
+      const t = left / d
+      return { x: points[i - 1].x + (points[i].x - points[i - 1].x) * t, y: points[i - 1].y + (points[i].y - points[i - 1].y) * t }
+    }
+    left -= d
+  }
+  return points[0]
+}
+
 /** "Pin 3": the first number no pin of the image has yet. */
 export function nextName(word: string, taken: readonly string[]): string {
   for (let n = taken.length + 1; ; n++) if (!taken.includes(`${word} ${n}`)) return `${word} ${n}`
@@ -165,4 +327,4 @@ export function nextName(word: string, taken: readonly string[]): string {
 export const MARK_PX = { small: 22, medium: 30, large: 40, huge: 54 } as const
 
 /** How many marks an image carries, for the grid of the Images tab. */
-export const marksCount = (im: CharacterImage): number => pinsOf(im).length
+export const marksCount = (im: CharacterImage): number => pinsOf(im).length + routesOf(im).length
