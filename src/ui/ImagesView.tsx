@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { t } from '../i18n'
 import { addImages, formatBytes, imagesBytes, imagesOf, moveImage, removeImage, renameImage } from '../model/images'
 import { exportWithoutImages, imageStore } from '../model/imageStore'
+import { marksCount } from '../model/mapMarks'
 import { fileNameFor, loadImageMaxSide, saveImageMaxSide } from '../model/storage'
 import type { CharacterImage } from '../model/types'
 import { Modal, TextField } from './common'
@@ -104,6 +105,7 @@ export function ImagesView({ api }: { api: SheetApi }) {
                   <button className="image-open" onClick={() => setOpen(im.id)} title={t('images.open', { name: im.name })}>
                     <span className="image-thumb">{im.thumb ? <img src={im.thumb} alt="" loading="lazy" draggable={false} /> : <span className="image-nothumb">▦</span>}</span>
                     <span className="image-name">{im.name}</span>
+                    {marksCount(im) > 0 && <span className="image-marks">{t('maps.marks', { n: marksCount(im) })}</span>}
                     {gone && <span className="image-gone">{t('images.missing')}</span>}
                   </button>
                   <button className="image-edit" onClick={() => setEditing(im.id)} aria-label={t('images.editOne', { name: im.name })} title={t('images.editOne', { name: im.name })}>
@@ -134,7 +136,7 @@ export function ImagesView({ api }: { api: SheetApi }) {
         )}
       </section>
 
-      {openIndex >= 0 && <ImageViewer characterId={c.id} images={images} index={openIndex} onIndex={(i) => setOpen(images[i]?.id ?? null)} onClose={() => setOpen(null)} />}
+      {openIndex >= 0 && <ImageViewer characterId={c.id} images={images} index={openIndex} onIndex={(i) => setOpen(images[i]?.id ?? null)} onClose={() => setOpen(null)} api={api} />}
       {edited && <ImageEditor key={edited.id} api={api} image={edited} onClose={() => setEditing(null)} />}
     </div>
   )

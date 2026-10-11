@@ -8,6 +8,7 @@
 // written by a newer app, or by hand with extra notes, survives a round trip through this app.
 import { srdClass } from '../data/srd'
 import { base64Bytes, parseImageDataUrl } from './images'
+import { isMarkColor } from './mapMarks'
 import { isBuiltinCategory } from './categories'
 import { DEFAULT_CONTAINER, chainOf, withoutItemLink } from './containers'
 import { nameKey } from './crafting'
@@ -34,6 +35,9 @@ import {
   type Attack,
   type Character,
   type CharacterImage,
+  type MapPin,
+  type MapPoint,
+  PIN_ICONS,
   type ClassEntry,
   type Container,
   type DayTimer,
@@ -186,7 +190,8 @@ export const KNOWN = {
   sessionNote: ['id', 'date', 'title', 'text'],
   xpEntry: ['id', 'date', 'kind', 'amount', 'groupXp', 'players'],
   timer: ['id', 'name', 'days', 'start', 'note'],
-  image: ['id', 'name', 'width', 'height', 'bytes', 'thumb', 'data'],
+  image: ['id', 'name', 'width', 'height', 'bytes', 'thumb', 'data', 'pins'],
+  pin: ['id', 'name', 'x', 'y', 'note', 'color', 'icon'],
   recipe: ['id', 'name', 'inputs', 'output', 'time', 'tool', 'dc', 'note', 'containerId'],
   recipePart: ['name', 'quantity'],
   recipeOutput: ['name', 'quantity', 'template'],
@@ -938,6 +943,46 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
   // ----- images (maps): the list stays on the character, the pictures themselves (`data`) go to the caller -----
   const images: CharacterImage[] = []
   const imageData: Record<string, string> = {}
+  // ----- what is marked on a map (since 2026-10-11, optional: an image without marks is read as before) -----
+  /** A place on the picture: x and y from 0 to 1. A missing or wrong one lands in the middle, with a warning. */
+  const mapXY = (o: Obj, p: string): MapPoint => {
+    if (o.x === undefined || o.y === undefined) warnings.push(`${p}: no x or y; put in the middle of the picture.`)
+    return { x: r.num(o.x, `${p}.x`, 0.5, 0, 1), y: r.num(o.y, `${p}.y`, 0.5, 0, 1) }
+  }
+  const markColor = (v: unknown, p: string): string | undefined => {
+    const s = r.str(v, p).trim().toLowerCase()
+    if (!s) return undefined
+    if (isMarkColor(s)) return s
+    warnings.push(`${p}: "${s}" is not a colour like "#d0583f"; using the default colour.`)
+    return undefined
+  }
+  /** A list of marks with ids of their own: a missing id is made up, a repeated one replaced. */
+  const markList = <T extends { id: string }>(v: unknown, p: string, read: (o: Obj, id: string, path: string, i: number) => T): T[] => {
+    const out: T[] = []
+    r.arr(v, p).forEach((o, i) => {
+      const path = `${p}[${i}]`
+      if (!isObj(o)) return warnings.push(`${path}: expected an object, ignored.`)
+      let id = r.str(o.id, `${path}.id`) || newId()
+      if (out.some((x) => x.id === id)) {
+        warnings.push(`${path}: the id "${id}" is used twice; this one got a new id.`)
+        id = newId()
+      }
+      out.push(read(o, id, path, i))
+    })
+    return out
+  }
+  const readPin = (o: Obj, id: string, p: string, i: number): MapPin => {
+    const pin: MapPin = { id, name: r.str(o.name, `${p}.name`).trim() || `Pin ${i + 1}`, ...mapXY(o, p) }
+    const note = r.str(o.note, `${p}.note`).trim()
+    if (note) pin.note = note
+    const color = markColor(o.color, `${p}.color`)
+    if (color) pin.color = color
+    // "pin" is the default: read, not written
+    const icon = r.oneOf(o.icon, PIN_ICONS, `${p}.icon`, 'pin')
+    if (icon !== 'pin') pin.icon = icon
+    keep(o, pin, KNOWN.pin, p)
+    return pin
+  }
   r.arr(raw.images, 'images').forEach((im, i) => {
     const p = `images[${i}]`
     if (!isObj(im)) return warnings.push(`${p}: expected an object, ignored.`)
@@ -963,6 +1008,10 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     if (im.thumb !== undefined && im.thumb !== null) {
       if (parseImageDataUrl(im.thumb)) image.thumb = im.thumb as string
       else warnings.push(`${p}.thumb: not an image data URL, ignored.`)
+    }
+    if (im.pins !== undefined && im.pins !== null) {
+      const pins = markList(im.pins, `${p}.pins`, readPin)
+      if (pins.length) image.pins = pins
     }
     keep(im, image, KNOWN.image, p)
     images.push(image)

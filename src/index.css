@@ -4441,8 +4441,16 @@ details summary {
 .viewer-close {
   margin-left: 0.4rem;
 }
+/* the picture, with what floats over it (the arrows, the panel of a mark); the bar of the marks is under it */
+.viewer-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+  display: flex;
+}
 .viewer-stage {
   flex: 1 1 auto;
+  min-width: 0;
   min-height: 0;
   position: relative;
   display: flex;
@@ -4514,6 +4522,390 @@ details summary {
     transform: none;
     height: 44px;
   }
+}
+
+/* ---------------- marks on a map: pins (MapMarks.tsx, MapTools.tsx) ----------------
+   Like the viewer, dark in both themes: the colours are fixed, not the theme's variables. */
+.map-marks {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  /* the stage takes every touch and decides what was hit (ImageViewer) */
+  pointer-events: none;
+}
+.map-mark {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #f1ece0;
+  font: inherit;
+  will-change: transform;
+}
+.map-mark .pin-glyph {
+  position: absolute;
+  left: calc(var(--mark) / -2);
+  top: calc(var(--mark) / -2);
+  overflow: visible;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.75));
+}
+/* a "pin" stands on its place with its tip */
+.map-pin.icon-pin .pin-glyph {
+  top: calc(var(--mark) * -0.96);
+}
+.map-name {
+  position: absolute;
+  left: 0;
+  top: calc(var(--mark) / 2 + 2px);
+  transform: translateX(-50%);
+  max-width: 11rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 6px;
+  background: rgb(8 6 12 / 0.78);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.map-pin.icon-pin .map-name {
+  top: 3px;
+}
+.map-mark.sel .pin-glyph {
+  filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 5px #e0b85c) drop-shadow(0 1px 2px rgb(0 0 0 / 0.75));
+}
+.map-mark.sel .map-name {
+  background: #e0b85c;
+  color: #1b1622;
+}
+.map-mark.sel {
+  z-index: 2;
+}
+.map-mark.moving {
+  z-index: 3;
+  opacity: 0.85;
+}
+.map-mark:focus-visible .pin-glyph {
+  outline: 2px solid #e0b85c;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.viewer-stage.editing.tool-pin {
+  cursor: crosshair;
+}
+.viewer-stage.moving-mark {
+  cursor: grabbing;
+}
+
+/* the bar under the picture: at the bottom of the screen, under the thumb, and not over the map */
+.map-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 54px;
+  padding: 0.3rem 0.5rem calc(0.3rem + env(safe-area-inset-bottom));
+  background: #120e1a;
+  border-top: 1px solid rgb(255 255 255 / 0.12);
+}
+.map-bar-tools {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.map-bar-hint {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.82rem;
+  color: #b9b1c6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.map-tool {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-width: 48px;
+  height: 46px;
+  padding: 0 0.35rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: none;
+  color: #d9d2e6;
+  font: inherit;
+  font-size: 0.68rem;
+  line-height: 1.1;
+  cursor: pointer;
+}
+.map-tool:hover:not(:disabled),
+.map-tool:focus-visible {
+  border-color: rgb(255 255 255 / 0.3);
+}
+.map-tool.on {
+  background: #e0b85c;
+  color: #1b1622;
+  font-weight: 700;
+}
+.map-tool:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.map-tool-glyph {
+  font-size: 1.25rem;
+  line-height: 22px;
+}
+.map-tool-edit {
+  flex-direction: row;
+  gap: 0.4rem;
+  padding: 0 0.8rem;
+  border-color: rgb(255 255 255 / 0.22);
+  background: rgb(40 34 54 / 0.85);
+  font-size: 0.9rem;
+}
+.map-done {
+  flex: 0 0 auto;
+  height: 42px;
+  padding: 0 0.9rem;
+  border-radius: 10px;
+  border: 1px solid #e0b85c;
+  background: none;
+  color: #e0b85c;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* the panel of the selected mark: over the bottom of the picture on a phone, a card in the corner on a computer */
+.map-panel {
+  position: absolute;
+  left: 0.5rem;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  z-index: 3;
+  max-height: 46%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.55rem 0.7rem 0.7rem;
+  border-radius: 12px;
+  border: 1px solid rgb(255 255 255 / 0.2);
+  background: rgb(22 18 30 / 0.97);
+  color: #f1ece0;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.map-panel.at-top {
+  top: 0.5rem;
+  bottom: auto;
+}
+/* a mark is being dragged: nothing lies over the map */
+.viewer-body.moving-mark .map-panel,
+.viewer-body.moving-mark .map-hint {
+  visibility: hidden;
+}
+@media (min-width: 900px) {
+  .map-panel,
+  .map-panel.at-top {
+    /* beside the "previous" arrow */
+    left: 3.6rem;
+    right: auto;
+    top: auto;
+    bottom: 1rem;
+    width: 360px;
+    max-height: 80%;
+  }
+}
+.map-row {
+  flex-direction: row;
+}
+.map-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.map-panel-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 1.02rem;
+}
+.map-panel-title .pin-glyph {
+  flex: 0 0 auto;
+}
+.map-panel-title b {
+  overflow-wrap: anywhere;
+}
+.map-panel-close {
+  flex: 0 0 auto;
+  min-width: 36px;
+  height: 36px;
+  font-size: 0.95rem;
+}
+.map-note {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+.map-note.muted,
+.map-panel .muted {
+  color: #9d95ab;
+}
+.map-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+.map-field > span {
+  font-size: 0.75rem;
+  color: #b9b1c6;
+}
+.map-field input[type='text'],
+.map-field textarea,
+.map-field select {
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid rgb(255 255 255 / 0.25);
+  background: #0e0b14;
+  color: #f1ece0;
+  font: inherit;
+  /* 16px: a phone does not zoom the page into a smaller field */
+  font-size: 16px;
+}
+.map-field textarea {
+  resize: vertical;
+  min-height: 3.2rem;
+}
+.map-field input:focus-visible,
+.map-field textarea:focus-visible,
+.map-field select:focus-visible {
+  outline: 2px solid #e0b85c;
+  outline-offset: 0;
+}
+.map-swatches,
+.map-icons {
+  display: flex;
+  gap: 0.3rem;
+  /* one row that scrolls sideways when the phone is narrow: the panel stays low */
+  overflow-x: auto;
+  padding: 3px;
+  scrollbar-width: none;
+}
+.map-swatch,
+.map-icon {
+  flex: 0 0 auto;
+}
+.map-swatch {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid rgb(255 255 255 / 0.3);
+  cursor: pointer;
+}
+.map-swatch.on {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px #e0b85c;
+}
+.map-swatch-free {
+  position: relative;
+  overflow: hidden;
+  background: conic-gradient(#d0583f, #e0b85c, #71c283, #3fbcc0, #4f93db, #a274e0, #d0583f);
+}
+.map-swatch-free input {
+  position: absolute;
+  inset: -6px;
+  width: 200%;
+  height: 200%;
+  opacity: 0;
+  cursor: pointer;
+}
+.map-icon {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  border: 1px solid rgb(255 255 255 / 0.2);
+  background: #0e0b14;
+  cursor: pointer;
+}
+.map-icon.on {
+  border-color: #e0b85c;
+  box-shadow: 0 0 0 1px #e0b85c;
+}
+.map-panel-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.map-foot-hint {
+  flex: 1 1 8rem;
+  font-size: 0.78rem;
+  color: #9d95ab;
+}
+.map-delete,
+.map-btn {
+  height: 38px;
+  padding: 0 0.8rem;
+  border-radius: 8px;
+  border: 1px solid rgb(255 255 255 / 0.25);
+  background: rgb(40 34 54 / 0.85);
+  color: #f1ece0;
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+.map-delete {
+  border-color: #c4553f;
+  color: #f0a08f;
+}
+.map-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+/* editing, nothing selected: what a tap does now. Between the two arrows of a phone. */
+.map-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 0.6rem;
+  transform: translateX(-50%);
+  z-index: 2;
+  width: max-content;
+  max-width: calc(100% - 7rem);
+  margin: 0;
+  padding: 0.3rem 0.7rem;
+  border-radius: 10px;
+  background: rgb(8 6 12 / 0.85);
+  color: #f1ece0;
+  font-size: 0.82rem;
+  text-align: center;
+  pointer-events: none;
+}
+/* a mark count on a tile of the grid */
+.image-marks {
+  font-size: 0.72rem;
+  color: var(--muted, #8d879a);
 }
 
 /* ---------------- crafting (Gear) and counters (Play), inventory stage 5 ---------------- */

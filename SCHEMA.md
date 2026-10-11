@@ -443,6 +443,7 @@ Maps of the campaign and other pictures (the Images tab), in the order shown. Op
 | `bytes` | Size of the picture in bytes. Computed from `data` on import. |
 | `thumb` | A small preview (data URL, about 320 px) for the grid. Made on import when missing. |
 | `data` | **Only in exported files:** the picture itself, as a data URL of a JPEG, PNG, WebP or GIF (`data:image/jpeg;base64,...`). |
+| `pins` | Optional. What the player pinned on this picture: see "Marks on a map" below. Absent when there are none. |
 
 Where the pictures live: the character in the browser (localStorage, about 5 MB for everything) keeps only the list above
 without `data`; the pictures are in the browser's IndexedDB. **Export** puts each picture into its entry as `data`,
@@ -455,6 +456,36 @@ keeps the picture the browser already has under the same `id`; if it has none, t
 
 New images added in the app are stored with the long side at most 2400 px (a choice on the tab: 1600 / 2400 / 3200 / the original file),
 as JPEG; a picture that needs no shrinking and whose original file is smaller than the JPEG is kept as it is.
+
+### Marks on a map
+
+Since 2026-10-11, optional, schema 3. The player marks a picture in the viewer of the Images tab: the viewer opens for
+**looking** (a tap on a mark shows its name and note, nothing can be moved); **Edit map** in the bar under the picture turns
+editing on. The marks are fields of the image's own entry, each absent when empty, so an image nobody marked is written
+exactly as before, and a file without marks is unchanged by import and export.
+
+**Places are relative to the picture, not pixels:** `x` 0 is its left edge and 1 its right edge, `y` 0 its top and 1 its
+bottom. A mark stays on its spot whatever size the picture is stored at. The app writes 5 decimals. On screen a mark keeps
+one size at every zoom: zooming in moves the marks apart, it does not enlarge them.
+
+```json
+"pins": [
+  { "id": "pin-emberhold", "name": "Emberhold", "x": 0.39286, "y": 0.42339, "note": "The capital. The smith is here.", "color": "#4f93db", "icon": "star" }
+]
+```
+
+| Field of a pin | Notes |
+|---|---|
+| `id` | Text, unique among the pins of the image. Made up when missing. |
+| `name` | Written under the pin. "Pin 1", "Pin 2"... when missing. |
+| `x`, `y` | The place, 0 to 1 (see above). Out of range is pulled to the edge; missing means the middle; both with a warning. |
+| `note` | Optional free text, shown when the pin is tapped. |
+| `color` | Optional `#rrggbb`. Absent = red (`#d0583f`). Anything else is dropped with a warning. |
+| `icon` | Optional shape: `pin` (default; it points at the place with its tip), `dot`, `star`, `flag`, `house`, `tent`, `cross`, `danger`, `question` (these sit on the place with their centre). |
+
+The marks live on the image, so **"Export without images" writes no marks either**; importing that file over the same
+character ("Replace existing") keeps the images and their marks, like the pictures. A version 3 app from before the marks
+keeps them unchanged (with a "not a field this app uses" line in the import dialog).
 
 ## roleplay
 
@@ -472,7 +503,7 @@ Blank lines separate paragraphs.
 | 2 | New optional fields: `tags` (spells, features, items, item powers) and `powers` (items). Unknown fields are kept instead of dropped. | None needed: every version 1 field means the same in version 2, so a version 1 file imports unchanged and is exported as version 2. Item descriptions are **not** split into powers automatically (that would be guessing at rules text); add powers on the Gear tab or in the file. |
 | 3 | New fields: `partySize`, `xpLog` (experience log) and `timers` (day timers). Items: `spellDcBonus`, `spellAttackBonus`. | A version 2 file gets `partySize` 5 and empty `xpLog` and `timers`; `xp` keeps its value. A passive item power named like "+1 spell save DC" / "+3 spell attack" becomes the item's `spellDcBonus` / `spellAttackBonus` (its text goes to the item's `description`); if the item counted before but is not equipped, it is equipped, so the DC and spell attack stay the same. This conversion runs on every import, so version 3 files saved before these fields existed are converted too. Attacks: `itemId` (see attacks); a missing `itemId` is filled in on every import, the same way. Inventory (2026-10-01): `containers`, `categories`, item `containerId` and `category`, top-level `preferences`; crafting (2026-10-01): top-level `recipes` and `playCounters`. A file without containers gets one Backpack with every item in it, on every import. These are optional additions, so the version stayed 3: a version 3 app without containers opens such a file and keeps the new fields unchanged. |
 
-Added without a new version (optional fields, older files read the same): `exhaustionRules`, `images`, feature `poolId` and `cost` (2026-10-03).
+Added without a new version (optional fields, older files read the same): `exhaustionRules`, `images`, feature `poolId` and `cost` (2026-10-03); the marks on a map, image `pins` (2026-10-11).
 
 **Careful with older copies of the app:** a copy from before the Images tab keeps `images` as an unknown field, pictures included, and then
 cannot save the character (the browser's localStorage is too small); give it a file exported without images.

@@ -403,6 +403,83 @@ export interface CharacterImage {
   bytes?: number
   /** A small preview (data URL, about 320 px) for the grid, so the grid needs no picture loaded. */
   thumb?: string
+  /** What the player marked on the picture (model/mapMarks.ts). Each is absent when there is none. */
+  pins?: MapPin[]
+  routes?: MapRoute[]
+  tokens?: MapToken[]
+  /** What a distance on this picture is in the world. Absent = routes show no numbers. */
+  scale?: MapScale
+}
+
+/**
+ * A place on a picture, RELATIVE to it: x 0 = the left edge, 1 = the right edge; y 0 = the top, 1 = the
+ * bottom. Not pixels, so a mark stays on its spot when the picture is stored at another size.
+ */
+export interface MapPoint {
+  x: number
+  y: number
+}
+
+export const PIN_ICONS = ['pin', 'dot', 'star', 'flag', 'house', 'tent', 'cross', 'danger', 'question'] as const
+export type PinIcon = (typeof PIN_ICONS)[number]
+
+/** A pin on a map: a named place, with a note that a tap shows. */
+export interface MapPin extends MapPoint {
+  id: string
+  name: string
+  note?: string
+  /** "#rrggbb". Absent = the default colour of pins. */
+  color?: string
+  /** Absent = "pin". */
+  icon?: PinIcon
+}
+
+/** A route on a map: a line through its points, in order. */
+export interface MapRoute {
+  id: string
+  name: string
+  /** "#rrggbb". Absent = the default colour of routes. */
+  color?: string
+  points: MapPoint[]
+  /** How far this route's travellers go in a day, in the unit of the map's scale. Absent = the scale's own `perDay`. */
+  perDay?: number
+}
+
+/** A token on a map: where the party, a hero, an NPC or a horse is. */
+export interface MapToken extends MapPoint {
+  id: string
+  name: string
+  /** The few letters written on the token. Absent = the initials of the name. */
+  label?: string
+  /** "#rrggbb". Absent = the default colour of tokens. */
+  color?: string
+  note?: string
+}
+
+/** The scale of a map: the straight line from `a` to `b` is `distance` of `unit` in the world. */
+export interface MapScale {
+  a: MapPoint
+  b: MapPoint
+  distance: number
+  /** Absent = "mi". */
+  unit?: string
+  /** A day's travel in that unit. Absent = routes show their length, but no days. */
+  perDay?: number
+}
+
+export const MAP_LAYERS = ['pins', 'routes', 'tokens'] as const
+export type MapLayer = (typeof MAP_LAYERS)[number]
+export const MARK_SIZES = ['small', 'medium', 'large', 'huge'] as const
+export type MarkSize = (typeof MARK_SIZES)[number]
+
+/** The player's choices for the marks on maps. Every field is optional: absent = the default (mapMarks.ts). */
+export interface MapPrefs {
+  /** How big pins and tokens are on screen (they do not grow with the zoom). Absent = "medium". */
+  size?: MarkSize
+  /** Names written next to pins, tokens and routes. Absent = shown. */
+  names?: boolean
+  /** The layers that are hidden. Absent = all three are shown. */
+  hide?: MapLayer[]
 }
 
 /**
@@ -522,6 +599,6 @@ export interface Character {
   /** Items pinned as counters in Play, in the order shown. */
   playCounters: PlayCounter[]
   /** The player's choices for how the sheet looks, per character. */
-  preferences: { gear: GearPrefs; money?: MoneyPrefs; play?: PlayPrefs }
+  preferences: { gear: GearPrefs; money?: MoneyPrefs; play?: PlayPrefs; maps?: MapPrefs }
   updatedAt: string
 }

@@ -41,6 +41,9 @@ describe('i18n keys', () => {
       'money.coin.': ['pp', 'gp', 'ep', 'sp', 'cp'],
       'prefs.attackOrder.': ['file', 'name'],
       'prefs.phoneStart.': ['all', 'action', 'bonus', 'reaction', 'other'],
+      'maps.tool.': ['select', 'pin'],
+      'maps.hint.': ['select', 'pin'],
+      'maps.icon.': ['pin', 'dot', 'star', 'flag', 'house', 'tent', 'cross', 'danger', 'question'],
       'rules.': ['turn', 'actions', 'conditions', 'rest', 'concentration', 'dying', 'changes', 'about'],
     }
     const missing = Object.entries(families).flatMap(([p, ks]) => ks.map((k) => p + k).filter((k) => !(k in en)))

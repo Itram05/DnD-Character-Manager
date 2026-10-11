@@ -1509,6 +1509,12 @@ the app's default) and **keep them unchanged** when you edit an exported one:
 Maps and pictures the player added on the Images tab. An exported file carries each as `{ id, name, width, height,
 bytes, thumb, data }`, where `thumb` and `data` are the picture itself as very long `data:image/...;base64,` texts.
 
+An entry the player marked in the app also has `pins`: a list of `{ id, name, x, y, note, color, icon }`, the places
+pinned on that picture. `x` and `y` are the place **relative to the picture**, from 0 to 1 (`x` 0 = left edge, 1 = right
+edge; `y` 0 = top, 1 = bottom), not pixels. `note` is the player's text, `color` a `#rrggbb`, `icon` one of `pin` `dot`
+`star` `flag` `house` `tent` `cross` `danger` `question`. You cannot see the picture, so **you do not place or move
+marks**; you may change a pin's `name` or `note` when the player asks, and you keep everything else as it is.
+
 - **You never write images**, and a new file has no `images` field at all.
 - **Editing an exported file: copy every entry character for character.** A shortened or re-typed `data` is a
   destroyed picture. An `images` field that is present replaces the hero's pictures, even when it is `[]`.

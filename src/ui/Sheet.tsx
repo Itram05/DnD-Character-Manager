@@ -28,6 +28,8 @@ export interface SheetApi {
   setSettings: (s: Settings) => void
   /** Opens a tab; with `anchor` (the DOM id of a place in it) the page is scrolled there once the tab is drawn. */
   go: (tab: Tab, anchor?: string) => void
+  /** Takes back the last change. Absent when there is nothing to take back (and in tests). For a screen that covers the head's own ↶. */
+  undo?: () => void
   /** Slots in the sticky head for the screen's own controls (absent in tests: they render in place). */
   head?: HeadSlots
 }
@@ -211,7 +213,7 @@ export function Sheet(props: { initial: Character; tab: Tab; onTab: (t: Tab) => 
     if (next === tab) toAnchor()
     else props.onTab(next)
   }
-  const api: SheetApi = { c, update, toast, settings: props.settings, setSettings: props.setSettings, go, head: { tools, chips } }
+  const api: SheetApi = { c, update, toast, settings: props.settings, setSettings: props.setSettings, go, undo: undo.length ? doUndo : undefined, head: { tools, chips } }
 
   if (gone)
     return (

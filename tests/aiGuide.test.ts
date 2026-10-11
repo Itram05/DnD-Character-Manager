@@ -158,6 +158,7 @@ describe('AI-GUIDE.md', () => {
     moneyPrefs: 'preferences',
     playPrefs: 'preferences',
     image: 'images',
+    pin: 'images',
     recipe: 'recipes',
     recipePart: 'recipes',
     recipeOutput: 'recipes',
