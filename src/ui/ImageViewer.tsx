@@ -420,6 +420,14 @@ export function ImageViewer(props: { characterId: string; images: CharacterImage
         g.lastTapAt = 0
         const h = g.hit
         if (h.sel.kind === 'ruler') return
+        // a tool that adds is in hand and the tap is on a mark of another kind: the tool adds there, on the
+        // very place of that mark (a route through a pinned town, a token on it). Marks of the tool's own
+        // kind are selected instead; everything is selected with the Move tool.
+        if (l.edit && l.tool !== 'select' && h.sel.kind !== l.tool) {
+          const point = toPoint(h.px, h.py, l.view, l.fit, l.screen, true)
+          if (point) addAt(point)
+          return
+        }
         // the route tool, on the line of the route in hand: a new point between the two it is tapped between
         if (l.edit && l.tool === 'route' && h.segment !== undefined && sameMark(l.sel, h.sel)) {
           const point = toPoint(h.px, h.py, l.view, l.fit, l.screen, true)

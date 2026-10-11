@@ -287,5 +287,7 @@ describe('the viewer and the tab', () => {
   it('a tile says how much is marked on its map; an unmarked one says nothing', () => {
     expect(strip(renderToString(<ImagesView api={api(marked)} />))).toContain('World 2 marked')
     expect(strip(renderToString(<ImagesView api={api(hero)} />))).not.toContain('marked')
+    // and the export that leaves the images out says that the marks go with them
+    expect(strip(renderToString(<ImagesView api={api(marked)} />))).toContain('leaves it out too.')
   })
 })

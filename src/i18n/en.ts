@@ -1083,7 +1083,7 @@ export const en: Record<string, string> = {
   'maps.route.days': '{n} days',
   'maps.route.day': '{n} day',
   'maps.route.noScale': 'No distances yet: this map has no scale.',
-  'maps.route.addHint': 'Tap the map: each tap is the next point. Tap the line to add a point in between. Drag a point to move it.',
+  'maps.route.addHint': 'Tap the map: each tap is the next point (a tap on a pin or a token puts it exactly there). Tap the line to add a point in between. Drag a point to move it.',
   'maps.route.selectHint': 'Drag a point to move it. With the Route tool, taps add points.',
   'maps.route.finish': 'Finish',
   'maps.route.delete': 'Delete route',
@@ -1104,6 +1104,7 @@ export const en: Record<string, string> = {
   'maps.scale.restart': 'Start over',
   'maps.scale.remove': 'Remove scale',
   'maps.marks': '{n} marked',
+  'maps.exportNote': 'What you marked on the maps (pins, routes, tokens) is kept with the images: "Export without images" leaves it out too.',
 
   // rules
   'rules.title': 'Rules at the table',

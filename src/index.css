@@ -5048,8 +5048,10 @@ details summary {
 }
 /* a mark count on a tile of the grid */
 .image-marks {
-  font-size: 0.72rem;
-  color: var(--muted, #8d879a);
+  margin-top: -0.3rem;
+  padding: 0 0.55rem 0.45rem;
+  font-size: 0.75rem;
+  color: var(--muted);
 }
 
 /* ---------------- crafting (Gear) and counters (Play), inventory stage 5 ---------------- */

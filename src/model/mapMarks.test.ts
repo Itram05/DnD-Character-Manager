@@ -249,7 +249,8 @@ describe('routes', () => {
     expect(world(c).routes).toEqual([{ id: 'r1', name: 'Route 1', points: [{ x: 0.1, y: 0.1 }] }])
     expect(routeColor(world(c).routes![0])).toBe(DEFAULT_ROUTE_COLOR)
     expect(marksCount(world(c))).toBe(1)
-    expect(addRoute(hero(), 'world', { id: 'r1', name: 'Empty', points: [] })).toEqual(hero())
+    const bare = hero()
+    expect(addRoute(bare, 'world', { id: 'r1', name: 'Empty', points: [] })).toBe(bare)
   })
   it('points are added at the end, or in between', () => {
     let c = addRoutePoint(start(), 'world', 'r1', { x: 0.5, y: 0.5 })
@@ -334,7 +335,8 @@ describe('the scale of a map and what a route measures', () => {
     expect(world(setScale(c, 'world', { ...scale, unit: ' km ', perDay: 30 })).scale).toEqual({ ...scale, unit: 'km', perDay: 30 })
     expect(setScale(c, 'world', scale)).toBe(c)
     expect('scale' in world(setScale(c, 'world', null))).toBe(false)
-    expect(setScale(hero(), 'world', null)).toEqual(hero())
+    const bare = hero()
+    expect(setScale(bare, 'world', null)).toBe(bare)
   })
   it('a scale that measures nothing is not taken', () => {
     const c = hero()
@@ -401,6 +403,38 @@ describe('routes and the scale in a file', () => {
     expect(r.character.images![0].routes![0]).toMatchObject({ dashed: true })
     expect(r.character.images![0].scale).toMatchObject({ terrain: 'road' })
     expect(r.warnings).toEqual(['images[0].routes[0].dashed: not a field this app uses; kept unchanged.', 'images[0].scale.terrain: not a field this app uses; kept unchanged.'])
+  })
+})
+
+describe('the text of a file does not depend on the order things were done in', () => {
+  it('marks made and changed in any order are written as the importer writes them', () => {
+    let c = hero([img('world', { thumb: 'data:image/png;base64,AAAA' })])
+    // the scale first, then a token, a route and a pin; fields set in an odd order
+    c = setScale(c, 'world', { a: { x: 0, y: 0 }, b: { x: 1, y: 0 }, distance: 300, perDay: 24, unit: 'km' })
+    c = addToken(c, 'world', { id: 't1', name: 'Party', x: 0.5, y: 0.5 })
+    c = patchToken(c, 'world', 't1', { note: 'here' })
+    c = patchToken(c, 'world', 't1', { color: '#4f93db' })
+    c = patchToken(c, 'world', 't1', { label: 'P' })
+    c = addRoute(c, 'world', { id: 'r1', name: 'Road', points: [{ x: 0.1, y: 0.1 }] })
+    c = patchRoute(c, 'world', 'r1', { perDay: 48 })
+    c = patchRoute(c, 'world', 'r1', { color: '#a274e0' })
+    c = addPin(c, 'world', { id: 'p1', name: 'Inn', x: 0.2, y: 0.2 })
+    c = patchPin(c, 'world', 'p1', { icon: 'house' })
+    c = patchPin(c, 'world', 'p1', { color: '#71c283' })
+    c = patchPin(c, 'world', 'p1', { note: 'good ale' })
+    const image = world(c)
+    expect(Object.keys(image)).toEqual(['id', 'name', 'width', 'height', 'bytes', 'thumb', 'pins', 'routes', 'tokens', 'scale'])
+    expect(Object.keys(image.pins![0])).toEqual(['id', 'name', 'x', 'y', 'note', 'color', 'icon'])
+    expect(Object.keys(image.routes![0])).toEqual(['id', 'name', 'points', 'color', 'perDay'])
+    expect(Object.keys(image.tokens![0])).toEqual(['id', 'name', 'x', 'y', 'label', 'color', 'note'])
+    expect(Object.keys(image.scale!)).toEqual(['a', 'b', 'distance', 'unit', 'perDay'])
+    // and that is, character for character, what an import of the exported text gives back
+    const text = characterToJson(c)
+    const back = importCharacterJson(text)
+    expect(back.warnings).toEqual([])
+    expect(JSON.stringify(back.character.images)).toBe(JSON.stringify(c.images))
+    // (the whole text again after a second round: nothing moves any more)
+    expect(characterToJson(importCharacterJson(characterToJson(back.character)).character)).toBe(characterToJson(back.character))
   })
 })
 

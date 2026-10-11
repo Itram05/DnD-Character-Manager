@@ -73,6 +73,7 @@ server stopped, a second build while the first is open, Reload, the off switch.
 |---|---|
 | `src/model/` | Data model and rules, no React: `types.ts` (the format), `normalize.ts` (forgiving import), `rules.ts` (all calculations), `rest.ts`, `levelup.ts`, `xp.ts` (experience), `timers.ts` (day timers), `play.ts` (cards, mana, casting), `sorcery.ts` (Sorcery Points, Flexible Casting), `expr.ts` (formulas), `storage.ts` |
 | `src/model/images.ts`, `imageStore.ts` | Maps and other pictures of a character: the list is on the character, the pictures are in IndexedDB and travel inside the exported file (see `images` in SCHEMA.md). |
+| `src/model/mapMarks.ts`; `src/ui/MapMarks.tsx`, `MapTools.tsx` | What the player marks on a map: pins, routes (with a length once the map has a scale) and tokens. Fields of the image's own entry, placed relative to the picture (0..1), drawn over it at one size at every zoom. The viewer (`ImageViewer.tsx`) opens for looking; "Edit map" turns editing on. Layers and sizes are `preferences.maps` (`prefs.ts`). See "Marks on a map" in SCHEMA.md. |
 | `src/ui/` | React screens. `PlayView.tsx` + `GameCard.tsx` are the card table. |
 | `src/i18n/en.ts` | Every UI string. Add `bg.ts` with the same keys to translate. |
 | `src/content/rulesHelp.en.ts` | Hand-written rules summaries (turn, 2014 → 2024). |

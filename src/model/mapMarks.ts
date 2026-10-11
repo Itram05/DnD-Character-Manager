@@ -86,8 +86,12 @@ export function updateImage(c: Character, imageId: string, fn: (im: CharacterIma
   const list = imagesOf(c)
   const at = list.findIndex((i) => i.id === imageId)
   if (at < 0) return c
-  const next = fn(list[at])
-  if (next === list[at]) return c
+  const changed = fn(list[at])
+  if (changed === list[at]) return c
+  // the marks always come last and in one order, whichever was made first: a file reads the same after
+  // an import as before it
+  const { pins, routes, tokens, scale, ...rest } = changed
+  const next: CharacterImage = { ...rest, ...(pins ? { pins } : {}), ...(routes ? { routes } : {}), ...(tokens ? { tokens } : {}), ...(scale ? { scale } : {}) }
   return { ...c, images: list.map((im, i) => (i === at ? next : im)) }
 }
 
@@ -100,14 +104,24 @@ function withList<K extends ListKey>(im: CharacterImage, key: K, list: NonNullab
   return rest as CharacterImage
 }
 
-/** Removes the fields of `o` that hold a default or nothing, so a file carries only what was chosen. */
-function tidy<T extends object>(o: T, defaults: Partial<Record<keyof T, unknown>>): T {
-  const out = { ...o } as Record<string, unknown>
-  for (const [k, v] of Object.entries(out)) {
-    if (v === undefined || v === '' || (k in defaults && v === (defaults as Record<string, unknown>)[k])) delete out[k]
+/**
+ * Removes the fields of `o` that hold a default or nothing, so a file carries only what was chosen, and
+ * puts the fields in the order the importer writes them (`order`; anything else after), so the order does
+ * not depend on which was set first.
+ */
+function tidy<T extends object>(o: T, defaults: Partial<Record<keyof T, unknown>>, order: readonly string[]): T {
+  const src = o as Record<string, unknown>
+  const out: Record<string, unknown> = {}
+  for (const k of [...order, ...Object.keys(src).filter((x) => !order.includes(x))]) {
+    const v = src[k]
+    if (v === undefined || v === '' || (k in defaults && v === (defaults as Record<string, unknown>)[k])) continue
+    out[k] = v
   }
   return out as T
 }
+const PIN_ORDER = ['id', 'name', 'x', 'y', 'note', 'color', 'icon']
+const ROUTE_ORDER = ['id', 'name', 'points', 'color', 'perDay']
+const TOKEN_ORDER = ['id', 'name', 'x', 'y', 'label', 'color', 'note']
 
 // ----- pins -----
 
@@ -121,7 +135,7 @@ export function addPin(c: Character, imageId: string, pin: { id: string; name: s
   return updateImage(c, imageId, (im) => {
     if (pinsOf(im).some((p) => p.id === pin.id)) return im
     const { id, name, x, y, ...rest } = pin
-    return withList(im, 'pins', [...pinsOf(im), tidy({ id, name: name.trim() || 'Pin', ...mapPoint({ x, y }), ...rest }, PIN_DEFAULTS)])
+    return withList(im, 'pins', [...pinsOf(im), tidy({ id, name: name.trim() || 'Pin', ...mapPoint({ x, y }), ...rest }, PIN_DEFAULTS, PIN_ORDER)])
   })
 }
 
@@ -135,7 +149,7 @@ export function patchPin(c: Character, imageId: string, pinId: string, patch: Pa
     if (next.note !== undefined) next.note = next.note.trim()
     if (next.color !== undefined && !isMarkColor(next.color)) next.color = old.color
     else if (next.color) next.color = next.color.toLowerCase()
-    const clean = tidy(next, PIN_DEFAULTS)
+    const clean = tidy(next, PIN_DEFAULTS, PIN_ORDER)
     if (JSON.stringify(clean) === JSON.stringify(old)) return im
     return withList(im, 'pins', pinsOf(im).map((p) => (p.id === pinId ? clean : p)))
   })
@@ -183,7 +197,7 @@ export function addToken(c: Character, imageId: string, token: { id: string; nam
   return updateImage(c, imageId, (im) => {
     if (tokensOf(im).some((x) => x.id === token.id)) return im
     const { id, name, x, y, ...rest } = token
-    return withList(im, 'tokens', [...tokensOf(im), tidy({ id, name: name.trim() || 'Token', ...mapPoint({ x, y }), ...rest }, TOKEN_DEFAULTS)])
+    return withList(im, 'tokens', [...tokensOf(im), tidy({ id, name: name.trim() || 'Token', ...mapPoint({ x, y }), ...rest }, TOKEN_DEFAULTS, TOKEN_ORDER)])
   })
 }
 
@@ -201,7 +215,7 @@ export function patchToken(c: Character, imageId: string, tokenId: string, patch
     }
     if (next.color !== undefined && !isMarkColor(next.color)) next.color = old.color
     else if (next.color) next.color = next.color.toLowerCase()
-    const clean = tidy(next, TOKEN_DEFAULTS)
+    const clean = tidy(next, TOKEN_DEFAULTS, TOKEN_ORDER)
     if (JSON.stringify(clean) === JSON.stringify(old)) return im
     return withList(im, 'tokens', tokensOf(im).map((x) => (x.id === tokenId ? clean : x)))
   })
@@ -253,7 +267,7 @@ export function addRoute(c: Character, imageId: string, route: { id: string; nam
   return updateImage(c, imageId, (im) => {
     if (!route.points.length || routesOf(im).some((r) => r.id === route.id)) return im
     const { id, name, points, ...rest } = route
-    return withList(im, 'routes', [...routesOf(im), tidy({ id, name: name.trim() || 'Route', points: points.map(mapPoint), ...rest }, ROUTE_DEFAULTS)])
+    return withList(im, 'routes', [...routesOf(im), tidy({ id, name: name.trim() || 'Route', points: points.map(mapPoint), ...rest }, ROUTE_DEFAULTS, ROUTE_ORDER)])
   })
 }
 
@@ -284,7 +298,7 @@ export function patchRoute(c: Character, imageId: string, routeId: string, patch
     if (next.color !== undefined && !isMarkColor(next.color)) next.color = old.color
     else if (next.color) next.color = next.color.toLowerCase()
     if (next.perDay !== undefined && !(Number.isFinite(next.perDay) && next.perDay > 0)) next.perDay = undefined
-    const clean = tidy(next, ROUTE_DEFAULTS)
+    const clean = tidy(next, ROUTE_DEFAULTS, ROUTE_ORDER)
     return JSON.stringify(clean) === JSON.stringify(old) ? old : clean
   })
 }

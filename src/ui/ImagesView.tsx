@@ -121,6 +121,7 @@ export function ImagesView({ api }: { api: SheetApi }) {
         {images.length > 0 && (
           <div className="images-foot">
             <p className="hint">{t('images.fileNote', { size: formatBytes(Math.round(imagesBytes(c) * 1.37)) })}</p>
+            {images.some((im) => marksCount(im) > 0) && <p className="hint">{t('maps.exportNote')}</p>}
             <div className="images-export">
               <button
                 className="btn btn-small"

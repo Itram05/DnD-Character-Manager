@@ -1086,6 +1086,12 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
       if (parseImageDataUrl(im.thumb)) image.thumb = im.thumb as string
       else warnings.push(`${p}.thumb: not an image data URL, ignored.`)
     }
+    keep(im, image, KNOWN.image, p)
+    // the marks last, always in this order (as mapMarks.ts writes them)
+    if (im.pins !== undefined && im.pins !== null) {
+      const pins = markList(im.pins, `${p}.pins`, readPin)
+      if (pins.length) image.pins = pins
+    }
     if (im.routes !== undefined && im.routes !== null) {
       const routes = markList(im.routes, `${p}.routes`, readRoute).filter((x) => x.points.length)
       if (routes.length) image.routes = routes
@@ -1098,11 +1104,6 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
       const scale = readScale(im.scale, `${p}.scale`)
       if (scale) image.scale = scale
     }
-    if (im.pins !== undefined && im.pins !== null) {
-      const pins = markList(im.pins, `${p}.pins`, readPin)
-      if (pins.length) image.pins = pins
-    }
-    keep(im, image, KNOWN.image, p)
     images.push(image)
   })
 
