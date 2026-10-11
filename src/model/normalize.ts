@@ -14,6 +14,7 @@ import { nameKey } from './crafting'
 import { newId } from './id'
 import {
   ABILITIES,
+  ABILITY_SCORE_MODES,
   ACTIVATIONS,
   COINS,
   CURRENT_SCHEMA_VERSION,
@@ -37,6 +38,7 @@ import {
   type Formula,
   type GearPrefs,
   type Item,
+  type ItemAbilityScore,
   type ItemCategory,
   type ItemPower,
   type ItemTemplate,
@@ -165,7 +167,7 @@ export const KNOWN = {
   spellcasting: ['slotsUsed', 'pactSlotsUsed', 'concentration', 'slotsOverride', 'pactOverride', 'bonusSlots'],
   pactOverride: ['slots', 'level'],
   inventory: ['items', 'money', 'containers', 'categories'],
-  item: ['id', 'name', 'quantity', 'equipped', 'requiresAttunement', 'attuned', 'weight', 'armor', 'acBonus', 'saveBonus', 'spellDcBonus', 'spellAttackBonus', 'charges', 'activation', 'description', 'powers', 'tags', 'containerId', 'category'],
+  item: ['id', 'name', 'quantity', 'equipped', 'requiresAttunement', 'attuned', 'weight', 'armor', 'acBonus', 'saveBonus', 'spellDcBonus', 'spellAttackBonus', 'abilityScores', 'charges', 'activation', 'description', 'powers', 'tags', 'containerId', 'category'],
   container: ['id', 'name', 'icon', 'color', 'capacity', 'weightless', 'extradimensional', 'itemId'],
   category: ['id', 'name', 'icon', 'color'],
   preferences: ['gear', 'money'],
@@ -173,6 +175,7 @@ export const KNOWN = {
   gearPrefs: ['view', 'groupBy', 'show'],
   gearShow: GEAR_SHOW_FIELDS,
   armor: ['base', 'dexCap'],
+  abilityScore: ['ability', 'mode', 'value', 'max'],
   power: ['id', 'name', 'activation', 'cost', 'uses', 'description', 'tags'],
   money: ['cp', 'sp', 'ep', 'gp', 'pp'],
   roleplay: ['appearance', 'personality', 'ideals', 'bonds', 'flaws', 'voice', 'mannerisms', 'goals', 'backstory', 'allies', 'notes'],
@@ -763,6 +766,27 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     }
     if (it.spellDcBonus !== undefined) item.spellDcBonus = r.num(it.spellDcBonus, `${p}.spellDcBonus`, 0) || undefined
     if (it.spellAttackBonus !== undefined) item.spellAttackBonus = r.num(it.spellAttackBonus, `${p}.spellAttackBonus`, 0) || undefined
+    if (it.abilityScores !== undefined && it.abilityScores !== null) {
+      const list: ItemAbilityScore[] = []
+      r.arr(it.abilityScores, `${p}.abilityScores`).forEach((x, j) => {
+        const pp = `${p}.abilityScores[${j}]`
+        if (!isObj(x)) return warnings.push(`${pp}: expected an object like { "ability": "con", "mode": "set", "value": 19 }, ignored.`)
+        const ab = ability(x.ability, `${pp}.ability`)
+        if (!ab) return
+        const mode = r.oneOf(x.mode, ABILITY_SCORE_MODES, `${pp}.mode`, 'add', { '+': 'add', bonus: 'add', plus: 'add', '=': 'set', becomes: 'set', to: 'set' })
+        if (x.value === undefined || x.value === null || x.value === '') return warnings.push(`${pp}: no value, ignored.`)
+        const value = Math.round(mode === 'set' ? r.num(x.value, `${pp}.value`, 10, 1, 30) : r.num(x.value, `${pp}.value`, 0, -30, 30))
+        if (mode === 'add' && value === 0) return
+        const entry: ItemAbilityScore = { ability: ab, mode, value }
+        if (x.max !== undefined && x.max !== null && x.max !== '') {
+          if (mode === 'set') warnings.push(`${pp}.max: ignored: a score that is set has no maximum (the item sets it to ${value} unless it is already higher).`)
+          else entry.max = Math.round(r.num(x.max, `${pp}.max`, 20, 1, 30))
+        }
+        keep(x, entry, KNOWN.abilityScore, pp)
+        list.push(entry)
+      })
+      if (list.length) item.abilityScores = list
+    }
     liftSpellBonusPowers(item, p, warnings)
     const tg = r.tags(it.tags, `${p}.tags`)
     if (tg) item.tags = tg

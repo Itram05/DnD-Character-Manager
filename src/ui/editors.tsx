@@ -6,9 +6,9 @@ import { defaultContainerId, deleteItem, moveTargets } from '../model/containers
 import { recipesUsing, renameAcross } from '../model/crafting'
 import { newId } from '../model/normalize'
 import { deleteFeature, featureCost, poolChoices, poolOptions } from '../model/play'
-import { evalFormula } from '../model/rules'
+import { DEFAULT_ABILITY_BONUS_MAX, evalFormula } from '../model/rules'
 import { autoPart, ownTagsIn, spellAutoTags, textTags } from '../model/tags'
-import { ACTIVATIONS, ABILITIES, RECHARGES, SOURCE_TYPES, type Activation, type Attack, type Feature, type Item, type ItemPower, type PowerCost, type Recharge, type SourceType, type Spell, type Uses } from '../model/types'
+import { ACTIVATIONS, ABILITIES, RECHARGES, SOURCE_TYPES, type Ability, type AbilityScoreMode, type Activation, type Attack, type Feature, type Item, type ItemAbilityScore, type ItemPower, type PowerCost, type Recharge, type SourceType, type Spell, type Uses } from '../model/types'
 import { Check, Confirm, Modal, NumberField, Select, TextArea, TextField } from './common'
 import type { SheetApi } from './Sheet'
 import { TagInput } from './tags'
@@ -334,11 +334,50 @@ export function ItemEditor({ api, initial, onClose }: { api: SheetApi; initial: 
       {isCard && (
         <Select<Activation> label={t('feature.activation')} value={it.activation!} options={ACTIVATIONS.filter((a) => a !== 'passive').map((a) => ({ value: a, label: t(`act.${a}`) }))} onChange={(activation) => setIt({ ...it, activation })} />
       )}
+      <AbilityScoresEditor value={it.abilityScores ?? []} onChange={(list) => setIt({ ...it, abilityScores: list.length ? list : undefined })} />
       <UsesEditor api={api} value={it.charges} onChange={(charges) => setIt({ ...it, charges })} label={t('item.hasCharges')} allowRegain />
       <TextArea label={t('common.description')} rows={5} value={it.description ?? ''} onChange={(description) => setIt({ ...it, description })} />
       <PowersEditor api={api} item={it} onChange={(powers) => setIt({ ...it, powers: powers.length ? powers : undefined })} />
       <TagInput value={it.tags} onChange={(tags) => setIt({ ...it, tags })} auto={autoPart(textTags(it.description), it.tags)} known={ownTagsIn(api.c)} />
     </EditorFrame>
+  )
+}
+
+// ---------------- item: ability scores ----------------
+
+/** What the item does to ability scores while it counts: one row per score, "+N up to a maximum" or "becomes N". */
+function AbilityScoresEditor({ value, onChange }: { value: ItemAbilityScore[]; onChange: (list: ItemAbilityScore[]) => void }) {
+  const set = (i: number, patch: Partial<ItemAbilityScore>) => onChange(value.map((x, j) => (j === i ? { ...x, ...patch } : x)))
+  return (
+    <fieldset className="ability-scores-editor">
+      <legend>{t('item.abilityScores')}</legend>
+      <p className="hint">{t('item.abilityScoresHint')}</p>
+      {value.map((x, i) => (
+        <div key={i} className="ability-score-row">
+          <Select<Ability> label={t('item.abilityScore.ability')} value={x.ability} options={ABILITIES.map((a) => ({ value: a, label: t(`ability.long.${a}`) }))} onChange={(ability) => set(i, { ability })} />
+          <Select<AbilityScoreMode>
+            label={t('item.abilityScore.mode')}
+            value={x.mode}
+            options={[
+              { value: 'add', label: t('item.abilityScore.add') },
+              { value: 'set', label: t('item.abilityScore.set') },
+            ]}
+            // a maximum belongs to a bonus only; the usual values of each kind are filled in
+            onChange={(mode) => onChange(value.map((y, j) => (j === i ? (mode === 'set' ? { ability: y.ability, mode, value: 19 } : { ability: y.ability, mode, value: 2 }) : y)))}
+          />
+          <NumberField label={x.mode === 'set' ? t('item.abilityScore.becomes') : t('item.abilityScore.bonus')} value={x.value} min={x.mode === 'set' ? 1 : -30} max={30} onChange={(n) => set(i, { value: Math.round(n) })} />
+          {x.mode === 'add' && (
+            <NumberField label={t('item.abilityScore.max')} value={x.max ?? DEFAULT_ABILITY_BONUS_MAX} min={1} max={30} onChange={(n) => set(i, { max: Math.round(n) === DEFAULT_ABILITY_BONUS_MAX ? undefined : Math.max(1, Math.min(30, Math.round(n))) })} />
+          )}
+          <button type="button" className="mini-btn danger" onClick={() => onChange(value.filter((_, j) => j !== i))} aria-label={t('item.abilityScore.remove')} title={t('item.abilityScore.remove')}>
+            ✕
+          </button>
+        </div>
+      ))}
+      <button type="button" className="btn btn-small" onClick={() => onChange([...value, { ability: 'str', mode: 'set', value: 19 }])}>
+        + {t('item.abilityScore.addRow')}
+      </button>
+    </fieldset>
   )
 }
 

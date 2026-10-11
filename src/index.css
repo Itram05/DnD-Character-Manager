@@ -3166,6 +3166,31 @@ details summary {
 }
 
 /* item powers */
+.ability-scores-editor {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem 0.7rem;
+}
+.ability-score-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: flex-end;
+  margin-bottom: 0.5rem;
+}
+.ability-score-row .field {
+  flex: 1 1 7rem;
+  min-width: 0;
+}
+.ability.by-item .ab-score {
+  color: var(--f-item);
+  font-weight: 700;
+}
+.ab-own {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
 .powers-editor {
   border: 1px solid var(--line);
   border-radius: 8px;

@@ -164,6 +164,23 @@ export interface ArmorInfo {
   dexCap: number | null
 }
 
+export const ABILITY_SCORE_MODES = ['add', 'set'] as const
+export type AbilityScoreMode = (typeof ABILITY_SCORE_MODES)[number]
+
+/**
+ * What an item does to one ability score while it counts (equipped, and attuned if it requires attunement:
+ * the rule of acBonus). The score typed into `abilities` stays the hero's own; this is added at display time
+ * (abilityScore in rules.ts), so taking the item off undoes it.
+ */
+export interface ItemAbilityScore {
+  ability: Ability
+  /** "add": the score goes up by `value` (Belt of Dwarvenkind, Ioun Stone). "set": the score becomes `value`, unless it is already higher (Gauntlets of Ogre Power 19, Amulet of Health 19, a Belt of Giant Strength). */
+  mode: AbilityScoreMode
+  value: number
+  /** "add" only: the score this bonus cannot raise above. Absent = 20, the rule of nearly every such item; write 30 for none. It never lowers a score that is already higher. */
+  max?: number
+}
+
 /** Charges a power takes from its item's pool: a number, or "all" = every charge left (at least 1). */
 export type PowerCost = number | 'all'
 
@@ -202,6 +219,8 @@ export interface Item {
   spellDcBonus?: number
   /** Same rule as acBonus, added to spell attack rolls (Staff of Ages +3). Shown as a chip under "Always on". */
   spellAttackBonus?: number
+  /** Same rule as acBonus: raises or sets ability scores (Amulet of Health: Constitution becomes 19). Shown as chips under "Always on". */
+  abilityScores?: ItemAbilityScore[]
   charges?: Uses
   /** Set this to make the item a card on the play screen. Potions and scrolls are recognized by name and do not need it (see consumables.ts). */
   activation?: Activation

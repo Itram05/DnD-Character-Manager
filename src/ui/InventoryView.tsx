@@ -70,6 +70,11 @@ export function InventoryView({ api }: { api: SheetApi }) {
               {i.acBonus ? <span className="tag">AC {i.acBonus > 0 ? '+' : ''}{i.acBonus}</span> : null}
               {i.spellDcBonus ? <span className="tag">DC {i.spellDcBonus > 0 ? '+' : ''}{i.spellDcBonus}</span> : null}
               {i.spellAttackBonus ? <span className="tag">{t('inv.spellAttackTag')} {i.spellAttackBonus > 0 ? '+' : ''}{i.spellAttackBonus}</span> : null}
+              {i.abilityScores?.map((x, n) => (
+                <span key={n} className="tag">
+                  {t(`ability.${x.ability}`)} {x.mode === 'set' ? x.value : `${x.value > 0 ? '+' : ''}${x.value}`}
+                </span>
+              ))}
               {i.powers?.length ? <span className="tag">{t('power.count', { n: i.powers.length })}</span> : null}
             </>
           )}

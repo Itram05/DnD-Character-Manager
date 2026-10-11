@@ -11,6 +11,7 @@ import {
   effectiveHpCurrent,
   effectiveHpMax,
   effectiveSpeed,
+  abilityScore,
   exhaustionEffects,
   exhaustionLines,
   exhaustionRules,
@@ -386,7 +387,7 @@ export function HitDiceBlock({ api }: { api: SheetApi }) {
 function HitDieSpend({ api, die, left, onSpent, children }: { api: SheetApi; die: string; left: number; onSpent: (line: string) => void; children?: ReactNode }) {
   const { c, update } = api
   const [roll, setRoll] = useState('')
-  const con = abilityMod(c.abilities.con)
+  const con = abilityMod(abilityScore(c, 'con'))
   const spend = (n: number) => {
     const r = spendHitDie(c, die, n)
     if (!r) return

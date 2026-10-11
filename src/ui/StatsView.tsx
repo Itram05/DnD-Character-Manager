@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { t } from '../i18n'
 import {
   abilityMod,
+  abilityScoreView,
   attackStats,
   castingStats,
   exhaustionEffects,
@@ -45,13 +46,19 @@ export function StatsView({ api }: { api: SheetApi }) {
       <section className="panel abilities">
         <h3>{t('stats.abilities')}</h3>
         <div className="ability-grid">
-          {ABILITIES.map((a) => (
-            <div key={a} className="ability">
-              <span className="ab-name">{t(`ability.${a}`)}</span>
-              <span className="ab-mod">{fmtMod(abilityMod(c.abilities[a]))}</span>
-              <span className="ab-score">{c.abilities[a]}</span>
-            </div>
-          ))}
+          {ABILITIES.map((a) => {
+            // the score that counts: the hero's own, with what worn items add or set
+            const v = abilityScoreView(c, a)
+            const why = v.parts.map((p) => (p.mode === 'set' ? t('ability.setBy', { item: p.item, n: p.value }) : t('ability.addBy', { item: p.item, n: fmtMod(p.value), to: p.to }))).join('; ')
+            return (
+              <div key={a} className={`ability ${v.parts.length ? 'by-item' : ''}`} title={v.parts.length ? t('ability.own', { n: v.base, why }) : undefined}>
+                <span className="ab-name">{t(`ability.${a}`)}</span>
+                <span className="ab-mod">{fmtMod(abilityMod(v.value))}</span>
+                <span className="ab-score">{v.value}</span>
+                {v.parts.length > 0 && <span className="ab-own">{t('ability.ownShort', { n: v.base })}</span>}
+              </div>
+            )
+          })}
         </div>
       </section>
 

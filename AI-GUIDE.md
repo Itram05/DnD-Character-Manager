@@ -145,7 +145,8 @@ A derived number has no field; adding a field of your own for it only produces a
 
 **Calculated by the app.**
 
-- Ability modifiers, Proficiency Bonus, saving throws (plus `saveBonus` of active items), skills, passive scores.
+- Ability modifiers (from the score with the `abilityScores` of active items applied), Proficiency Bonus, saving
+  throws (plus `saveBonus` of active items), skills, passive scores.
 - Initiative: Dexterity modifier + `combat.initiativeBonus`.
 - Armor Class: the equipped armor's base + Dexterity (capped), or the `unarmoredAc` formula with no armor; plus
   `acBonus` of every active item, plus `combat.acBonus`.
@@ -158,8 +159,9 @@ A derived number has no field; adding a field of your own for it only produces a
 
 - **Hit Point maximum** (`combat.hp.max`), with everything in it. See "Hit Points" in section 2.
 - **Speed** (`combat.speed`), with every permanent bonus in it.
-- **Ability scores**: the final scores. The app adds nothing to them, not background, feats or level-ups, and not a
-  magic item either (see [items](#items)).
+- **Ability scores**: the hero's own final scores. The app adds nothing to them, not background, feats or level-ups.
+  The one exception is a magic item worn now: that goes in the item's `abilityScores`, not in the score (see
+  [items](#items)).
 - **Every feature, as text.** A "Fighter 5" in the file does not get Second Wind. The `features` list is the whole
   truth: a feature you leave out does not exist in the app.
 - **Every spell, as text.** A spell with only a name is a card with no text.
@@ -532,6 +534,7 @@ A list. Every spell the hero can cast, or has in a spellbook.
 | `saveBonus` | number | if it applies | absent | Added to every saving throw while active (Cloak of Protection: 1). |
 | `spellDcBonus` | number | if it applies | absent | Added to the spell save DC while active. |
 | `spellAttackBonus` | number | if it applies | absent | Added to spell attack rolls while active: the spell attack beside the save DC and every attack with `"ability": "spell"`. |
+| `abilityScores` | list of `{ ability, mode, value, max }` | if it applies | absent | What the item does to ability scores while active. `ability`: one of the six ids. `mode` `"set"`: the score **becomes** `value` unless it is already higher (Amulet of Health: `{ "ability": "con", "mode": "set", "value": 19 }`). `mode` `"add"`: the score goes up by `value`, but not above `max` (Belt of Dwarvenkind: `{ "ability": "con", "mode": "add", "value": 2, "max": 20 }`); leave `max` out for 20, write 30 for an item with no limit. `max` is for `"add"` only. Everything the app calculates from the score follows; a chip under "Always on" names it. |
 | `charges` | [counter](#counters) | if it applies | absent | The item's pool of charges. |
 | `activation` | as for features | if it applies | absent | Makes the item itself a card that spends `quantity`. Consumables only; see the table below. |
 | `powers` | list | if it applies | absent | The item's separate abilities. See [item powers](#item-powers). |
@@ -560,7 +563,7 @@ Which shape to give an item:
 | A magic item in use | The bonus fields or `powers`; `equipped: true`; and if it needs attunement, `requiresAttunement: true`, `attuned: true` |
 | A magic item that is **only passive** (Cloak of Elvenkind, Ring of Swimming) | One `passive` power holding the rule: without a power the item is on the Gear tab only and nothing on Play reminds the player of it. Keep the item's `description` to what the thing is ("Wondrous item, requires attunement"); do not write the rule twice. An item with no effect at the table (a trinket) needs only `description`. |
 | A magic item that needs attunement and is **not attuned yet** | `requiresAttunement: true`, `attuned: false`, and `equipped` as it really is (worn or in the pack). Either way it does nothing and is not on Play until the player taps Attuned on the Gear tab, which also equips it. |
-| An item that **sets or raises an ability score** (Amulet of Health, Gauntlets of Ogre Power, a Belt of Giant Strength) | The app cannot do this from an item. While the item is active, write the **resulting** score in `abilities` (and a Hit Point maximum that includes a new Constitution modifier), and say so in the item's `description`: "Constitution is 19 while worn (already in the scores; without it: 16)." While it is not active, write the hero's own score and note what to change by hand on the Edit tab. |
+| An item that **sets or raises an ability score** (Amulet of Health, Gauntlets of Ogre Power, a Belt of Giant Strength, an Ioun Stone) | `abilityScores` on the item, and the hero's **own** score in `abilities` (the score without the item: 16, not 19). The app applies the item while it is active and takes it off when it is not. The Hit Point maximum is still the number you write: with an item that changes Constitution, write the maximum **with** the item if it is active, and say in the item's `description` what it is without it. |
 | A consumable thrown or used up (Alchemist's Fire, Holy Water, caltrops) | `activation`, `quantity`, **no** `charges`. The card has − and + for the quantity. Never put a bare `activation` on a reusable item (Boots of Speed): using its card would lower `quantity`. A reusable ability goes in `powers`, even if it is the only one. |
 | A potion or a scroll | The right name and a `quantity`. See [Names the app reads](#names-the-app-reads). |
 

@@ -28,8 +28,51 @@ export function totalLevel(c: Pick<Character, 'classes'>): number {
 /** "Character Advancement" table: +2 at levels 1-4, +3 at 5-8 ... +6 at 17-20. */
 export const proficiencyBonus = (level: number) => 2 + Math.floor((Math.max(1, level) - 1) / 4)
 
+// ---------------- ability scores ----------------
+// `c.abilities` is the hero's own score. Items that count (itemActive: equipped, and attuned if required)
+// can raise it ("add", up to a maximum, 20 unless the item says otherwise) or set it ("set": becomes the
+// value unless already higher). Everything calculated on the sheet reads the score through abilityScore().
+// Bonuses are added first, then the highest "set" is applied, so a Belt of Giant Strength (21) over an
+// Ioun Stone (+2, max 20) gives 21 whatever the order of the items.
+
+/** The maximum of an "add" bonus when the item names none. */
+export const DEFAULT_ABILITY_BONUS_MAX = 20
+
+export interface AbilityScoreView {
+  /** The score that counts now. */
+  value: number
+  /** The hero's own score (`abilities`). */
+  base: number
+  /** The items that changed it, in the order applied; `to` is the score after that item. An item that changes nothing (a set below the score, a bonus at its maximum) is not listed. */
+  parts: { item: string; mode: 'add' | 'set'; value: number; to: number }[]
+}
+
+export function abilityScoreView(c: Pick<Character, 'abilities' | 'inventory'>, a: Ability): AbilityScoreView {
+  const base = c.abilities[a]
+  let value = base
+  const parts: AbilityScoreView['parts'] = []
+  const entries = c.inventory.items.filter((i) => itemActive(i)).flatMap((i) => (i.abilityScores ?? []).filter((x) => x.ability === a).map((x) => ({ item: i.name, ...x })))
+  for (const e of entries) {
+    if (e.mode !== 'add') continue
+    const cap = e.max ?? DEFAULT_ABILITY_BONUS_MAX
+    // a bonus never lowers a score that is already above its maximum; a minus (a cursed item) has no maximum
+    const to = e.value < 0 ? Math.max(1, value + e.value) : value >= cap ? value : Math.min(cap, value + e.value)
+    if (to !== value) parts.push({ item: e.item, mode: 'add', value: e.value, to })
+    value = to
+  }
+  const best = entries.filter((e) => e.mode === 'set').sort((x, y) => y.value - x.value)[0]
+  if (best && best.value > value) {
+    value = Math.min(30, best.value)
+    parts.push({ item: best.item, mode: 'set', value: best.value, to: value })
+  }
+  return { value, base, parts }
+}
+
+/** The ability score that counts now: the hero's own, with what active items add or set. */
+export const abilityScore = (c: Pick<Character, 'abilities' | 'inventory'>, a: Ability) => abilityScoreView(c, a).value
+
 export const mods = (c: Character) =>
-  Object.fromEntries(ABILITIES.map((a) => [a, abilityMod(c.abilities[a])])) as Record<Ability, number>
+  Object.fromEntries(ABILITIES.map((a) => [a, abilityMod(abilityScore(c, a))])) as Record<Ability, number>
 
 // ---------------- formulas ----------------
 
@@ -48,7 +91,7 @@ export function classColumnValue(classId: string, column: string, level: number)
 export function resolveIdentifier(c: Character, name: string): number | undefined {
   const m = mods(c)
   if ((ABILITIES as readonly string[]).includes(name)) return m[name as Ability]
-  if (name.endsWith('_score') && (ABILITIES as readonly string[]).includes(name.slice(0, 3))) return c.abilities[name.slice(0, 3) as Ability]
+  if (name.endsWith('_score') && (ABILITIES as readonly string[]).includes(name.slice(0, 3))) return abilityScore(c, name.slice(0, 3) as Ability)
   if (name === 'pb') return proficiencyBonus(totalLevel(c))
   if (name === 'level') return totalLevel(c)
   const [cls, col] = name.split('.')
@@ -79,12 +122,12 @@ export function savingThrowProficiencies(c: Character): Ability[] {
 export function savingThrow(c: Character, a: Ability) {
   const prof = savingThrowProficiencies(c).includes(a)
   const items = c.inventory.items.reduce((s, i) => s + (i.saveBonus && itemActive(i) ? i.saveBonus : 0), 0)
-  return { mod: abilityMod(c.abilities[a]) + (prof ? proficiencyBonus(totalLevel(c)) : 0) + items, proficient: prof }
+  return { mod: abilityMod(abilityScore(c, a)) + (prof ? proficiencyBonus(totalLevel(c)) : 0) + items, proficient: prof }
 }
 
 export function skillMod(c: Character, s: SkillId): number {
   const pb = proficiencyBonus(totalLevel(c))
-  const base = abilityMod(c.abilities[SKILLS[s]])
+  const base = abilityMod(abilityScore(c, SKILLS[s]))
   const p = c.proficiencies.skills[s] ?? 'none'
   if (p === 'expertise') return base + pb * 2
   if (p === 'proficient') return base + pb
@@ -120,7 +163,7 @@ export function passiveScoreView(c: Character, s: SkillId): PassiveScore {
 export const passiveScore = (c: Character, s: SkillId) => passiveScoreView(c, s).value
 
 /** Initiative is a Dexterity check. JoAT does not apply in 2024 (it needs a skill). */
-export const initiative = (c: Character) => abilityMod(c.abilities.dex) + (c.combat.initiativeBonus || 0)
+export const initiative = (c: Character) => abilityMod(abilityScore(c, 'dex')) + (c.combat.initiativeBonus || 0)
 
 // ---------------- exhaustion ----------------
 
@@ -213,7 +256,7 @@ export interface AcBreakdown {
 }
 
 export function armorClass(c: Character): AcBreakdown {
-  const dex = abilityMod(c.abilities.dex)
+  const dex = abilityMod(abilityScore(c, 'dex'))
   const parts: { label: string; value: number }[] = []
   const warnings: string[] = []
   const armors = c.inventory.items.filter((i) => i.equipped && i.armor)
@@ -430,7 +473,7 @@ export function castingStats(c: Character): CastingStats[] {
     if (casterType(k) === 'none') continue
     const ability = spellcastingAbility(k)
     if (!ability) continue
-    const m = abilityMod(c.abilities[ability])
+    const m = abilityMod(abilityScore(c, ability))
     out.push({ classId: k.id, className: k.name, ability, saveDc: 8 + m + pb + dcItems, attack: m + pb + attackItems })
   }
   return out
@@ -473,7 +516,7 @@ export function spellDcView(c: Character): SpellDcView[] {
       if (!have.classes.includes(s.className)) have.classes.push(s.className)
       continue
     }
-    const m = abilityMod(c.abilities[s.ability])
+    const m = abilityMod(abilityScore(c, s.ability))
     const base: CastingPart[] = [{ kind: 'ability', label: s.ability, value: m }, { kind: 'pb', label: 'PB', value: pb }]
     const now = spellAttackNow(c, s.attack)
     out.push({

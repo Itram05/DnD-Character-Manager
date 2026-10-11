@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { SRD_BACKGROUNDS, SRD_CLASSES, SRD_SPECIES, srdClass } from '../data/srd'
 import { t } from '../i18n'
-import { evalFormula } from '../model/rules'
+import { abilityScoreView, evalFormula } from '../model/rules'
 import { ABILITIES, type CasterType, type ClassEntry } from '../model/types'
 import { Check, Confirm, NumberField, Select, TextField } from './common'
 import type { SheetApi } from './Sheet'
@@ -97,6 +97,15 @@ export function EditView({ api }: { api: SheetApi }) {
             <NumberField key={a} label={t(`ability.${a}`)} value={c.abilities[a]} min={1} max={30} onChange={(n) => update((x) => ({ ...x, abilities: { ...x.abilities, [a]: Math.max(1, Math.min(30, Math.round(n))) } }))} />
           ))}
         </div>
+        {/* these are the hero's own scores; what worn items add or set is shown, not typed in */}
+        {ABILITIES.filter((a) => abilityScoreView(c, a).parts.length > 0).map((a) => {
+          const v = abilityScoreView(c, a)
+          return (
+            <p key={a} className="hint ability-by-item">
+              {t('edit.abilityByItem', { ability: t(`ability.long.${a}`), n: v.value, items: [...new Set(v.parts.map((p) => p.item))].join(', ') })}
+            </p>
+          )
+        })}
       </section>
 
       <section className="panel">

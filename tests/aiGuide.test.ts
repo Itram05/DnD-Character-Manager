@@ -149,6 +149,7 @@ describe('AI-GUIDE.md', () => {
     inventory: 'Top level',
     item: 'items',
     armor: 'items',
+    abilityScore: 'items',
     container: 'containers',
     category: 'containers',
     preferences: 'preferences',

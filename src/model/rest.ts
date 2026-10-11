@@ -10,7 +10,7 @@
 //   Temporary HP end ("last until depleted or you finish a Long Rest").
 //   Concentration ends because you sleep (Unconscious -> Incapacitated ends Concentration).
 //   A day passes: every running day timer loses 1 (timers.ts). The app's own rule, not the SRD's.
-import { abilityMod, effectiveHpMax, evalFormula, hitDicePool, usesMax } from './rules'
+import { abilityMod, abilityScore, effectiveHpMax, evalFormula, hitDicePool, usesMax } from './rules'
 import { clearBonusSlots } from './sorcery'
 import { passDays, type TimerChange } from './timers'
 import type { Character, Uses } from './types'
@@ -128,7 +128,7 @@ export function spendHitDie(c: Character, die: string, roll: number): { characte
   if ((hitDiceAvailable(c)[die] ?? 0) <= 0) return null
   const sides = Number(die.slice(1))
   const r = Math.min(sides, Math.max(1, Math.floor(roll)))
-  const healed = Math.max(1, r + abilityMod(c.abilities.con))
+  const healed = Math.max(1, r + abilityMod(abilityScore(c, 'con')))
   const current = Math.min(effectiveHpMax(c), Math.max(0, c.combat.hp.current) + healed)
   return {
     healed,

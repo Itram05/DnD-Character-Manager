@@ -8,7 +8,7 @@ import type { SrdSpell } from '../data/srd'
 import { HEALING_NAME, HEALING_TIERS, healingDescription, healingTier, isHealingPotion, isPotion, isScroll, scrollInfo, type HealingTier } from './consumables'
 import { defaultContainerId } from './containers'
 import { newId } from './normalize'
-import { itemActive, itemInPlay, pactSlots, spellSlots, totalLevel, usesMax } from './rules'
+import { DEFAULT_ABILITY_BONUS_MAX, itemActive, itemInPlay, pactSlots, spellSlots, totalLevel, usesMax } from './rules'
 import { bonusSlotsAt, isSorceryPoints } from './sorcery'
 import { cardStrip, type CardStrip } from './strip'
 import { featureTags, itemTags, mergeTags, powerTags, spellAutoTags, spellTags } from './tags'
@@ -350,7 +350,7 @@ export function findPower(c: Character, powerId: string): { item: Item; power: I
 const signed = (n: number) => `${n < 0 ? '−' : '+'}${Math.abs(n)}`
 
 /**
- * The item's bonus fields as "Always on" chips: "+1 spell save DC", "+3 spell attack". Made only while
+ * The item's bonus fields as "Always on" chips: "+1 spell save DC", "+3 spell attack", "Constitution 19". Made only while
  * the bonus counts (equipped, and attuned if required: the same rule as itemSpellBonuses in rules.ts),
  * so the chip and the number in the head never disagree. Not stored in the item: the field is the truth.
  */
@@ -362,8 +362,19 @@ export function itemBonusPowers(i: Item): ItemPower[] {
     out.push({ id: `${i.id}:spellDcBonus`, name: `${signed(i.spellDcBonus)} spell save DC`, activation: 'passive', description: `${signed(i.spellDcBonus)} to your spell save DC ${rule}. Already counted in the DC in the head.` })
   if (i.spellAttackBonus)
     out.push({ id: `${i.id}:spellAttackBonus`, name: `${signed(i.spellAttackBonus)} spell attack`, activation: 'passive', description: `${signed(i.spellAttackBonus)} to your spell attack rolls ${rule}. Already counted in the spell attack in the head and in attacks made with the spellcasting ability.` })
+  ;(i.abilityScores ?? []).forEach((x, n) => {
+    const name = ABILITY_NAME[x.ability]
+    const cap = x.max ?? DEFAULT_ABILITY_BONUS_MAX
+    out.push(
+      x.mode === 'set'
+        ? { id: `${i.id}:abilityScore:${n}`, name: `${name} ${x.value}`, activation: 'passive', description: `Your ${name} score is ${x.value} ${rule}, unless it is already higher. Already counted in everything the sheet calculates from ${name}.` }
+        : { id: `${i.id}:abilityScore:${n}`, name: `${signed(x.value)} ${name}`, activation: 'passive', description: `${signed(x.value)} to your ${name} score ${rule}${x.value > 0 ? `, to a maximum of ${cap}` : ''}. Already counted in everything the sheet calculates from ${name}.` },
+    )
+  })
   return out
 }
+
+const ABILITY_NAME = { str: 'Strength', dex: 'Dexterity', con: 'Constitution', int: 'Intelligence', wis: 'Wisdom', cha: 'Charisma' } as const
 
 /** Passive powers of the items usable in Play (itemInPlay), for the "Always on" row; the item's bonus chips come first. */
 export function playPassivePowers(c: Character): { item: Item; power: ItemPower }[] {
