@@ -278,15 +278,36 @@ function parseClasses() {
 
 // ---------- spells ----------
 
+/**
+ * A spell's text. On top of cleanBody: a stat block title the source writes as a heading inside the spell
+ * ("## Otherworldly Steed") becomes a bold line, and "**_Life Bond._**" becomes "**Life Bond.**" (the app's
+ * text has bold and italic, not both at once).
+ */
+function cleanSpellText(raw) {
+  return cleanBody(raw.replace(/^#{1,6} +(.+)$/gm, '**$1**').replace(/\*\*_(.+?)_\*\*/g, '**$1**'))
+}
+
 function parseSpells() {
   const md = read('spells.md')
   const descStart = md.indexOf('## Spell Descriptions')
   const part = md.slice(descStart)
   const spells = []
+  // A "####" section that is not a spell is part of the stat block of the spell before it: the block
+  // itself ("#### Animated Object") or one of its parts ("#### Traits", "#### Actions", "#### Bonus
+  // Actions"). It is added to that spell's text under its title in bold. (Until 2026-10-11 such sections
+  // were dropped: Find Steed, Giant Insect and Summon Dragon lost Traits and Actions, Animate Objects
+  // the whole block.)
+  const attach = (s) => {
+    const prev = spells[spells.length - 1]
+    if (prev) prev.raw += `\n\n**${s.title}**\n\n${s.body.trim()}`
+  }
   for (const s of splitByHeading(part, '#### ')) {
     const lines = s.body.split('\n')
     const metaLine = lines.find((l) => /^_.+_$/.test(l.trim()))
-    if (!metaLine) continue
+    if (!metaLine) {
+      attach(s)
+      continue
+    }
     const meta = metaLine.trim().slice(1, -1)
     let level = 0
     let school = ''
@@ -299,7 +320,10 @@ function parseSpells() {
     } else if ((m = meta.match(/^(\w+) Cantrip \((.+)\)$/))) {
       school = m[1]
       classes = m[2].split(',').map((c) => c.trim())
-    } else continue
+    } else {
+      attach(s)
+      continue
+    }
     const field = (label) => {
       // the source sometimes writes "Component:" instead of "Components:"
       for (const lb of [label, label.replace(/s$/, '')]) {
@@ -322,10 +346,10 @@ function parseSpells() {
       components: field('Components'),
       duration: duration.replace(/^Concentration, /, ''),
       concentration: /^Concentration/.test(duration),
-      text: cleanBody(afterMeta),
+      raw: afterMeta,
     })
   }
-  return spells
+  return spells.map(({ raw, ...spell }) => ({ ...spell, text: cleanSpellText(raw) }))
 }
 
 // ---------- conditions & glossary bits ----------
