@@ -12,6 +12,7 @@ import { isBuiltinCategory } from './categories'
 import { DEFAULT_CONTAINER, chainOf, withoutItemLink } from './containers'
 import { nameKey } from './crafting'
 import { newId } from './id'
+import { evalFormula, hitDicePool, pactSlots, spellSlots } from './rules'
 import {
   ABILITIES,
   ABILITY_SCORE_MODES,
@@ -361,6 +362,50 @@ export function checkContainerItems(containers: Container[], items: readonly Ite
     warnings.push(`inventory.containers[${at}]: "${last.name}" was inside itself (through its item "${item.name}"); the link to the item was removed so nothing is lost.`)
     containers[at] = withoutItemLink(last)
     i = -1 // look again from the start: the array changed
+  }
+}
+
+// Since 2026-10-11 what is spent is checked against what there is: a counter with more used than its
+// maximum (a file written by hand: "max": 2, "used": 3; a level typed down), more spell slots or Hit Point
+// Dice spent than the hero has. The sheet already showed such a counter as empty, so nothing looks
+// different; the number is brought down to the maximum and the import says so. A maximum that is a formula
+// the app cannot work out is left alone, as is a Hit Point Die of a size the hero's classes do not have.
+// Like the other repairs this runs on every read.
+
+/** Brings every "used" down to its maximum, in place. */
+export function checkUsed(c: Character, warnings: string[]) {
+  const counter = (u: Uses | undefined, path: string, what: string) => {
+    if (!u) return
+    const r = evalFormula(c, u.max)
+    if (r.error || r.unknown.length || !Number.isFinite(r.value)) return
+    const max = Math.max(0, Math.floor(r.value))
+    if (u.used <= max) return
+    warnings.push(`${path}.used: ${what} has ${u.used} used of a maximum of ${max}; using ${max}.`)
+    u.used = max
+  }
+  c.features.forEach((f, i) => counter(f.uses, `features[${i}].uses`, `"${f.name}"`))
+  c.spells.forEach((s, i) => counter(s.freeCasts, `spells[${i}].freeCasts`, `"${s.name}"`))
+  c.inventory.items.forEach((it, i) => {
+    counter(it.charges, `inventory.items[${i}].charges`, `"${it.name}"`)
+    it.powers?.forEach((p, j) => counter(p.uses, `inventory.items[${i}].powers[${j}].uses`, `"${p.name}" of "${it.name}"`))
+  })
+  const slots = spellSlots(c)
+  c.spellcasting.slotsUsed.forEach((used, i) => {
+    const max = (slots[i] ?? 0) + (c.spellcasting.bonusSlots?.[i] ?? 0)
+    if (used <= max) return
+    warnings.push(`spellcasting.slotsUsed[${i}]: ${used} level ${i + 1} slots used, the hero has ${max}; using ${max}.`)
+    c.spellcasting.slotsUsed[i] = max
+  })
+  const pact = pactSlots(c).slots
+  if (c.spellcasting.pactSlotsUsed > pact) {
+    warnings.push(`spellcasting.pactSlotsUsed: ${c.spellcasting.pactSlotsUsed} Pact Magic slots used, the hero has ${pact}; using ${pact}.`)
+    c.spellcasting.pactSlotsUsed = pact
+  }
+  const dice = hitDicePool(c)
+  for (const [die, used] of Object.entries(c.combat.hitDiceUsed)) {
+    if (dice[die] === undefined || used <= dice[die]) continue
+    warnings.push(`combat.hitDiceUsed.${die}: ${used} used, the hero has ${dice[die]}; using ${dice[die]}.`)
+    c.combat.hitDiceUsed[die] = dice[die]
   }
 }
 
@@ -1115,6 +1160,7 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
   keep(dsRaw, character.combat.deathSaves, KNOWN.deathSaves, 'combat.deathSaves')
   keep(invRaw, character.inventory, KNOWN.inventory, 'inventory')
   keep(raw, character, KNOWN.top, '')
+  checkUsed(character, warnings)
   return { character, warnings, imageData, imagesInFile: raw.images !== undefined }
 }
 

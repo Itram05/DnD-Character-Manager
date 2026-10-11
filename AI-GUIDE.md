@@ -686,7 +686,9 @@ Put the information in a `description`, a feature, or `roleplay.notes`.
 ### Numbers out of range
 
 Clamped, with an adjustment: ability scores 1–30, class level 1–20, spell level 0–9, Exhaustion 0–6, death saves
-0–3, `hp.current` between 0 and `hp.max`.
+0–3, `hp.current` between 0 and `hp.max`. What is spent is brought down to what there is, also with an adjustment:
+`used` of any counter above its `max`, `slotsUsed` above the hero's slots of that level, `pactSlotsUsed` above the
+Pact Magic slots, `hitDiceUsed` above the dice of that size. Count the hero's slots before you write what is spent.
 
 ### Strict JSON
 

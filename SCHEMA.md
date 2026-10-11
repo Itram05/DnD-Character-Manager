@@ -172,7 +172,7 @@ Used by features (`uses`), spells (`freeCasts`) and items (`charges`).
 | Field | Notes |
 |---|---|
 | `max` | *formula*. |
-| `used` | How many are spent now. |
+| `used` | How many are spent now. Above `max` it is brought down to `max` on import, with a warning (since 2026-10-11); a `max` formula the app cannot work out is left alone. The same check covers `spellcasting.slotsUsed` (against the slots of that level, created ones included), `pactSlotsUsed` and `combat.hitDiceUsed` (per die size the hero has). |
 | `recharge` | `short` (Short **or** Long Rest), `long`, `dawn`, `other` (manual), `none`. |
 | `shortRestRegain` | *formula*; for `long` recharge: this many come back on a Short Rest (Rage, Channel Divinity, Wild Shape, Second Wind: `1`). |
 | `regain` | Text such as `"1d6+1"`: comes back with a roll, so rests **remind** you instead of refilling. |
