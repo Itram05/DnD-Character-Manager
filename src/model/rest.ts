@@ -10,6 +10,11 @@
 //   Temporary HP end ("last until depleted or you finish a Long Rest").
 //   Concentration ends because you sleep (Unconscious -> Incapacitated ends Concentration).
 //   A day passes: every running day timer loses 1 (timers.ts). The app's own rule, not the SRD's.
+// Creatures in play (creatures.ts) rest with the hero, as the character's preference says
+//   (preferences.creatures.longRest / shortRest). The app's own rule: the SRD gives creatures no rest of their
+//   own, and a mount that travels with the hero sleeps when the hero does. A creature at 0 Hit Points is left
+//   as it is (a rest does not bring back the dead), with a reminder.
+import { creaturePrefs, instanceName, mapAllInPlay } from './creatures'
 import { abilityMod, abilityScore, effectiveHpMax, evalFormula, hitDicePool, usesMax } from './rules'
 import { clearBonusSlots } from './sorcery'
 import { passDays, type TimerChange } from './timers'
@@ -62,6 +67,32 @@ function restoreAll(c: Character, kind: Kind, dawn: boolean, out: RestResult): C
   return { ...c, features, spells, inventory: { ...c.inventory, items } }
 }
 
+/** The creatures in play: their uses, and on a Long Rest (when the preference is "full") their Hit Points. */
+function restCreatures(c: Character, kind: Kind, dawn: boolean, out: RestResult): Character {
+  const prefs = creaturePrefs(c)
+  const mode = kind === 'long' ? prefs.longRest : prefs.shortRest
+  if (mode === 'none') return c
+  return mapAllInPlay(c, (inst, k) => {
+    const name = instanceName(k, inst)
+    if (inst.hp.current <= 0) {
+      out.reminders.push(`${name} is at 0 Hit Points: the rest changed nothing for it.`)
+      return inst
+    }
+    let next = inst
+    for (const a of k.actions) {
+      const used = inst.used?.[a.id] ?? 0
+      if (!a.uses || used <= 0) continue
+      const after = restoreUses(c, { ...a.uses, used }, kind, dawn, `${name}: ${a.name}`, out)
+      if (after.used !== used) next = { ...next, used: { ...(next.used ?? {}), [a.id]: after.used } }
+    }
+    if (mode === 'full') {
+      if (inst.hp.current < inst.hp.max) out.restored.push(`${name}: Hit Points`)
+      if (inst.hp.current < inst.hp.max || inst.hp.temp > 0) next = { ...next, hp: { ...inst.hp, current: inst.hp.max, temp: 0 } }
+    }
+    return next
+  })
+}
+
 /** Features whose text says something happens on a Short Rest that the app can't automate. */
 function shortRestReminders(c: Character, out: RestResult) {
   for (const f of c.features) {
@@ -74,6 +105,7 @@ export function shortRest(c: Character, opts: { dawn?: boolean } = {}): RestResu
   const out: RestResult = { character: c, restored: [], reminders: [], timers: [] }
   if (c.combat.hp.current < 1) out.reminders.push('Rules: you need at least 1 HP to start a Short Rest.')
   let next = restoreAll(c, 'short', !!opts.dawn, out)
+  next = restCreatures(next, 'short', !!opts.dawn, out)
   if (next.spellcasting.pactSlotsUsed > 0) out.restored.push('Pact Magic slots')
   next = { ...next, spellcasting: { ...next.spellcasting, pactSlotsUsed: 0 } }
   shortRestReminders(c, out)
@@ -85,6 +117,7 @@ export function longRest(c: Character, opts: { dawn?: boolean } = { dawn: true }
   const out: RestResult = { character: c, restored: [], reminders: [], timers: [] }
   if (c.combat.hp.current < 1) out.reminders.push('Rules: you need at least 1 HP to start a Long Rest.')
   let next = restoreAll(c, 'long', opts.dawn !== false, out)
+  next = restCreatures(next, 'long', opts.dawn !== false, out)
   if (c.combat.hp.current < effectiveHpMax({ ...c, exhaustion: Math.max(0, c.exhaustion - 1) })) out.restored.push('All Hit Points')
   if (Object.values(c.combat.hitDiceUsed).some((n) => n > 0)) out.restored.push('All Hit Point Dice')
   if (c.spellcasting.slotsUsed.some((n) => n > 0)) out.restored.push('All spell slots')

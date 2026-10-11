@@ -98,7 +98,7 @@ minus, section 11.)
 ## 3. What the app is
 
 Hero Deck is a tracker for the table, not a rules engine or a character builder. Its heart is the **Play** tab
-(the others: Stats, Spells, Gear, Features, Story, Images, Level Up, Edit, Rules). Everything the hero can *do* is a **card**, sorted into four **hands** by what it costs:
+(the others: Stats, Spells, Gear, Features, Creatures, Story, Images, Level Up, Edit, Rules). Everything the hero can *do* is a **card**, sorted into four **hands** by what it costs:
 Action, Bonus Action, Reaction, and Free / Other. A card with limited uses shows them as pips; using the last one
 "taps" the card. Short Rest and Long Rest buttons give back what they restore. Spell slots, Concentration and the
 healing potions have their own panels. Passive features are small chips on an **Always on** strip.
@@ -113,6 +113,7 @@ healing potions have their own panels. Passive features are small chips on an **
 | An item with `charges` or `activation` (and no active powers) | One card for the item |
 | A spell scroll or a potion (recognized by name) | A card in the "Scrolls & Potions" group; healing potions are counters |
 | Any other item | Nothing on Play; it is listed on the Gear tab |
+| A creature in play (`creatures`, section 6) | A row in the Creatures section, with its Hit Points; a tap opens its stat block |
 
 So the choices that matter most are `activation` (which hand) and the counters (`uses`, `charges`, `freeCasts`):
 a reaction filed as an action is a card the player will not find when they need it.
@@ -135,9 +136,14 @@ prerequisites. Where two things belong together beyond that, the text says so.
   `uses` for what it costs, and: "The app does not add the slot: give one spent level 1 slot back on the spell slot
   panel." The panel cannot hold more slots than the class table gives, so with none spent the player has to remember
   the extra one. Only a Sorcerer's Font of Magic makes slots in the app itself.
-- **Stat blocks** (Wild Shape forms, a familiar, a summoned creature, a mount). The app has no place for a creature.
-  Put each one in the `description` of the card that uses it (the forms in "Wild Shape: Beast Form"), as a
-  sub-heading and a short table, after the rule itself; forms the player has not chosen yet are an open point.
+- **Stat blocks.** A creature that is its own being at the table (a mount, a familiar, an animal companion, a
+  summoned creature) goes in `creatures` (section 6), not in a card's text: there it has its own Hit Points,
+  conditions and actions. The card that brings it (Find Familiar, Find Steed) stays a normal spell or feature; **the
+  app does not make the creature when the card is used**, so write as the card's last paragraph: "The creature is
+  on the Creatures section: put one in play there." A form the hero **becomes** (Wild Shape) is not a creature of its
+  own under the 2024 rules (the hero keeps their Hit Points): put each form in the `description` of the card that
+  uses it ("Wild Shape: Beast Form"), as a sub-heading and a short table, after the rule itself; forms the player has
+  not chosen yet are an open point.
 
 ## 4. What the app calculates, and what you must write
 
@@ -174,6 +180,7 @@ A derived number has no field; adding a field of your own for it only produces a
   Draconic Sorcery `"10 + dex + cha"`).
 - **A magic weapon's +1**: `bonus` and `damageBonus` of its attack.
 - Resistances, senses, languages, tool proficiencies: text only (a feature, or the `proficiencies` texts).
+- **Every number of a creature's stat block** (`creatures`): copied from the block, never derived. See [creatures](#creatures).
 
 ## 5. Content from outside the free rules
 
@@ -192,7 +199,8 @@ gives spellcasting to a non-caster (Eldritch Knight, Arcane Trickster) leaves a 
 
 The file is the player's own notes about their own character: ask them to paste or photograph the text. If you would
 rather not reproduce a passage word for word, write it in your own words, keeping **every number, range, duration,
-saving throw, condition and limit**. Never leave a description empty and never write "see the Player's Handbook,
+saving throw, condition and limit**. The same goes for a creature's stat block: one from outside the free rules is
+copied from the player's text, never written from memory. Never leave a description empty and never write "see the Player's Handbook,
 page 87": at the table the card is all the player has.
 
 ## 6. The file format
@@ -290,6 +298,7 @@ is not in Latin letters) plus a few random characters, `"hero-vessa-thornhide-7k
 | `roleplay` | object | optional | all "" | See [roleplay](#roleplay). |
 | `xpLog`, `sessionNotes`, `timers`, `recipes`, `playCounters` | lists | `[]` in a new file | [] | The app's XP history, the player's journal, day countdowns, crafting recipes, items pinned as counters. Section 12. |
 | `preferences` | object | exactly as here | defaults | How the Gear tab is laid out. Always this: `{ "gear": { "view": "hybrid", "groupBy": "container", "show": { "quantity": true, "weight": true, "category": true, "tags": true, "charges": true } } }`. Left out, the app fills in the same values, with no adjustment. |
+| `creatures` | list | if the hero has one | absent | Mounts, familiars, summoned and led creatures: stat blocks and the ones in play. See [creatures](#creatures). Leave the field out for a hero without any. |
 | `images` | list | **never** | absent | Maps and pictures the player added in the app. You do not write them, and you never drop them from an exported file. Section 12. |
 | `updatedAt` | ISO date-time text | optional | now | `"2026-10-03T12:00:00.000Z"`. The hero list is sorted by it. |
 
@@ -606,6 +615,156 @@ item's name. A passive power is a chip. An item with at least one active power h
   Do not add it to `spells`: that would be a card that spends the hero's slots.
 - A bonus to the spell save DC or to spell attacks is **not** a power: use `spellDcBonus` and `spellAttackBonus`.
 
+### creatures
+
+Creatures the hero leads, rides or summons: a mount, a familiar, an animal companion, a summoned spirit, the beasts
+of a caravan. Write the field **only when the hero has one**; a hero without creatures has no `creatures` field at
+all. On the Play screen each creature in play is a row with its Hit Points, and a tap opens its stat block; there
+is also a Creatures tab with every stat block.
+
+The shape is **a stat block written once, and the creatures of that kind in play inside it**. Three mammoths are
+one entry in `creatures` with three entries in its `inPlay`. A stat block with no `inPlay` is kept for later (a
+demon not summoned yet).
+
+**Copy the stat block; do not work it out.** This is the opposite of the hero. A stat block prints its own attack
+bonus, damage, saving throws and DC, and they often differ from what the abilities would give: write `"toHit": 10`
+because the block says "+10", never because Strength 24 and a Proficiency Bonus suggest it. The app calculates only
+the ability modifiers (from the scores) and, where you give no `saves` or `initiative`, uses the modifier.
+
+**The numbers come from the player.** Tables play the 2014 rules, the 2024 rules and their own mixes, and the same
+creature has different stat blocks in each. Ask the player for the block their DM uses (a photo or pasted text is
+enough) and copy that. If they have none, you may write the block of the free rules (SRD 5.2.1) and you **tell the
+player it is the 2024 block and may differ from their DM's**. Never write a creature from outside the free rules
+from memory: ask for its text, as for any other content (section 5).
+
+A stat block, one entry of `creatures`:
+
+| Field | Type | Write | Default | What it does |
+|---|---|---|---|---|
+| `id` | text | always | generated | See [Ids](#ids): `"creature-mammoth"`. |
+| `name` | text | always | "Creature" | "Mammoth". |
+| `kind` | text | if printed | absent | The line under the name: "Huge Beast, Unaligned". |
+| `ac` | number or formula | always | 10 | Armor Class as printed. |
+| `hp` | number or formula | always | 1 | The Hit Points of a new creature of this kind: the printed average (126), or the number the DM gave. |
+| `hitDice` | text | if printed | absent | "11d12 + 55". Shown only. |
+| `speed` | text | always | "" | As printed: "50 ft.", "30 ft., Fly 60 ft.". |
+| `abilities` | `{ str, dex, con, int, wis, cha }` | always | all 10 | The six scores, 1 to 30. |
+| `saves` | object | if they differ | absent | Only the saving throws that are **not** the plain modifier: `{ "str": 10, "con": 8 }`. |
+| `initiative` | number | if printed | absent = Dexterity modifier | The 2024 blocks print it ("Initiative +2"). |
+| `skills`, `vulnerabilities`, `resistances`, `immunities`, `senses`, `languages` | text | if printed | absent | Each as printed, shown only: "Perception +4, Stealth +6"; "Cold; Poisoned" (damage and condition immunities together). |
+| `cr` | text | if printed | absent | "6 (XP 2,300; PB +3)". |
+| `actions` | list | always | [] | Traits, actions, bonus actions and reactions together; see below. |
+| `extra` | list of `{ label, value }` | optional | absent | The player's own lines, for anything without a field: `{ "label": "Carries", "value": "1,080 lb." }`, a saddle, who owns it. |
+| `description` | text | optional | absent | Notes on the block: where it is from, what the table changed. |
+| `inPlay` | list | if any are in the game | absent | The creatures of this kind in play; see below. |
+
+One line of the stat block, an entry of `actions`:
+
+| Field | Type | Write | Default | What it does |
+|---|---|---|---|---|
+| `id` | text | always | generated | Unique in the creature: `"gore"`. |
+| `name` | text | always | "Unnamed" | "Gore". |
+| `activation` | as for features | always | `action` | `passive` for a **trait**; `action`, `bonus`, `reaction` for those sections of the block; `special` for a legendary action or anything else. |
+| `toHit` | number or formula | attack rolls | absent | "+10" is `10`. |
+| `damage` | text | if it deals damage | absent | The dice only: `"2d10"`. |
+| `damageBonus` | number or formula | if any | absent | The number after the dice: `7` for "2d10 + 7". |
+| `damageType` | text | if any | absent | "Piercing". |
+| `saveDc` | number or formula | if it forces a save | absent | `18`. |
+| `saveAbility` | ability | with `saveDc` | absent | The ability the target rolls: `dex`. |
+| `uses` | [counter](#counters) | if it is limited | absent | The limit. `used` is always 0 here: what one creature has spent is in its `inPlay` entry. |
+| `description` | text | always | "" | The full text of the line, as printed. |
+
+- **Multiattack** is an action with text only.
+- **"3/Day"**: `"uses": { "max": 3, "used": 0, "recharge": "long" }`.
+- **"Recharge 5-6"**: `"uses": { "max": 1, "used": 0, "recharge": "other", "note": "Recharge 5-6" }`. The player spends
+  it, rolls a d6 at the start of the creature's turn and taps it back on a 5 or 6; no rest refills it.
+- A creature's spellcasting is a trait or an action with the spells in its text; they are not entries of `spells`.
+- A formula may use the hero's names (`pb`, `cha`, `level`; see [Formulas](#formulas)): a spirit whose Armor Class is
+  "11 + your Proficiency Bonus" is `"ac": "11 + pb"`. Most stat blocks are plain numbers.
+
+One creature in play, an entry of `inPlay`:
+
+| Field | Type | Write | Default | What it does |
+|---|---|---|---|---|
+| `id` | text | always | generated | Unique among all creatures in play: `"mammoth-burya"`. |
+| `label` | text | if there is more than one, or it has a name | absent | What tells it from the others: "Burya", "2". Shown as "Mammoth · Burya". |
+| `hp` | `{ current, max, temp }` | always | the stat block's `hp`, full | Its Hit Points **now**. `max` is its own number: normally the stat block's `hp`. |
+| `conditions` | list of text | if it applies | absent | The condition words of the top level (`prone`), or any word of the player's own (`mounted`). |
+| `used` | object | if any are spent | absent | Uses spent, by the action's `id`: `{ "roar": 1 }`. |
+| `note` | text | optional | absent | The player's note on this one creature. |
+
+The hero's Long Rest gives the creatures in play their Hit Points and uses back, and a Short Rest the uses that
+come back on a Short Rest; the player can change that (`preferences`, section 12). A creature at 0 Hit Points stays
+in the list until the player removes it.
+
+A hero with a mammoth of the free rules, two of them in play (the second hurt, Prone, and without its roar; the
+roar is not part of the real block, it is here to show a limited action):
+
+<!-- CREATURES:START (tests/aiGuide.test.ts imports this fragment) -->
+```json
+{
+  "schemaVersion": 3,
+  "id": "hero-example-creatures",
+  "name": "Example",
+  "classes": [{ "id": "ranger", "name": "Ranger", "level": 5 }],
+  "creatures": [
+    {
+      "id": "creature-mammoth",
+      "name": "Mammoth",
+      "kind": "Huge Beast, Unaligned",
+      "ac": 13,
+      "hp": 126,
+      "hitDice": "11d12 + 55",
+      "speed": "50 ft.",
+      "abilities": { "str": 24, "dex": 9, "con": 21, "int": 3, "wis": 11, "cha": 6 },
+      "saves": { "str": 10, "con": 8 },
+      "initiative": 2,
+      "senses": "Passive Perception 10",
+      "languages": "None",
+      "cr": "6 (XP 2,300; PB +3)",
+      "actions": [
+        { "id": "multiattack", "name": "Multiattack", "activation": "action", "description": "The mammoth makes two Gore attacks." },
+        {
+          "id": "gore",
+          "name": "Gore",
+          "activation": "action",
+          "toHit": 10,
+          "damage": "2d10",
+          "damageBonus": 7,
+          "damageType": "Piercing",
+          "description": "Melee Attack Roll: +10, reach 10 ft. Hit: 18 (2d10 + 7) Piercing damage. If the target is a Huge or smaller creature and the mammoth moved 20+ feet straight toward it immediately before the hit, the target has the Prone condition."
+        },
+        {
+          "id": "trample",
+          "name": "Trample",
+          "activation": "bonus",
+          "damage": "4d10",
+          "damageBonus": 7,
+          "damageType": "Bludgeoning",
+          "saveDc": 18,
+          "saveAbility": "dex",
+          "description": "Dexterity Saving Throw: DC 18, one creature within 5 feet that has the Prone condition. Failure: 29 (4d10 + 7) Bludgeoning damage. Success: Half damage."
+        },
+        {
+          "id": "roar",
+          "name": "Roar",
+          "activation": "action",
+          "uses": { "max": 1, "used": 0, "recharge": "other", "note": "Recharge 5-6" },
+          "description": "Not in the real stat block; an example of a limited action."
+        }
+      ],
+      "extra": [{ "label": "Carries", "value": "1,080 lb." }],
+      "description": "The block of SRD 5.2.1 (2024 rules). The DM may use another.",
+      "inPlay": [
+        { "id": "mammoth-burya", "label": "Burya", "hp": { "current": 126, "max": 126, "temp": 0 } },
+        { "id": "mammoth-2", "label": "2", "hp": { "current": 92, "max": 126, "temp": 0 }, "conditions": ["prone"], "used": { "roar": 1 } }
+      ]
+    }
+  ]
+}
+```
+<!-- CREATURES:END -->
+
 ### money
 
 `inventory.money`: `{ "cp": 0, "sp": 14, "ep": 0, "gp": 43, "pp": 0 }`. All five of `cp` `sp` `ep` `gp` `pp`, each a
@@ -792,6 +951,8 @@ backs it up. Tell the player.
 - [ ] Every magic item in use is active (equipped, and attuned if it needs it); at most three are attuned.
 - [ ] Potions and scrolls are named so the app recognizes them; nothing else is named that way by accident.
 - [ ] No reusable item ability sits on a bare `activation`; it is in `powers`.
+- [ ] A creature's numbers are copied from its stat block (the player's, or the free rules' with a word that the DM's may
+      differ); each creature in play has its own entry in `inPlay`. A hero without creatures has no `creatures` field.
 - [ ] The numbers the app will calculate match the player's sheet.
 - [ ] The player has the list of what is open, the numbers to expect, and the import steps.
 
@@ -1506,6 +1667,13 @@ the app's default) and **keep them unchanged** when you edit an exported one:
 - `maps`: `{ "size": "large", "names": false, "hide": ["routes"] }`, each field on its own: how the marks on the
   player's maps are drawn (section "images" below). `size`: `small`, `medium` (default), `large`, `huge`. `names`:
   `false` stops writing names next to the marks. `hide`: the layers not drawn, any of `pins` `routes` `tokens`.
+- `creatures`: `{ "where": "play", "pinned": ["mammoth-burya"], "row": ["bar", "ac"], "rolls": false, "longRest": "uses", "shortRest": "none" }`,
+  each field on its own: how the hero's creatures (section 6) are shown and rested. `where`: `both` (default: a section
+  of Play and a Creatures tab), `play` or `tab`. `pinned`: the `id`s of the creatures in play that the Play section shows
+  (absent = all of them). `row`: what a creature's row shows, any of `bar` `ac` `speed` `attack` `conditions` `uses` `note`
+  (absent = the first five). `rolls`: `false` hides the Roll button of attacks. `longRest`: what the hero's Long Rest
+  does for the creatures in play: `full` (default: Hit Points and uses), `uses` or `none`. `shortRest`: `uses` (default)
+  or `none`. If you remove a creature from `inPlay`, remove its `id` from `pinned` too.
 
 ### images
 
@@ -1542,7 +1710,8 @@ When the player comes back to add an item, fix a feature or level up through you
 1. They press **Export JSON** in the app and give you that file with this guide. Work from the fresh export, never
    from the file you wrote earlier: the app has since changed Hit Points, slots, charges and notes.
 2. Change only what was asked. Keep everything else exactly as it is: every `id` (above all the hero's own), every
-   counter's `used`, everything in section 12 (above all `images`), and any field you do not recognize. A field that is not in this guide
+   counter's `used`, the state of every creature in play (`inPlay`: Hit Points, `conditions`, `used`), everything in
+   section 12 (above all `images`), and any field you do not recognize. A field that is not in this guide
    was most likely written by a newer version of the app; removing it loses the player's data.
 3. If the export's `schemaVersion` is higher than 3, this guide is out of date. Say so and ask for the current guide.
    Never lower the number.

@@ -12,6 +12,7 @@ import { SRD_CLASSES } from '../src/data/srd'
 import { itemTiles } from '../src/model/itemPanel'
 import { KNOWN, importCharacterJson } from '../src/model/normalize'
 import { healingPotionRows, playCards, playPassivePowers, playPassives, useCard } from '../src/model/play'
+import { actionNumbers, actionUses, creaturesInPlay, instanceName } from '../src/model/creatures'
 import { armorClass, attackStats, attunedCount, castingStats, initiative, spellSlots, usesMax } from '../src/model/rules'
 import { characterToJson } from '../src/model/storage'
 import { ABILITIES, ACTIVATIONS, CURRENT_SCHEMA_VERSION, RECHARGES, SKILL_IDS, SOURCE_TYPES, USES_RESOURCES } from '../src/model/types'
@@ -109,6 +110,23 @@ describe('AI-GUIDE.md', () => {
     expect(f.spells[0]).toMatchObject({ prepared: true, alwaysPrepared: true, source: 'cleric' })
   })
 
+  // the creature fragment of section 6 is real JSON: it imports with no adjustment, and is what the app writes
+  it('has a creature fragment that imports clean: a stat block, two creatures in play, a limited action', () => {
+    const m = guide.match(/<!-- CREATURES:START[^>]*-->\n```json\n([\s\S]*?)\n```\n<!-- CREATURES:END -->/)
+    expect(m, 'the fragment block between the CREATURES markers').not.toBeNull()
+    const { character: f, warnings } = importCharacterJson(m![1])
+    expect(warnings).toEqual([])
+    expect(f.creatures).toEqual(JSON.parse(m![1]).creatures)
+    expect(JSON.stringify(f.creatures)).toBe(JSON.stringify(JSON.parse(m![1]).creatures))
+    const [burya, second] = creaturesInPlay(f)
+    expect(instanceName(burya.creature, burya.instance)).toBe('Mammoth · Burya')
+    expect(second.instance.hp).toEqual({ current: 92, max: 126, temp: 0 })
+    const k = f.creatures![0]
+    expect(actionNumbers(f, k.actions[1])).toEqual({ toHit: '+10', damage: '2d10+7', damageType: 'Piercing' })
+    expect(actionUses(f, k.actions[3], burya.instance)).toEqual({ left: 1, max: 1 })
+    expect(actionUses(f, k.actions[3], second.instance)).toEqual({ left: 0, max: 1 })
+  })
+
   it('names the schema version the app writes', () => {
     expect(guide).toContain(`**schema version ${CURRENT_SCHEMA_VERSION}**`)
     expect(guide).toContain(`Write \`${CURRENT_SCHEMA_VERSION}\``)
@@ -174,6 +192,11 @@ describe('AI-GUIDE.md', () => {
     sessionNote: 'sessionNotes',
     xpEntry: 'xpLog',
     timer: 'timers',
+    creature: 'creatures',
+    creatureAction: 'creatures',
+    creatureExtra: 'creatures',
+    creatureInstance: 'creatures',
+    creaturePrefs: 'preferences',
   }
 
   it.each(Object.keys(KNOWN) as (keyof typeof KNOWN)[])('describes every field of "%s" that the importer reads', (group) => {

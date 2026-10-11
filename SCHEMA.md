@@ -70,9 +70,10 @@ Class table column names = the table header in lowercase with dashes: `rages`, `
 | `roleplay` | [object](#roleplay) | all "" | |
 | `sessionNotes` | list of `{ date, title, text }` | [] | |
 | `timers` | list of [day timers](#timers) | [] | |
+| `creatures` | list of [creatures](#creatures) | absent | Optional. Stat blocks of mounts, familiars and summoned creatures, each with the ones in play. Written only when there are any. |
 | `recipes` | list of [recipes](#recipes) | [] | Your crafting recipes. None are built in. |
 | `playCounters` | list of `{ "name" }` | [] | Items shown as counters in Play, in this order. See [recipes](#recipes). |
-| `preferences` | `{ gear, money?, play? }` | see [preferences](#preferences) | How the sheet looks for this character. |
+| `preferences` | `{ gear, money?, play?, maps?, creatures? }` | see [preferences](#preferences) | How the sheet looks for this character. |
 | `updatedAt` | ISO date | now | Set by the app. |
 
 ## classes
@@ -327,9 +328,16 @@ Optional groups (since 2026-10-11). Each is written only once the player changes
 | `maps.size` | `small`, `medium`, `large`, `huge` | `medium` | How big pins and tokens are on every map of the character: a pin is 22, 30, 40 or 54 px on screen, a token a fifth more. The size is the same at every zoom. |
 | `maps.names` | true / false | true | Names written next to pins, tokens and routes (a route's with its length). Off: a mark says its name only when tapped; tokens keep their letters. |
 | `maps.hide` | list of `pins`, `routes`, `tokens` | `[]` (absent) | The layers that are not drawn. A hidden layer keeps its marks in `images`; they cannot be touched while hidden. Adding a mark with a tool shows its layer again, in the same step of Undo. Unknown names are dropped with a warning. |
+| `creatures.where` | `both`, `play`, `tab` | `both` | Where the hero's [creatures](#creatures) are: a section of the Play screen and a Creatures tab, only the section, or only the tab. With `play` the tab is not in the tab row (the section then has "All stat blocks", the same list in a window, and is shown even when empty, so there is a way to add the first creature); with `tab` Play has no section. With `both` the section is shown once a creature is in play. |
+| `creatures.pinned` | list of ids of creatures in play | absent = all | The creatures in play that the Play section shows; the others are only on the Creatures tab. Set with the pin on a creature's row. A creature put in play is added to the list; one removed from play leaves it; all shown again removes the field. Ids that are not a creature in play are dropped with a warning. An empty list = none shown. |
+| `creatures.row` | list of `bar`, `ac`, `speed`, `attack`, `conditions`, `uses`, `note` | `["bar", "ac", "speed", "attack", "conditions"]` | What a creature's row shows besides its name and Hit Points: the Hit Point bar, Armor Class, speed, its first attack with the numbers, its conditions, its limited actions as dots, the note. Stored in this order; unknown names are dropped with a warning. |
+| `creatures.rolls` | true / false | true | A Roll button on every action of a creature that has an attack bonus or damage dice. Only `false` is written. |
+| `creatures.longRest` | `full`, `uses`, `none` | `full` | What the hero's Long Rest does for the creatures in play: all Hit Points and the uses that come back; the uses only; nothing. See [creatures](#creatures). |
+| `creatures.shortRest` | `uses`, `none` | `uses` | The same for a Short Rest: the uses that come back on a Short Rest, or nothing. |
 
-All of these are set on the Edit tab, under "How this sheet looks"; the coins also in the Money panel, and the three `maps` choices
-also in the viewer of a map ("Layers", in the bar under the picture while looking). Choosing a default again removes the field from the file.
+All of these are set on the Edit tab, under "How this sheet looks"; the coins also in the Money panel, the three `maps` choices
+also in the viewer of a map ("Layers", in the bar under the picture while looking), and the creature choices also from the Creatures
+tab and section. Choosing a default again removes the field from the file.
 
 **Potions and scrolls** are ordinary items; the Play screen only reads their name (src/model/consumables.ts). An item **without `charges`** is a *scroll* if its name contains "scroll" (not "scroll case/tube"); the spell is taken from "Scroll of X", "Spell Scroll of X", "Spell Scroll (X)", "Scroll: X" or "X scroll", and its text from the character's spells, then the SRD, then the item's `description`. Otherwise it is a *potion* if its name contains "potion", "elixir" or "philter". A potion whose name also says "healing" is a *healing potion* (Healing / Greater / Superior / Supreme, from the name): a counter in the Concentration panel, not a card; its dice come from `description`, else the standard 2d4+2 / 4d4+4 / 8d4+8 / 10d4+20. Every other potion is a card in the scroll group with "Use".
 
@@ -536,6 +544,105 @@ The marks live on the image, so **"Export without images" writes no marks either
 character ("Replace existing") keeps the images and their marks, like the pictures. A version 3 app from before the marks
 keeps them unchanged (with a "not a field this app uses" line in the import dialog).
 
+## creatures
+
+Since 2026-10-11, optional, schema 3. Creatures the hero leads, rides or summons: a mount, a familiar, a summoned
+spirit. A character without creatures has no `creatures` field, so a file from before them is unchanged by a round trip.
+
+A **stat block** is written once; the creatures of that kind that are in the game are a list inside it (`inPlay`), each
+with its own Hit Points, conditions, spent uses and note. Three mammoths are one stat block with three entries in
+`inPlay`; a stat block with nothing in play is kept for later.
+
+```json
+"creatures": [
+  { "id": "mammoth", "name": "Mammoth", "kind": "Huge Beast, Unaligned", "ac": 13, "hp": 126, "hitDice": "11d12 + 55",
+    "speed": "50 ft.", "abilities": { "str": 24, "dex": 9, "con": 21, "int": 3, "wis": 11, "cha": 6 },
+    "saves": { "str": 10, "con": 8 }, "initiative": 2, "senses": "Passive Perception 10", "languages": "None",
+    "cr": "6 (XP 2,300; PB +3)",
+    "actions": [
+      { "id": "gore", "name": "Gore", "activation": "action", "toHit": 10, "damage": "2d10", "damageBonus": 7,
+        "damageType": "Piercing", "description": "Melee Attack Roll: +10, reach 10 ft. ..." },
+      { "id": "trample", "name": "Trample", "activation": "bonus", "damage": "4d10", "damageBonus": 7,
+        "damageType": "Bludgeoning", "saveDc": 18, "saveAbility": "dex", "description": "..." }
+    ],
+    "extra": [{ "label": "Carries", "value": "1,080 lb." }],
+    "inPlay": [
+      { "id": "burya", "label": "Burya", "hp": { "current": 126, "max": 126, "temp": 0 } },
+      { "id": "m2", "label": "2", "hp": { "current": 92, "max": 126, "temp": 0 }, "conditions": ["prone"] }
+    ] }
+]
+```
+
+**Nothing of a stat block is worked out from an edition's rules.** Every number is typed or copied and can be changed in
+the stat block's editor; the app works out only the ability modifiers, and uses the modifier where `saves` or `initiative`
+give nothing. The one built-in block ("Mammoth (SRD 5.2.1)" in the Add window) is copied into the character and is then
+the player's like any other.
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `id` | text | generated | Unique among the creatures; a repeated one is replaced, with a warning. |
+| `name` | text | "Creature" | |
+| `kind` | text | absent | The line under the name. |
+| `ac` | number or [formula](#formulas) | 10 | |
+| `hp` | number or formula | 1 (with a warning) | The Hit Points a new creature of this kind starts with. |
+| `hitDice` | text | absent | Shown only. |
+| `speed` | text | "" | Shown only; nothing is worked out from it. |
+| `abilities` | `{ str, dex, con, int, wis, cha }` | all 10 | 1–30. Long names also work. |
+| `saves` | object, ability → number | absent | Only the saving throws that differ from the modifier. Written in the order of the abilities. |
+| `initiative` | number | absent = Dexterity modifier | |
+| `skills`, `vulnerabilities`, `resistances`, `immunities`, `senses`, `languages`, `cr` | text | absent | Shown only. |
+| `actions` | list | [] | See below. A bare text is a trait with that name. |
+| `extra` | list of `{ label, value }` | absent | The player's own lines. An object `{ "Carries": "1,080 lb." }` is read as the same. |
+| `description` | text | absent | Notes on the stat block. |
+| `inPlay` | list | absent | The creatures of this kind in play. |
+
+**`actions`**: traits, actions, bonus actions and reactions in one list, told apart by `activation` (the words of
+[features](#features); `passive` = a trait; `trait` and `legendary` are read as `passive` and `special`).
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `id` | text | generated | Unique within the creature. |
+| `name` | text | "Unnamed" | |
+| `activation` | see above | `action` | |
+| `toHit` | number or formula | absent | The printed attack bonus; `"+10"` is read as 10. Not worked out from the abilities. |
+| `damage` | text | absent | Dice: `"2d10"`. |
+| `damageBonus` | number or formula | absent | 0 is not written. |
+| `damageType` | text | absent | |
+| `saveDc`, `saveAbility` | number or formula; ability | absent | |
+| `uses` | [uses](#uses) | absent | The limit. Its `used` is always 0: what is spent is per creature in play. "Recharge 5–6" is `{ "max": 1, "recharge": "other", "note": "Recharge 5-6" }`. |
+| `description` | text | "" | |
+
+**`inPlay`**: one entry per creature in the game. A bare text (`"Burya"`) is a creature of that label at full Hit Points.
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `id` | text | generated | Unique among **all** creatures in play (`preferences.creatures.pinned` names them). |
+| `label` | text | absent | "Burya", "2". Shown as "Mammoth · Burya"; absent = the stat block's name alone. New ones get none (the first) or the next free number. |
+| `hp` | `{ current, max, temp }` | the stat block's `hp`, full | `max` is the creature's own number, set from the stat block when it is put in play. A bare number = that many of that many. |
+| `conditions` | list of text | absent | Condition ids of the top level, or any text of the player's own. A condition's name ("Prone") is stored as its id. |
+| `used` | object, action id → number | absent | Uses spent. A key that is an action's name is turned into its id; one that matches no limited action is dropped with a warning; more than the maximum is brought down to it. |
+| `note` | text | absent | |
+
+What the app does with them:
+
+- **Hit Points**: damage comes off Temporary Hit Points first and stops at 0; healing stops at the maximum; Temporary
+  Hit Points do not stack (the higher stays). There are no death saves for a creature: one at 0 stays, greyed, until
+  "Remove from play".
+- **Editing a stat block** whose `hp` changes: creatures in play that still had the old maximum get the new one (one
+  whose maximum was changed by hand keeps it). An action that is removed, or loses its `uses`, takes its `used` with it.
+- **Rests** (the hero's Short Rest and Long Rest buttons): see `preferences.creatures.longRest` and `shortRest` below.
+  The default: a Long Rest gives every creature in play its full Hit Points, ends its Temporary Hit Points and gives
+  back the uses that come back on a Short or Long Rest (and at dawn, when that box is ticked); a Short Rest gives back
+  only uses with `recharge: "short"` (and `shortRestRegain`). Conditions are not touched. A creature at 0 Hit Points is
+  left as it is, with a reminder. This is the app's own rule: the SRD gives a mount no rest of its own.
+- **Roll** on an action rolls d20 + `toHit` and the damage (`damage` + `damageBonus`); a natural 20 rolls the damage dice
+  twice. It only shows the result; nothing is applied anywhere.
+- **Fields the app writes in one order** (the order of the tables above), with every empty optional field left out, so
+  an exported character reads back character for character.
+
+A version 3 app from before creatures keeps `creatures` and `preferences.creatures` unchanged (with a "not a field this
+app uses" line in the import dialog), so a file is not damaged by a round trip through an older copy.
+
 ## roleplay
 
 All text: `appearance`, `personality`, `ideals`, `bonds`, `flaws`, `voice`, `mannerisms`, `goals`, `backstory`, `allies`, `notes`.
@@ -552,7 +659,7 @@ Blank lines separate paragraphs.
 | 2 | New optional fields: `tags` (spells, features, items, item powers) and `powers` (items). Unknown fields are kept instead of dropped. | None needed: every version 1 field means the same in version 2, so a version 1 file imports unchanged and is exported as version 2. Item descriptions are **not** split into powers automatically (that would be guessing at rules text); add powers on the Gear tab or in the file. |
 | 3 | New fields: `partySize`, `xpLog` (experience log) and `timers` (day timers). Items: `spellDcBonus`, `spellAttackBonus`. | A version 2 file gets `partySize` 5 and empty `xpLog` and `timers`; `xp` keeps its value. A passive item power named like "+1 spell save DC" / "+3 spell attack" becomes the item's `spellDcBonus` / `spellAttackBonus` (its text goes to the item's `description`); if the item counted before but is not equipped, it is equipped, so the DC and spell attack stay the same. This conversion runs on every import, so version 3 files saved before these fields existed are converted too. Attacks: `itemId` (see attacks); a missing `itemId` is filled in on every import, the same way. Inventory (2026-10-01): `containers`, `categories`, item `containerId` and `category`, top-level `preferences`; crafting (2026-10-01): top-level `recipes` and `playCounters`. A file without containers gets one Backpack with every item in it, on every import. These are optional additions, so the version stayed 3: a version 3 app without containers opens such a file and keeps the new fields unchanged. |
 
-Added without a new version (optional fields, older files read the same): `exhaustionRules`, `images`, feature `poolId` and `cost` (2026-10-03); the marks on a map, image `pins`, `routes`, `tokens` and `scale` (2026-10-11).
+Added without a new version (optional fields, older files read the same): `exhaustionRules`, `images`, feature `poolId` and `cost` (2026-10-03); the marks on a map, image `pins`, `routes`, `tokens` and `scale` (2026-10-11); top-level `creatures` and `preferences.creatures` (2026-10-11).
 
 **Careful with older copies of the app:** a copy from before the Images tab keeps `images` as an unknown field, pictures included, and then
 cannot save the character (the browser's localStorage is too small); give it a file exported without images.

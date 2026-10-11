@@ -6,13 +6,14 @@
 // Unknown fields are never dropped (since schema version 2): a field the app does not know is kept
 // as it is, in the same place, and exported again; the import dialog lists it. That way a file
 // written by a newer app, or by hand with extra notes, survives a round trip through this app.
-import { srdClass } from '../data/srd'
+import { SRD_CONDITIONS, srdClass } from '../data/srd'
 import { base64Bytes, parseImageDataUrl } from './images'
 import { isMarkColor } from './mapMarks'
 import { isBuiltinCategory } from './categories'
 import { DEFAULT_CONTAINER, chainOf, withoutItemLink } from './containers'
 import { nameKey } from './crafting'
 import { newId } from './id'
+import { DEFAULT_CREATURE_PREFS, creatureHpMax, tidyCreature } from './creatures'
 import { evalFormula, hitDicePool, pactSlots, spellSlots } from './rules'
 import {
   ABILITIES,
@@ -20,6 +21,11 @@ import {
   ACTIVATIONS,
   ATTACK_ORDERS,
   COINS,
+  CREATURE_LONG_RESTS,
+  CREATURE_PLACES,
+  CREATURE_ROW_FIELDS,
+  CREATURE_SHORT_RESTS,
+  CREATURE_TEXT_FIELDS,
   CURRENT_SCHEMA_VERSION,
   DEFAULT_GEAR_PREFS,
   GEAR_GROUPINGS,
@@ -45,6 +51,11 @@ import {
   PIN_ICONS,
   type ClassEntry,
   type Container,
+  type Creature,
+  type CreatureAction,
+  type CreatureField,
+  type CreatureInstance,
+  type CreaturePrefs,
   type DayTimer,
   type Feature,
   type Formula,
@@ -163,7 +174,7 @@ function keepUnknown(raw: Obj, out: object, known: readonly string[], path: stri
 // The fields each object has, as read by normalizeCharacter. Anything else is kept by keepUnknown.
 // Exported for tests/aiGuide.test.ts: every field here must be described in AI-GUIDE.md.
 export const KNOWN = {
-  top: ['schemaVersion', 'id', 'name', 'player', 'species', 'race', 'background', 'alignment', 'xp', 'partySize', 'xpLog', 'classes', 'abilities', 'proficiencies', 'combat', 'conditions', 'exhaustion', 'exhaustionRules', 'heroicInspiration', 'features', 'attacks', 'spellcasting', 'spells', 'inventory', 'items', 'money', 'roleplay', 'sessionNotes', 'timers', 'images', 'recipes', 'playCounters', 'preferences', 'updatedAt'],
+  top: ['schemaVersion', 'id', 'name', 'player', 'species', 'race', 'background', 'alignment', 'xp', 'partySize', 'xpLog', 'classes', 'abilities', 'proficiencies', 'combat', 'conditions', 'exhaustion', 'exhaustionRules', 'heroicInspiration', 'features', 'attacks', 'spellcasting', 'spells', 'inventory', 'items', 'money', 'roleplay', 'sessionNotes', 'timers', 'images', 'creatures', 'recipes', 'playCounters', 'preferences', 'updatedAt'],
   species: ['name', 'size'],
   abilities: ['str', 'dex', 'con', 'int', 'wis', 'cha', 'strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'],
   class: ['id', 'name', 'level', 'subclass', 'hitDie', 'casterType', 'spellcastingAbility'],
@@ -182,7 +193,8 @@ export const KNOWN = {
   item: ['id', 'name', 'quantity', 'equipped', 'requiresAttunement', 'attuned', 'weight', 'armor', 'acBonus', 'saveBonus', 'spellDcBonus', 'spellAttackBonus', 'abilityScores', 'saveDc', 'spellAttack', 'charges', 'activation', 'description', 'powers', 'tags', 'containerId', 'category'],
   container: ['id', 'name', 'icon', 'color', 'capacity', 'weightless', 'extradimensional', 'itemId'],
   category: ['id', 'name', 'icon', 'color'],
-  preferences: ['gear', 'money', 'play', 'maps'],
+  preferences: ['gear', 'money', 'play', 'maps', 'creatures'],
+  creaturePrefs: ['where', 'pinned', 'row', 'rolls', 'longRest', 'shortRest'],
   mapPrefs: ['size', 'names', 'hide'],
   moneyPrefs: ['coins'],
   playPrefs: ['attackOrder', 'phoneStart', 'editButtons'],
@@ -206,6 +218,10 @@ export const KNOWN = {
   recipePart: ['name', 'quantity'],
   recipeOutput: ['name', 'quantity', 'template'],
   playCounter: ['name'],
+  creature: ['id', 'name', 'kind', 'ac', 'hp', 'hitDice', 'speed', 'abilities', 'saves', 'initiative', ...CREATURE_TEXT_FIELDS, 'actions', 'extra', 'description', 'inPlay'],
+  creatureAction: ['id', 'name', 'activation', 'toHit', 'damage', 'damageBonus', 'damageType', 'saveDc', 'saveAbility', 'uses', 'description'],
+  creatureExtra: ['label', 'value'],
+  creatureInstance: ['id', 'label', 'hp', 'conditions', 'used', 'note'],
 } as const
 
 /**
@@ -407,6 +423,19 @@ export function checkUsed(c: Character, warnings: string[]) {
     counter(it.charges, `inventory.items[${i}].charges`, `"${it.name}"`)
     it.powers?.forEach((p, j) => counter(p.uses, `inventory.items[${i}].powers[${j}].uses`, `"${p.name}" of "${it.name}"`))
   })
+  // a creature in play: uses spent per action, against the stat block's maximum
+  c.creatures?.forEach((k, i) =>
+    k.inPlay?.forEach((inst, j) => {
+      if (!inst.used) return
+      for (const a of k.actions) {
+        const used = inst.used[a.id]
+        if (!a.uses || used === undefined) continue
+        const u = { ...a.uses, used }
+        counter(u, `creatures[${i}].inPlay[${j}]`, `"${a.name}" of "${k.name}"`)
+        inst.used[a.id] = u.used
+      }
+    }),
+  )
   const slots = spellSlots(c)
   c.spellcasting.slotsUsed.forEach((used, i) => {
     const max = (slots[i] ?? 0) + (c.spellcasting.bonusSlots?.[i] ?? 0)
@@ -1107,6 +1136,192 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     images.push(image)
   })
 
+  // ----- creatures (since 2026-10-11, added to schema 3; optional: a file without them is read as before) -----
+  const creatures: Creature[] = []
+  /** Creatures in play written without Hit Points: they get the stat block's, once the hero is read (its formula may name the hero's numbers). */
+  const hpFromBlock: { inst: CreatureInstance; creature: Creature }[] = []
+  const instanceIds = new Set<string>()
+  // a stat block prints "+10" and "−1": read as the numbers they are
+  const optFormula = (v: unknown, p: string): Formula | undefined => {
+    if (v === undefined || v === null || v === '') return undefined
+    if (typeof v === 'string' && /^[+−-]?\d+$/.test(v.trim())) return Number(v.trim().replace('−', '-'))
+    return r.formula(v, p, 0)
+  }
+  const conditionId = (v: unknown): string => {
+    const s = String(v ?? '').trim()
+    const srd = SRD_CONDITIONS.find((x) => x.id === s.toLowerCase() || x.name.toLowerCase() === s.toLowerCase())
+    return srd ? srd.id : s
+  }
+  r.arr(raw.creatures, 'creatures').forEach((k, i) => {
+    const p = `creatures[${i}]`
+    if (typeof k === 'string') k = { name: k }
+    if (!isObj(k)) return warnings.push(`${p}: expected an object, ignored.`)
+    let id = r.str(k.id, `${p}.id`).trim() || newId()
+    if (creatures.some((x) => x.id === id)) {
+      warnings.push(`${p}: the id "${id}" is used by another creature; this one got a new id.`)
+      id = newId()
+    }
+    const abRaw = isObj(k.abilities) ? k.abilities : {}
+    if (k.abilities !== undefined && !isObj(k.abilities)) warnings.push(`${p}.abilities: expected an object, using 10s.`)
+    const ab = {} as Record<Ability, number>
+    for (const a of ABILITIES) {
+      const long = Object.entries(ABILITY_ALIASES).find(([, v]) => v === a)![0]
+      ab[a] = Math.round(r.num(abRaw[a] ?? abRaw[long], `${p}.abilities.${a}`, 10, 1, 30))
+    }
+    const kind = r.str(k.kind, `${p}.kind`).trim()
+    const creature: Creature = {
+      id,
+      name: r.str(k.name, `${p}.name`).trim() || 'Creature',
+      ...(kind ? { kind } : {}),
+      ac: r.formula(k.ac, `${p}.ac`, 10),
+      hp: r.formula(k.hp, `${p}.hp`, 1),
+      speed: r.str(k.speed, `${p}.speed`).trim(),
+      abilities: ab,
+      actions: [],
+    }
+    if (k.hp === undefined || k.hp === null || k.hp === '') warnings.push(`${p}.hp: "${creature.name}" has no Hit Points; using 1.`)
+    const hitDice = r.str(k.hitDice, `${p}.hitDice`).trim()
+    if (hitDice) creature.hitDice = hitDice
+    if (k.saves !== undefined && k.saves !== null) {
+      if (!isObj(k.saves)) warnings.push(`${p}.saves: expected an object like { "str": 10, "con": 8 }, ignored.`)
+      else {
+        const saves: Partial<Record<Ability, number>> = {}
+        for (const [name, v] of Object.entries(k.saves)) {
+          const a = ability(name, `${p}.saves.${name}`)
+          if (a && v !== null && v !== '') saves[a] = Math.round(r.num(v, `${p}.saves.${a}`, 0, -20, 40))
+        }
+        // in the order of the abilities, whatever the order of the file
+        const ordered = Object.fromEntries(ABILITIES.filter((a) => saves[a] !== undefined).map((a) => [a, saves[a]!]))
+        if (Object.keys(ordered).length) creature.saves = ordered
+      }
+    }
+    if (k.initiative !== undefined && k.initiative !== null && k.initiative !== '') creature.initiative = Math.round(r.num(k.initiative, `${p}.initiative`, 0, -20, 40))
+    for (const f of CREATURE_TEXT_FIELDS) {
+      const v = r.str(k[f], `${p}.${f}`).trim()
+      if (v) creature[f] = v
+    }
+    // the actions are read after the text fields but stand in the object where they were declared (above)
+    r.arr(k.actions, `${p}.actions`).forEach((a, j) => {
+      const pp = `${p}.actions[${j}]`
+      if (typeof a === 'string') a = { name: a, activation: 'passive' }
+      if (!isObj(a)) return warnings.push(`${pp}: expected an object, ignored.`)
+      let aid = r.str(a.id, `${pp}.id`).trim() || newId()
+      if (creature.actions.some((x) => x.id === aid)) {
+        warnings.push(`${pp}: the id "${aid}" is used twice in this creature; this one got a new id.`)
+        aid = newId()
+      }
+      const act: CreatureAction = {
+        id: aid,
+        name: r.str(a.name, `${pp}.name`).trim() || 'Unnamed',
+        activation: r.oneOf(a.activation, ACTIVATIONS, `${pp}.activation`, 'action', { ...ACTIVATION_ALIASES, trait: 'passive', traits: 'passive', 'legendary action': 'special', legendary: 'special' }),
+        description: r.str(a.description, `${pp}.description`),
+      }
+      const toHit = optFormula(a.toHit, `${pp}.toHit`)
+      if (toHit !== undefined) act.toHit = toHit
+      const damage = r.str(a.damage, `${pp}.damage`).trim()
+      if (damage) act.damage = damage
+      const damageBonus = optFormula(a.damageBonus, `${pp}.damageBonus`)
+      if (damageBonus !== undefined && damageBonus !== 0) act.damageBonus = damageBonus
+      const damageType = r.str(a.damageType, `${pp}.damageType`).trim()
+      if (damageType) act.damageType = damageType
+      const saveDc = optFormula(a.saveDc, `${pp}.saveDc`)
+      if (saveDc !== undefined) act.saveDc = saveDc
+      if (a.saveAbility !== undefined && a.saveAbility !== null && a.saveAbility !== '') {
+        const sa = ability(a.saveAbility, `${pp}.saveAbility`)
+        if (sa) act.saveAbility = sa
+      }
+      const u = uses(a.uses, `${pp}.uses`)
+      if (u) {
+        if (u.used > 0) {
+          warnings.push(`${pp}.uses.used: ignored: what a creature has spent is kept per creature in play (inPlay[].used), not on the stat block.`)
+          u.used = 0
+        }
+        act.uses = u
+      }
+      keep(a, act, KNOWN.creatureAction, pp)
+      creature.actions.push(act)
+    })
+    if (k.extra !== undefined && k.extra !== null) {
+      const extra: CreatureField[] = []
+      // a list of { label, value }; an object { "Carries": "540 lb." } is read as the same thing
+      const list = isObj(k.extra) ? Object.entries(k.extra).map(([label, value]) => ({ label, value })) : r.arr(k.extra, `${p}.extra`)
+      list.forEach((x, j) => {
+        const pp = `${p}.extra[${j}]`
+        if (typeof x === 'string') x = { label: '', value: x }
+        if (!isObj(x)) return warnings.push(`${pp}: expected an object like { "label": "Carries", "value": "540 lb." }, ignored.`)
+        const line: CreatureField = { label: r.str(x.label, `${pp}.label`).trim(), value: r.str(x.value, `${pp}.value`).trim() }
+        if (!line.label && !line.value) return
+        keep(x, line, KNOWN.creatureExtra, pp)
+        extra.push(line)
+      })
+      if (extra.length) creature.extra = extra
+    }
+    const description = r.str(k.description, `${p}.description`)
+    if (description.trim()) creature.description = description
+    if (k.inPlay !== undefined && k.inPlay !== null) {
+      const inPlay: CreatureInstance[] = []
+      r.arr(k.inPlay, `${p}.inPlay`).forEach((x, j) => {
+        const pp = `${p}.inPlay[${j}]`
+        // "Burya" alone = a creature of that name at full Hit Points
+        if (typeof x === 'string' || typeof x === 'number') x = { label: String(x) }
+        if (!isObj(x)) return warnings.push(`${pp}: expected an object, ignored.`)
+        let iid = r.str(x.id, `${pp}.id`).trim() || newId()
+        if (instanceIds.has(iid)) {
+          warnings.push(`${pp}: the id "${iid}" is used by another creature in play; this one got a new id.`)
+          iid = newId()
+        }
+        instanceIds.add(iid)
+        const label = r.str(x.label, `${pp}.label`).trim()
+        const inst: CreatureInstance = { id: iid, ...(label ? { label } : {}), hp: { current: 0, max: 0, temp: 0 } }
+        // { current, max, temp }; a bare number = that many of that many; nothing = the stat block's (set below)
+        const hpObj = isObj(x.hp) ? x.hp : typeof x.hp === 'number' || (typeof x.hp === 'string' && x.hp.trim() !== '') ? { max: x.hp } : null
+        const given = (v: unknown) => v !== undefined && v !== null && v !== ''
+        if (hpObj && given(hpObj.max)) {
+          const max = Math.round(r.num(hpObj.max, `${pp}.hp.max`, 1, 1))
+          inst.hp = { current: Math.round(r.num(hpObj.current, `${pp}.hp.current`, max, 0, max)), max, temp: Math.round(r.num(hpObj.temp, `${pp}.hp.temp`, 0, 0)) }
+        } else {
+          // the maximum comes from the stat block; a current written without it is kept, up to that maximum
+          inst.hp = { current: hpObj && given(hpObj.current) ? Math.round(r.num(hpObj.current, `${pp}.hp.current`, 0, 0)) : -1, max: 0, temp: hpObj ? Math.round(r.num(hpObj.temp, `${pp}.hp.temp`, 0, 0)) : 0 }
+          hpFromBlock.push({ inst, creature })
+        }
+        if (isObj(x.hp)) keep(x.hp, inst.hp, KNOWN.hp, `${pp}.hp`)
+        const conds = [...new Set(r.arr(x.conditions, `${pp}.conditions`).map(conditionId).filter(Boolean))]
+        if (conds.length) inst.conditions = conds
+        if (x.used !== undefined && x.used !== null) {
+          if (!isObj(x.used)) warnings.push(`${pp}.used: expected an object like { "Breath": 1 } (uses spent, by action), ignored.`)
+          else {
+            const used: Record<string, number> = {}
+            for (const [key, v] of Object.entries(x.used)) {
+              let act = creature.actions.find((a) => a.id === key)
+              if (!act) {
+                const named = creature.actions.filter((a) => normName(a.name) === normName(key))
+                if (named.length === 1) act = named[0]
+              }
+              if (!act) {
+                warnings.push(`${pp}.used: "${key}" is not an action of "${creature.name}"; ignored.`)
+                continue
+              }
+              if (!act.uses) {
+                warnings.push(`${pp}.used: "${act.name}" has no limit (uses) on the stat block; ignored.`)
+                continue
+              }
+              const n = Math.round(r.num(v, `${pp}.used.${key}`, 0, 0))
+              if (n > 0) used[act.id] = n
+            }
+            if (Object.keys(used).length) inst.used = used
+          }
+        }
+        const note = r.str(x.note, `${pp}.note`)
+        if (note.trim()) inst.note = note
+        keep(x, inst, KNOWN.creatureInstance, pp)
+        inPlay.push(inst)
+      })
+      if (inPlay.length) creature.inPlay = inPlay
+    }
+    keep(k, creature, KNOWN.creature, p)
+    creatures.push(creature)
+  })
+
   // ----- recipes and counters in Play (crafting; since 2026-10-01, added to schema 3) -----
   /** A recipe input or output: an item name and an amount above 0. "Herb" alone = 1 Herb. */
   const readPart = (v: unknown, p: string): RecipePart | undefined => {
@@ -1264,6 +1479,34 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     keep(mapPrefRaw, m, KNOWN.mapPrefs, 'preferences.maps')
     if (Object.keys(m).length) preferences.maps = m
   }
+  const creaturePrefRaw = prefGroup('creatures')
+  if (creaturePrefRaw) {
+    const m: CreaturePrefs = {}
+    const has = (v: unknown) => v !== undefined && v !== null && v !== ''
+    // every default is read, not written
+    const where = r.oneOf(creaturePrefRaw.where, CREATURE_PLACES, 'preferences.creatures.where', DEFAULT_CREATURE_PREFS.where)
+    if (where !== DEFAULT_CREATURE_PREFS.where) m.where = where
+    if (has(creaturePrefRaw.pinned)) {
+      const listed = [...new Set(r.arr(creaturePrefRaw.pinned, 'preferences.creatures.pinned').map((x) => String(x).trim()))]
+      const gone = listed.filter((x) => !instanceIds.has(x))
+      if (gone.length) warnings.push(`preferences.creatures.pinned: ${gone.map((x) => `"${x}"`).join(', ')} not a creature in play; removed from the list.`)
+      m.pinned = listed.filter((x) => instanceIds.has(x))
+    }
+    if (has(creaturePrefRaw.row)) {
+      const listed = r.arr(creaturePrefRaw.row, 'preferences.creatures.row').map((x) => String(x).toLowerCase().trim())
+      const bad = listed.filter((x) => !(CREATURE_ROW_FIELDS as readonly string[]).includes(x))
+      if (bad.length) warnings.push(`preferences.creatures.row: ${bad.map((x) => `"${x}"`).join(', ')} not one of ${CREATURE_ROW_FIELDS.join(', ')}; ignored.`)
+      const row = CREATURE_ROW_FIELDS.filter((f) => listed.includes(f))
+      if (row.join() !== DEFAULT_CREATURE_PREFS.row.join()) m.row = row
+    }
+    if (has(creaturePrefRaw.rolls) && !r.bool(creaturePrefRaw.rolls, true)) m.rolls = false
+    const longRest = r.oneOf(creaturePrefRaw.longRest, CREATURE_LONG_RESTS, 'preferences.creatures.longRest', DEFAULT_CREATURE_PREFS.longRest, { all: 'full', hp: 'full', counters: 'uses', nothing: 'none' })
+    if (longRest !== DEFAULT_CREATURE_PREFS.longRest) m.longRest = longRest
+    const shortRest = r.oneOf(creaturePrefRaw.shortRest, CREATURE_SHORT_RESTS, 'preferences.creatures.shortRest', DEFAULT_CREATURE_PREFS.shortRest, { counters: 'uses', nothing: 'none' })
+    if (shortRest !== DEFAULT_CREATURE_PREFS.shortRest) m.shortRest = shortRest
+    keep(creaturePrefRaw, m, KNOWN.creaturePrefs, 'preferences.creatures')
+    if (Object.keys(m).length) preferences.creatures = m
+  }
   keep(prefRaw, preferences, KNOWN.preferences, 'preferences')
 
   const conditions = r
@@ -1328,6 +1571,8 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
     timers,
     // optional: written only when there are images, so a file without them is unchanged
     ...(images.length ? { images } : {}),
+    // optional: written only when there are creatures, so a file without them is unchanged
+    ...(creatures.length ? { creatures } : {}),
     recipes,
     playCounters,
     preferences,
@@ -1340,7 +1585,14 @@ export function normalizeCharacter(input: unknown): NormalizeResult {
   keep(dsRaw, character.combat.deathSaves, KNOWN.deathSaves, 'combat.deathSaves')
   keep(invRaw, character.inventory, KNOWN.inventory, 'inventory')
   keep(raw, character, KNOWN.top, '')
+  // creatures in play written without Hit Points get the stat block's (the formula may name the hero's numbers)
+  for (const { inst, creature } of hpFromBlock) {
+    const max = creatureHpMax(character, creature)
+    inst.hp = { ...inst.hp, max, current: inst.hp.current < 0 ? max : Math.min(inst.hp.current, max) }
+  }
   checkUsed(character, warnings)
+  // one fixed order of fields, empty optional ones left out: what the app itself writes (creatures.ts)
+  if (character.creatures) character.creatures = character.creatures.map(tidyCreature)
   return { character, warnings, imageData, imagesInFile: raw.images !== undefined }
 }
 

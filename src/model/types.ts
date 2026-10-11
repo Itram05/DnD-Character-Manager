@@ -520,6 +520,126 @@ export interface PlayCounter {
 
 export type ExhaustionRules = '2014' | '2024'
 
+// ---------------- creatures (since 2026-10-11): mounts, familiars, summoned and led creatures ----------------
+// A creature is a STAT BLOCK written once (the template), and the creatures of that kind that are in the game
+// right now are a list inside it (`inPlay`), each with its own Hit Points, conditions and spent uses. Three
+// mammoths = one stat block and three entries in `inPlay`; a stat block with nothing in play is kept for later.
+// Nothing of a stat block is worked out from an edition's rules: every number is typed (or copied) and can be
+// changed, because tables play 2014, 2024 and their own mixes.
+
+/** One line of a stat block: a trait, an action, a bonus action, a reaction. Its numbers are the stat block's own, not worked out from the hero. */
+export interface CreatureAction {
+  id: string
+  name: string
+  /** `passive` = a trait (always on); the others say what using it takes, as for the hero's features. */
+  activation: Activation
+  /** The attack bonus as printed ("+10" is 10). A number, or a formula (the names of the hero's formulas). Absent = not an attack roll. */
+  toHit?: Formula
+  /** Damage dice, as for the hero's attacks: "2d10". Absent = no damage line. */
+  damage?: string
+  /** Added to the damage dice: 7 for "2d10 + 7". A number or a formula. */
+  damageBonus?: Formula
+  damageType?: string
+  /** The DC of the saving throw it forces, and the ability the target rolls. */
+  saveDc?: Formula
+  saveAbility?: Ability
+  /**
+   * A limit: "3/Day" = { max: 3, recharge: "long" }; "Recharge 5-6" = { max: 1, recharge: "other", note: "Recharge 5-6" }.
+   * How many are SPENT is kept per creature in play (CreatureInstance.used), so `used` here is always 0.
+   */
+  uses?: Uses
+  /** The full text of the line. */
+  description: string
+}
+
+/** A line of the player's own on a stat block ("Carries": "540 lb.", "Saddle": "exotic, 60 gp"): whatever the fixed fields have no place for. */
+export interface CreatureField {
+  label: string
+  value: string
+}
+
+/** One creature in the game, made from its stat block. */
+export interface CreatureInstance {
+  id: string
+  /** What tells it from the others of its kind: a name ("Burya") or a number ("2"). Absent = shown by the stat block's name alone. */
+  label?: string
+  /** `max` is a plain number, set from the stat block when the creature is put in play and then its own (the GM may have rolled another). */
+  hp: { current: number; max: number; temp: number }
+  /** Condition ids of the SRD ("prone"), or any text of the player's own ("mounted"). Absent = none. */
+  conditions?: string[]
+  /** Uses spent, by the id of the action (CreatureAction.id). Absent = nothing spent. */
+  used?: Record<string, number>
+  /** The player's note on this one creature. */
+  note?: string
+}
+
+/** A stat block, and the creatures of that kind in play. */
+export interface Creature {
+  id: string
+  name: string
+  /** The line under the name: "Huge Beast, Unaligned". */
+  kind?: string
+  /** Armor Class: a number, or a formula. */
+  ac: Formula
+  /** Hit Points of a new creature of this kind: a number, or a formula. */
+  hp: Formula
+  /** The dice behind the Hit Points, shown only: "11d12 + 55". */
+  hitDice?: string
+  /** Text, as printed: "50 ft.", "30 ft., Fly 60 ft.". Nothing is worked out from it. */
+  speed: string
+  abilities: Record<Ability, number>
+  /** Saving throw bonuses that differ from the ability modifier: Mammoth { str: 10, con: 8 }. Absent = the modifier. */
+  saves?: Partial<Record<Ability, number>>
+  /** The Initiative bonus when the stat block gives one. Absent = the Dexterity modifier. */
+  initiative?: number
+  /** Shown only, each as printed. */
+  skills?: string
+  vulnerabilities?: string
+  resistances?: string
+  immunities?: string
+  senses?: string
+  languages?: string
+  /** "6 (XP 2,300; PB +3)". */
+  cr?: string
+  /** Traits, actions, bonus actions, reactions: one list, told apart by `activation`. */
+  actions: CreatureAction[]
+  /** The player's own lines. Absent = none. */
+  extra?: CreatureField[]
+  /** Notes on the stat block: where it is from, what the table changed. */
+  description?: string
+  /** The creatures of this kind in the game now. Absent = none (the stat block is kept for later). */
+  inPlay?: CreatureInstance[]
+}
+
+/** The text fields of a stat block that are only shown, in the order a stat block prints them. */
+export const CREATURE_TEXT_FIELDS = ['skills', 'vulnerabilities', 'resistances', 'immunities', 'senses', 'languages', 'cr'] as const
+export type CreatureTextField = (typeof CREATURE_TEXT_FIELDS)[number]
+
+export const CREATURE_PLACES = ['both', 'play', 'tab'] as const
+export type CreaturePlace = (typeof CREATURE_PLACES)[number]
+export const CREATURE_ROW_FIELDS = ['bar', 'ac', 'speed', 'attack', 'conditions', 'uses', 'note'] as const
+export type CreatureRowField = (typeof CREATURE_ROW_FIELDS)[number]
+export const CREATURE_LONG_RESTS = ['full', 'uses', 'none'] as const
+export type CreatureLongRest = (typeof CREATURE_LONG_RESTS)[number]
+export const CREATURE_SHORT_RESTS = ['uses', 'none'] as const
+export type CreatureShortRest = (typeof CREATURE_SHORT_RESTS)[number]
+
+/** The player's choices for creatures. Every field is optional: absent = the default (creatures.ts). */
+export interface CreaturePrefs {
+  /** Where creatures are: a section of Play and a tab of their own ("both", default), only the section ("play"), only the tab ("tab"). */
+  where?: CreaturePlace
+  /** The creatures in play (CreatureInstance.id) that the Play section shows. Absent = all of them. */
+  pinned?: string[]
+  /** What a creature's folded row shows, of CREATURE_ROW_FIELDS. Absent = the bar, AC, speed, the first attack and the conditions. */
+  row?: CreatureRowField[]
+  /** A Roll button on attacks and damage. Absent = shown. */
+  rolls?: boolean
+  /** The hero's Long Rest for the creatures in play: "full" = Hit Points and uses (default), "uses" = uses only, "none" = nothing. */
+  longRest?: CreatureLongRest
+  /** The hero's Short Rest for the creatures in play: "uses" = uses that come back on a Short Rest (default), "none" = nothing. */
+  shortRest?: CreatureShortRest
+}
+
 export interface Character {
   schemaVersion: number
   id: string
@@ -594,11 +714,13 @@ export interface Character {
   timers: DayTimer[]
   /** Maps and other pictures, in the order shown. Absent when there are none. See CharacterImage. */
   images?: CharacterImage[]
+  /** Stat blocks of creatures the hero leads, rides or summons, each with the ones in play. Absent when there are none. See Creature. */
+  creatures?: Creature[]
   /** The player's crafting recipes (none are built in). */
   recipes: Recipe[]
   /** Items pinned as counters in Play, in the order shown. */
   playCounters: PlayCounter[]
   /** The player's choices for how the sheet looks, per character. */
-  preferences: { gear: GearPrefs; money?: MoneyPrefs; play?: PlayPrefs; maps?: MapPrefs }
+  preferences: { gear: GearPrefs; money?: MoneyPrefs; play?: PlayPrefs; maps?: MapPrefs; creatures?: CreaturePrefs }
   updatedAt: string
 }
