@@ -9,6 +9,7 @@ import {
   CONTAINER_PRESETS,
   canMerge,
   carriedWeight,
+  formatWeight,
   containerForItem,
   containerOf,
   contentsWeight,
@@ -34,7 +35,7 @@ import { GEAR_GROUPINGS, GEAR_SHOW_FIELDS, type Container, type GearPrefs, type 
 import { Check, Confirm, Modal, NumberField, Select, TextField } from './common'
 import type { SheetApi } from './Sheet'
 
-const lb = (n: number) => String(Math.round(n * 100) / 100)
+const lb = formatWeight
 export const boxLabel = (k: { name: string; icon?: string }) => (k.icon ? `${k.icon} ${k.name}` : k.name)
 
 export function ContainersPanel({ api }: { api: SheetApi }) {

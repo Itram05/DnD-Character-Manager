@@ -18,6 +18,13 @@ export const DEFAULT_CONTAINER: Container = { id: 'backpack', name: 'Backpack', 
 /** Weights are lb with fractions (0.5, 0.075): sums are rounded to 1/1000 so 0.1 + 0.2 shows as 0.3. */
 export const roundWeight = (n: number) => Math.round(n * 1000) / 1000
 
+/**
+ * A weight as every place on the Gear tab shows it: at most two decimals, none when it is whole ("12", "0.25",
+ * "36.5"). One function on purpose: until 2026-10-11 the item rows, the containers and the total each rounded
+ * their own way, so the same weight could read 0.125, 0.13 and 0.1 on one screen.
+ */
+export const formatWeight = (n: number) => String(Math.round(n * 100) / 100)
+
 export const itemWeight = (i: Pick<Item, 'weight' | 'quantity'>) => roundWeight((i.weight ?? 0) * Math.max(0, i.quantity))
 
 type Inv = Pick<Character, 'inventory'>

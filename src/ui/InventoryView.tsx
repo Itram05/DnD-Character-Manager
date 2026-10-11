@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { t } from '../i18n'
 import { itemCategory } from '../model/categories'
-import { carriedWeight, itemWeight, itemsIn } from '../model/containers'
+import { carriedWeight, formatWeight, itemWeight, itemsIn } from '../model/containers'
 import { isPinned, togglePin } from '../model/crafting'
 import { playHiddenReason } from '../model/itemPanel'
 import { MAX_ATTUNED, attunedCount, setAttunement, usesMax } from '../model/rules'
@@ -62,7 +62,7 @@ export function InventoryView({ api }: { api: SheetApi }) {
             {i.name}
           </button>
           {show.quantity && i.quantity !== 1 && <span className="qty">×{i.quantity}</span>}
-          {show.weight && i.weight ? <span className="muted item-weight">{t('box.lb', { n: itemWeight(i) })}</span> : null}
+          {show.weight && i.weight ? <span className="muted item-weight">{t('box.lb', { n: formatWeight(itemWeight(i)) })}</span> : null}
           {bag && <span className="tag">{t('box.isBag', { name: bag.name, n: itemsIn(c, bag.id).length })}</span>}
           {show.tags && (
             <>
@@ -183,7 +183,7 @@ export function InventoryView({ api }: { api: SheetApi }) {
             <ul className="item-rows">{g.items.map(row)}</ul>
           </div>
         ))}
-        <p className="muted">{t('inv.weight', { n: Math.round(carriedWeight(c) * 10) / 10 })}</p>
+        <p className="muted">{t('inv.weight', { n: formatWeight(carriedWeight(c)) })}</p>
       </section>
       <CraftingPanel api={api} />
       {edit && <ItemEditor api={api} initial={edit} onClose={() => setEdit(null)} />}
