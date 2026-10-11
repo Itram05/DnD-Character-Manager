@@ -13,7 +13,7 @@ export function groupTitle(k: PlayKind, cards: CardFace[]): string {
   return hasScroll && hasPotion ? t('kind.scrollPotion') : hasPotion ? t('kind.potion') : t('kind.scroll')
 }
 
-/** DOM id of a Play section: a panel ("mana", "conc", "field", "res", "counters", "items"), a hand, or a kind inside a hand. */
+/** DOM id of a Play section: a panel ("mana", "conc", "field", "res", "creatures", "counters", "items"), a hand, or a kind inside a hand. */
 export const sectionId = (part: string, kind?: PlayKind) => `play-${part}${kind ? `-${kind}` : ''}`
 
 /** One hand as shown: its cards after the filter, split by kind unless a single kind is selected. */
@@ -40,10 +40,12 @@ export function playHands(zones: Zone[], cards: CardFace[], grouped: boolean): H
  * play) right before the hands.
  * The day timers are not here: they live at the top of the Story tab (not for the fight).
  */
-export function playSections(p: { mana: boolean; passives: number; counters?: number; items?: number; hands: HandView[]; passivesFirst: boolean; resources?: boolean }): NavSection[] {
+export function playSections(p: { mana: boolean; passives: number; counters?: number; /** Creatures in play shown here; undefined = the section is not on the screen (0 = it is, empty). */ creatures?: number; items?: number; hands: HandView[]; passivesFirst: boolean; resources?: boolean }): NavSection[] {
   // the Items section (ItemsSection.tsx) sits between the top panels and the hands, on both widths
   // the pinned counters (CountersSection.tsx) sit right under the top panels
   const counters: NavSection[] = p.counters ? [{ id: sectionId('counters'), label: t('counter.title'), n: p.counters }] : []
+  // the creatures (Creatures.tsx) come first of the three: Hit Points are what a fight asks for most
+  const creatures: NavSection[] = p.creatures !== undefined ? [{ id: sectionId('creatures'), label: t('creature.title'), n: p.creatures }] : []
   const items: NavSection[] = p.items ? [{ id: sectionId('items'), label: t('items.title'), n: p.items }] : []
   const field: NavSection[] = p.passives > 0 ? [{ id: sectionId('field'), label: t('play.battlefield'), n: p.passives }] : []
   const hands = p.hands
@@ -58,6 +60,7 @@ export function playSections(p: { mana: boolean; passives: number; counters?: nu
   return [
     ...top,
     ...(p.passivesFirst ? field : []),
+    ...creatures,
     ...counters,
     ...items,
     ...hands,

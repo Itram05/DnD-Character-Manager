@@ -7,6 +7,7 @@ import { normalizeCharacter } from '../model/normalize'
 import type { Character } from '../model/types'
 import { CreatureEditor } from './CreatureEditor'
 import { CreaturePanel, CreaturesSection, CreaturesView, hpTone } from './Creatures'
+import { PlayView } from './PlayView'
 import type { SheetApi } from './Sheet'
 import { shownTabs } from './Sheet'
 import { StatBlock, actionLine, rollToast } from './StatBlock'
@@ -175,6 +176,15 @@ describe('the Creatures section of Play', () => {
     expect(section(setCreaturePref(c, 'where', 'tab'), true)).toBe('')
     expect(section(none, true)).toBe('')
     expect(strip(section(setCreaturePref(none, 'where', 'play'), true))).toBe('Creatures (0) + Add No creature in play. "Add" has your stat blocks.')
+  })
+  it('is on the Play screen and in its list of sections, before the items', () => {
+    const html = onComputer(() => renderToString(<PlayView api={api(c)} />))
+    expect(html).toContain('id="play-creatures"')
+    expect(strip(html)).toContain('Creatures (2)')
+    // and in the list of the screen's sections, right after the top panels
+    expect(strip(html)).toMatch(/On this screen Spell slots Concentration Creatures 2/)
+    const without = onComputer(() => renderToString(<PlayView api={api(hero({ creatures: [] }))} />))
+    expect(without).not.toContain('play-creatures')
   })
 })
 

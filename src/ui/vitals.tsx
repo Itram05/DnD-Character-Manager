@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { SRD_CONDITIONS } from '../data/srd'
 import { t } from '../i18n'
+import { creaturePrefs, creaturesInPlay } from '../model/creatures'
 import { adjustHitDice, hitDiceAvailable, longRest, shortRest, spendHitDie } from '../model/rest'
 import {
   abilityMod,
@@ -428,6 +429,9 @@ function RestModal({ api, kind, onClose }: { api: SheetApi; kind: 'short' | 'lon
   const [dawn, setDawn] = useState(kind === 'long')
   const [healedLog, setHealedLog] = useState<string[]>([])
   const avail = hitDiceAvailable(c)
+  // what this rest does for the creatures in play (preferences.creatures); nothing to say when there are none
+  const creatureRest = creaturesInPlay(c).length ? (kind === 'long' ? creaturePrefs(c).longRest : creaturePrefs(c).shortRest) : 'none'
+  const creatureLine = creatureRest === 'none' ? null : t('rest.long.creatures', { what: t(`rest.creatures.${creatureRest}`) })
 
   const finish = () => {
     const r = kind === 'short' ? shortRest(c, { dawn }) : longRest(c, { dawn })
@@ -468,6 +472,7 @@ function RestModal({ api, kind, onClose }: { api: SheetApi; kind: 'short' | 'lon
           {Object.entries(avail).map(([die, left]) => (
             <HitDieSpend key={die} api={api} die={die} left={left} onSpent={(line) => setHealedLog((l) => [...l, line])} />
           ))}
+          {creatureLine && <p className="hint">{creatureLine}</p>}
           {healedLog.length > 0 && (
             <ul className="log">
               {healedLog.map((l, i) => (
@@ -486,6 +491,7 @@ function RestModal({ api, kind, onClose }: { api: SheetApi; kind: 'short' | 'lon
             <li>{t('rest.long.features')}</li>
             <li>{t('rest.long.exhaustion')}</li>
             <li>{t('rest.long.temp')}</li>
+            {creatureLine && <li>{creatureLine}</li>}
             {c.timers.some((x) => x.days > 0) && (
               <li>
                 {t('rest.long.days', {

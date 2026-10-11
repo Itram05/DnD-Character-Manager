@@ -41,6 +41,8 @@ import { SIDE_NAV_SIDE, SectionNavMenu, SectionNavSide } from './SectionNav'
 import { ResourcesBlock } from './ResourcesBlock'
 import { ItemPanel, ItemsSection } from './ItemsSection'
 import { CountersSection } from './CountersSection'
+import { CreaturesSection } from './Creatures'
+import { creaturePrefs, creaturesShownInPlay } from '../model/creatures'
 import { itemPanel, itemTiles } from '../model/itemPanel'
 import { groupTitle, playHands, playSections, sectionId } from './playSections'
 import { EditMark, SectionEditor, zoneActivation, type EntryRef, type SectionSpec } from './SectionEdit'
@@ -174,7 +176,11 @@ export function PlayView({ api }: { api: SheetApi }) {
 
   const zonesToShow: Zone[] = selectedZones(filter)
   const hands = playHands(zonesToShow, cards, kinds.length !== 1)
-  const sections = playSections({ mana: mana.length > 0 || !!sp, passives: passives.length, counters: c.playCounters.length, items: tiles.length, hands, passivesFirst: wide, resources: !wide })
+  // the Creatures section: as the hero's preference says (Creatures.tsx has the same rule)
+  const creaturesWhere = creaturePrefs(c).where
+  const creaturesShown = creaturesShownInPlay(c).length
+  const creaturesOnPlay = creaturesWhere === 'play' || (creaturesWhere === 'both' && creaturesShown > 0)
+  const sections = playSections({ mana: mana.length > 0 || !!sp, passives: passives.length, counters: c.playCounters.length, creatures: creaturesOnPlay ? creaturesShown : undefined, items: tiles.length, hands, passivesFirst: wide, resources: !wide })
 
   // ----- what each section's Edit window holds -----
   /** What a card is edited as: itself, or (a power, a scroll, a potion) its item. */
@@ -376,6 +382,8 @@ export function PlayView({ api }: { api: SheetApi }) {
             {resourcePanels(true)}
           </ResourcesBlock>
         )}
+
+        <CreaturesSection api={api} id={sectionId('creatures')} />
 
         <CountersSection
           api={api}
